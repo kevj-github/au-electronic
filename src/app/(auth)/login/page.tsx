@@ -31,6 +31,7 @@ export default function LoginPage() {
 
     router.push('/pesanan')
     router.refresh()
+    setLoading(false)
   }
 
   return (
