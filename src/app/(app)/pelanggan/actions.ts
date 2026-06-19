@@ -3,9 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { requireOwner } from '@/lib/supabase/require-owner'
 
 export async function upsertPelanggan(formData: FormData) {
   const supabase = await createClient()
+
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
 
   const id = formData.get('id') as string | null
   const nama = formData.get('nama') as string
