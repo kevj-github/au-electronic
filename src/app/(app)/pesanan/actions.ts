@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { requireOwner } from '@/lib/supabase/require-owner'
-import type { StatusPesanan, TipeDokumen } from '@/lib/types'
+import type { StatusPesanan, TipeDokumen, User } from '@/lib/types'
 
 export interface LineItemInput {
   qty: number
@@ -87,8 +86,9 @@ export async function updateStatusPesanan(pesananId: string, status: StatusPesan
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const ownerError = await requireOwner(supabase)
-  if (ownerError) return { error: 'Hanya pemilik yang bisa mengubah status.' }
+  const { data: user } = await supabase
+    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
+  if (user?.role !== 'owner') return { error: 'Hanya pemilik yang bisa mengubah status.' }
 
   const { error } = await supabase
     .from('pesanan')
