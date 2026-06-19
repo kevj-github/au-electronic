@@ -88,7 +88,7 @@ export async function updateStatusPesanan(pesananId: string, status: StatusPesan
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
   const ownerError = await requireOwner(supabase)
-  if (ownerError) return ownerError
+  if (ownerError) return { error: 'Hanya pemilik yang bisa mengubah status.' }
 
   const { error } = await supabase
     .from('pesanan')
