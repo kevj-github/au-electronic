@@ -1,3 +1,5 @@
+import type { TipeDokumen } from '@/lib/types'
+
 export interface InvoiceItem {
   namaProduk: string
   qty: number
@@ -11,7 +13,7 @@ export interface InvoiceData {
   tanggal: string              // ISO date string
   namaPelanggan: string
   alamatPelanggan?: string
-  tipeDokumen: 'invoice' | 'nota'
+  tipeDokumen: TipeDokumen
   items: InvoiceItem[]
   totalPesanan: number
   totalDibayar: number

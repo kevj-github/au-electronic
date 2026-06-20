@@ -15,7 +15,7 @@ export function formatWhatsapp(data: InvoiceData): string {
 
   const pembayaranLine =
     data.sisaTagihan <= 0
-      ? `*Lunas*`
+      ? '*Lunas*'
       : `Dibayar: ${formatRupiah(data.totalDibayar)}\n*Sisa: ${formatRupiah(data.sisaTagihan)}*`
 
   const catatanLine = data.catatan ? `\nCatatan: ${data.catatan}` : ''
