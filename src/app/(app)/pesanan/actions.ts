@@ -41,6 +41,28 @@ export async function createPesanan(input: CreatePesananInput) {
     return { error: 'Tambahkan minimal satu produk.' }
   }
 
+  const { data: user } = await supabase
+    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
+  const isOwner = user?.role === 'owner'
+
+  // Helpers cannot set their own harga_satuan — RLS only restricts pesanan
+  // ownership, not this field, so re-price from produk.harga_dasar here.
+  let items = input.items
+  if (!isOwner) {
+    const { data: produkList, error: produkError } = await supabase
+      .from('produk')
+      .select('id, harga_dasar')
+      .in('id', input.items.map((item) => item.produk_id))
+      .returns<Array<{ id: string; harga_dasar: number }>>()
+    if (produkError) return { error: produkError.message }
+
+    const hargaMap = new Map(produkList.map((p) => [p.id, p.harga_dasar]))
+    items = input.items.map((item) => ({
+      ...item,
+      harga_satuan: hargaMap.get(item.produk_id) ?? item.harga_satuan,
+    }))
+  }
+
   const { data: kodeData, error: kodeError } = await supabase
     .rpc('next_kode_pesanan', { p_tipe: input.tipe_dokumen })
   if (kodeError) return { error: kodeError.message }
@@ -64,7 +86,7 @@ export async function createPesanan(input: CreatePesananInput) {
   const { error: itemsError } = await supabase
     .from('item_pesanan')
     .insert(
-      input.items.map((item) => ({
+      items.map((item) => ({
         pesanan_id: pesanan.id,
         produk_id: item.produk_id,
         qty: item.qty,
