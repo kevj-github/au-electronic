@@ -57,9 +57,13 @@ export async function createPesanan(input: CreatePesananInput) {
     if (produkError) return { error: produkError.message }
 
     const hargaMap = new Map(produkList.map((p) => [p.id, p.harga_dasar]))
+    if (input.items.some((item) => !hargaMap.has(item.produk_id))) {
+      return { error: 'Salah satu produk tidak ditemukan.' }
+    }
+
     items = input.items.map((item) => ({
       ...item,
-      harga_satuan: hargaMap.get(item.produk_id) ?? item.harga_satuan,
+      harga_satuan: hargaMap.get(item.produk_id)!,
     }))
   }
 
