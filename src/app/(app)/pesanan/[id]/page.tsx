@@ -1,8 +1,8 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { StatusBadge } from '@/components/pesanan/StatusBadge'
+import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionButtons'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
-import { updateStatusPesanan } from '../actions'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
@@ -73,26 +73,15 @@ export default async function PesananDetailPage({
             {format(new Date(pesanan.created_at), 'd MMMM yyyy', { locale: idLocale })}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div>
           {/* Status transitions — owner only */}
-          {isOwner &&
-            nextStatuses.map((next) => (
-              <form
-                key={next}
-                action={async () => {
-                  'use server'
-                  await updateStatusPesanan(pesanan.id, next)
-                }}
-              >
-                <Button
-                  type="submit"
-                  variant={next === 'dibatalkan' ? 'destructive' : 'default'}
-                  size="sm"
-                >
-                  {statusLabel[next]}
-                </Button>
-              </form>
-            ))}
+          {isOwner && (
+            <StatusTransitionButtons
+              pesananId={pesanan.id}
+              nextStatuses={nextStatuses}
+              statusLabel={statusLabel}
+            />
+          )}
         </div>
       </div>
 
