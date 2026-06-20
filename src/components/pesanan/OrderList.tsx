@@ -5,7 +5,7 @@ import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
 import type { Pesanan, ItemPesanan, Pembayaran } from '@/lib/types'
 
-type PesananWithRelations = Pesanan & {
+export type PesananWithRelations = Pesanan & {
   items: Pick<ItemPesanan, 'subtotal'>[]
   pembayaran: Pick<Pembayaran, 'jumlah'>[]
 }

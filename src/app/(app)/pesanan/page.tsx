@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { OrderList } from '@/components/pesanan/OrderList'
+import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import { Button } from '@/components/ui/button'
 
 export default async function PesananPage() {
@@ -18,6 +18,7 @@ export default async function PesananPage() {
       pembayaran(jumlah)
     `)
     .order('created_at', { ascending: false })
+    .returns<PesananWithRelations[]>()
 
   return (
     <div className="space-y-4">
