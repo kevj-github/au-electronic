@@ -36,6 +36,7 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove }: OrderLineIt
           min="1"
           value={item.qty}
           onChange={(e) => onChange(item.id, { qty: Number(e.target.value) })}
+          aria-label={`Qty ${item.produk.nama}`}
           className="h-8 text-right"
         />
       </td>
@@ -46,6 +47,7 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove }: OrderLineIt
           value={item.harga_satuan}
           onChange={(e) => onChange(item.id, { harga_satuan: Number(e.target.value) })}
           disabled={!isOwner}
+          aria-label={`Harga satuan ${item.produk.nama}`}
           className="h-8 text-right font-mono"
         />
         {!isOwner && (
@@ -64,6 +66,7 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove }: OrderLineIt
           size="sm"
           className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
           onClick={() => onRemove(item.id)}
+          aria-label={`Hapus ${item.produk.nama}`}
         >
           ✕
         </Button>
