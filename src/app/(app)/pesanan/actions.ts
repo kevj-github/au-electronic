@@ -10,7 +10,8 @@ export interface CreatePesananInput {
   tipe_dokumen: TipeDokumen
   catatan: string | null
   items: Array<{
-    produk_id: string
+    produk_id: string | null
+    nama_custom: string | null
     qty: number
     harga_satuan: number
     diskon: number
@@ -37,23 +38,30 @@ export async function createPesanan(input: CreatePesananInput) {
 
   // Helpers cannot set their own harga_satuan — RLS only restricts pesanan
   // ownership, not this field, so re-price from produk.harga_dasar here.
+  // Custom (off-catalog) items have no harga_dasar to re-price against, so
+  // only owners may add them.
   let items = input.items
   if (!isOwner) {
+    const customItem = input.items.find((item) => !item.produk_id)
+    if (customItem) {
+      return { error: 'Hanya pemilik yang dapat menambahkan produk di luar katalog.' }
+    }
+
     const { data: produkList, error: produkError } = await supabase
       .from('produk')
       .select('id, harga_dasar')
-      .in('id', input.items.map((item) => item.produk_id))
+      .in('id', input.items.map((item) => item.produk_id as string))
       .returns<Array<{ id: string; harga_dasar: number }>>()
     if (produkError) return { error: produkError.message }
 
     const hargaMap = new Map(produkList.map((p) => [p.id, p.harga_dasar]))
-    if (input.items.some((item) => !hargaMap.has(item.produk_id))) {
+    if (input.items.some((item) => !hargaMap.has(item.produk_id as string))) {
       return { error: 'Salah satu produk tidak ditemukan.' }
     }
 
     items = input.items.map((item) => ({
       ...item,
-      harga_satuan: hargaMap.get(item.produk_id)!,
+      harga_satuan: hargaMap.get(item.produk_id as string)!,
       diskon: 0,
     }))
   }
@@ -84,6 +92,7 @@ export async function createPesanan(input: CreatePesananInput) {
       items.map((item) => ({
         pesanan_id: pesanan.id,
         produk_id: item.produk_id,
+        nama_custom: item.produk_id ? null : item.nama_custom,
         qty: item.qty,
         harga_satuan: item.harga_satuan,
         diskon: item.diskon,

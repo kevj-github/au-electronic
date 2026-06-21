@@ -1,21 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import dynamic from 'next/dynamic'
 import { pdf } from '@react-pdf/renderer'
+import { Printer, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatWhatsapp } from '@/components/invoice/whatsapp'
 import type { InvoiceData } from '@/lib/invoice-data'
-
-// Lazy-load PDF components to avoid SSR issues
-const InvoicePDF = dynamic(
-  () => import('@/components/invoice/InvoicePDF').then((m) => m.InvoicePDF),
-  { ssr: false }
-)
-const NotaPDF = dynamic(
-  () => import('@/components/invoice/NotaPDF').then((m) => m.NotaPDF),
-  { ssr: false }
-)
 
 interface DocumentButtonsProps {
   data: InvoiceData
@@ -35,7 +25,13 @@ export function DocumentButtons({ data }: DocumentButtonsProps) {
     }
     setPdfLoading(true)
     try {
-      const Component = data.tipeDokumen === 'invoice' ? InvoicePDF : NotaPDF
+      // Resolve the real component here (not via next/dynamic) — @react-pdf/renderer's
+      // pdf() uses its own non-DOM reconciler that doesn't support React.lazy/Suspense,
+      // so a next/dynamic-wrapped component renders as empty/broken output.
+      const Component =
+        data.tipeDokumen === 'invoice'
+          ? (await import('@/components/invoice/InvoicePDF')).InvoicePDF
+          : (await import('@/components/invoice/NotaPDF')).NotaPDF
       const blob = await pdf(<Component data={data} />).toBlob()
       const url = URL.createObjectURL(blob)
       newWindow.location.href = url
@@ -64,10 +60,12 @@ export function DocumentButtons({ data }: DocumentButtonsProps) {
     <div>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfLoading}>
-          {pdfLoading ? 'Memuat...' : data.tipeDokumen === 'invoice' ? '🖨 Cetak Invoice' : '🖨 Cetak Nota'}
+          <Printer className="size-4" />
+          {pdfLoading ? 'Memuat...' : data.tipeDokumen === 'invoice' ? 'Cetak Invoice' : 'Cetak Nota'}
         </Button>
         <Button variant="outline" size="sm" onClick={handleCopyWhatsapp}>
-          {copying ? '✓ Disalin!' : '📋 Copy WhatsApp'}
+          {copying ? <Check className="size-4" /> : <Copy className="size-4" />}
+          {copying ? 'Disalin!' : 'Copy WhatsApp'}
         </Button>
       </div>
       {error && <p className="text-sm text-red-500 mt-2">{error}</p>}

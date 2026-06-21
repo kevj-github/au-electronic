@@ -29,11 +29,11 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
   const [produkSearch, setProdukSearch] = useState('')
 
   function addProduk(produk: Produk) {
-    const existing = items.find((i) => i.produk.id === produk.id)
+    const existing = items.find((i) => i.produk?.id === produk.id)
     if (existing) {
       setItems((prev) =>
         prev.map((i) =>
-          i.produk.id === produk.id ? { ...i, qty: i.qty + 1 } : i
+          i.produk?.id === produk.id ? { ...i, qty: i.qty + 1 } : i
         )
       )
     } else {
@@ -42,6 +42,7 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
         {
           id: crypto.randomUUID(),
           produk,
+          nama_custom: '',
           qty: 1,
           harga_satuan: produk.harga_dasar,
           diskon: 0,
@@ -49,6 +50,22 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
         },
       ])
     }
+    setProdukSearch('')
+  }
+
+  function addProdukKustom(nama: string) {
+    setItems((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        produk: null,
+        nama_custom: nama,
+        qty: 1,
+        harga_satuan: 0,
+        diskon: 0,
+        catatan_item: '',
+      },
+    ])
     setProdukSearch('')
   }
 
@@ -82,7 +99,8 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
       tipe_dokumen: tipeDokumen,
       catatan: catatan || null,
       items: items.map((i) => ({
-        produk_id: i.produk.id,
+        produk_id: i.produk?.id ?? null,
+        nama_custom: i.produk ? null : i.nama_custom,
         qty: i.qty,
         harga_satuan: i.harga_satuan,
         diskon: i.diskon,
@@ -168,7 +186,7 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
             onChange={(e) => setProdukSearch(e.target.value)}
             placeholder="Cari dan tambah produk..."
           />
-          {filteredProduk.length > 0 && (
+          {produkSearch && (
             <div className="absolute top-full left-0 right-0 z-10 bg-white border rounded-md shadow-lg mt-1">
               {filteredProduk.map((p) => (
                 <button
@@ -183,6 +201,21 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
                   </span>
                 </button>
               ))}
+              {filteredProduk.length === 0 && (
+                isOwner ? (
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-blue-600"
+                    onClick={() => addProdukKustom(produkSearch)}
+                  >
+                    + Tambah &quot;{produkSearch}&quot; sebagai produk di luar katalog
+                  </button>
+                ) : (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">
+                    Produk tidak ditemukan. Hubungi pemilik untuk menambahkannya ke katalog.
+                  </p>
+                )
+              )}
             </div>
           )}
         </div>
@@ -239,7 +272,10 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={loading || items.length === 0}>
+        <Button
+          type="submit"
+          disabled={loading || items.length === 0 || items.some((i) => !i.produk && !i.nama_custom.trim())}
+        >
           {loading ? 'Menyimpan...' : 'Simpan Pesanan'}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}>

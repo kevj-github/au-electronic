@@ -9,6 +9,7 @@ import type { InvoiceData } from '@/lib/invoice-data'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 import type { Pesanan, ItemPesanan, Pembayaran, Produk, Pelanggan, User, StatusPesanan } from '@/lib/types'
@@ -16,7 +17,7 @@ import Link from 'next/link'
 
 type PesananDetail = Omit<Pesanan, 'pelanggan' | 'items' | 'pembayaran'> & {
   pelanggan: Pelanggan | null
-  items: (Omit<ItemPesanan, 'produk'> & { produk: Produk })[]
+  items: (Omit<ItemPesanan, 'produk'> & { produk: Produk | null })[]
   pembayaran: Pembayaran[]
 }
 
@@ -71,9 +72,9 @@ export default async function PesananDetailPage({
     alamatPelanggan: pesanan.pelanggan?.alamat ?? undefined,
     tipeDokumen: pesanan.tipe_dokumen,
     items: pesanan.items.map((i) => ({
-      namaProduk: i.produk.nama,
+      namaProduk: i.produk?.nama ?? i.nama_custom ?? '—',
       qty: i.qty,
-      satuan: i.produk.satuan,
+      satuan: i.produk?.satuan ?? '',
       hargaSatuan: i.harga_satuan,
       subtotal: i.subtotal,
     })),
@@ -138,9 +139,14 @@ export default async function PesananDetailPage({
           <tbody className="divide-y">
             {pesanan.items.map((item) => (
               <tr key={item.id}>
-                <td className="px-4 py-2">{item.produk.nama}</td>
+                <td className="px-4 py-2">
+                  {item.produk?.nama ?? item.nama_custom}
+                  {!item.produk && (
+                    <span className="text-xs text-muted-foreground ml-2">(di luar katalog)</span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-right">
-                  {item.qty} {item.produk.satuan}
+                  {item.qty} {item.produk?.satuan ?? ''}
                 </td>
                 <td className="px-4 py-2 text-right font-mono">
                   {formatRupiah(item.harga_satuan)}
@@ -193,8 +199,14 @@ export default async function PesananDetailPage({
         )}
         <div className="border-t pt-2 flex justify-between font-medium">
           <span>Sisa Tagihan</span>
-          <span className={sisaTagihan === 0 ? 'text-green-600' : 'font-mono'}>
-            {sisaTagihan === 0 ? 'Lunas ✓' : formatRupiah(sisaTagihan)}
+          <span className={sisaTagihan === 0 ? 'text-green-600 inline-flex items-center gap-1' : 'font-mono'}>
+            {sisaTagihan === 0 ? (
+              <>
+                <Check className="size-4" /> Lunas
+              </>
+            ) : (
+              formatRupiah(sisaTagihan)
+            )}
           </span>
         </div>
       </div>

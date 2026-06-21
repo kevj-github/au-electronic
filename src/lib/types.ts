@@ -60,13 +60,14 @@ export interface Pesanan {
 export interface ItemPesanan {
   id: string
   pesanan_id: string
-  produk_id: string
+  produk_id: string | null
+  nama_custom: string | null
   qty: number
   harga_satuan: number
   diskon: number
   subtotal: number
   catatan_item: string | null
-  produk?: Produk
+  produk?: Produk | null
 }
 
 export interface Pembayaran {
