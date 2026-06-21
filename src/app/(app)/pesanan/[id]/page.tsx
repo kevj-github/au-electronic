@@ -2,6 +2,8 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { StatusBadge } from '@/components/pesanan/StatusBadge'
 import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionButtons'
+import { DocumentButtons } from '@/components/pesanan/DocumentButtons'
+import type { InvoiceData } from '@/lib/invoice-data'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -60,6 +62,25 @@ export default async function PesananDetailPage({
   const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
   const nextStatuses = statusTransitions[pesanan.status] ?? []
 
+  const invoiceData: InvoiceData = {
+    kodePesanan: pesanan.kode_pesanan,
+    tanggal: pesanan.created_at,
+    namaPelanggan: pesanan.pelanggan?.nama ?? pesanan.nama_pelanggan ?? '—',
+    alamatPelanggan: pesanan.pelanggan?.alamat ?? undefined,
+    tipeDokumen: pesanan.tipe_dokumen,
+    items: pesanan.items.map((i) => ({
+      namaProduk: i.produk.nama,
+      qty: i.qty,
+      satuan: i.produk.satuan,
+      hargaSatuan: i.harga_satuan,
+      subtotal: i.subtotal,
+    })),
+    totalPesanan,
+    totalDibayar,
+    sisaTagihan,
+    catatan: pesanan.catatan,
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
@@ -73,7 +94,8 @@ export default async function PesananDetailPage({
             {format(new Date(pesanan.created_at), 'd MMMM yyyy', { locale: idLocale })}
           </p>
         </div>
-        <div>
+        <div className="flex gap-2 flex-wrap">
+          <DocumentButtons data={invoiceData} />
           {/* Status transitions — owner only */}
           {isOwner && (
             <StatusTransitionButtons
