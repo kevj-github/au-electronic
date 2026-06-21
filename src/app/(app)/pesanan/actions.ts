@@ -54,6 +54,7 @@ export async function createPesanan(input: CreatePesananInput) {
     items = input.items.map((item) => ({
       ...item,
       harga_satuan: hargaMap.get(item.produk_id)!,
+      diskon: 0,
     }))
   }
 

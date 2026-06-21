@@ -31,13 +31,13 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Unauthenticated users can only access /login
-  if (!user && pathname !== '/login') {
+  // Unauthenticated users can only access /login or /register
+  if (!user && pathname !== '/login' && pathname !== '/register') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Authenticated users are redirected away from /login
-  if (user && pathname === '/login') {
+  // Authenticated users are redirected away from /login and /register
+  if (user && (pathname === '/login' || pathname === '/register')) {
     return NextResponse.redirect(new URL('/pesanan', request.url))
   }
 
