@@ -4,16 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { StatusPesanan, TipeDokumen, User } from '@/lib/types'
 
-export interface LineItemInput {
-  qty: number
-  harga_satuan: number
-  diskon: number
-}
-
-export function calcOrderTotal(items: LineItemInput[]): number {
-  return items.reduce((sum, item) => sum + item.qty * item.harga_satuan - item.diskon, 0)
-}
-
 export interface CreatePesananInput {
   pelanggan_id: string | null
   nama_pelanggan: string | null

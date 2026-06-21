@@ -20,6 +20,16 @@ export function generateKodePesanan(
   return `${prefix}-${year}-${padded}`
 }
 
+export interface LineItemInput {
+  qty: number
+  harga_satuan: number
+  diskon: number
+}
+
+export function calcOrderTotal(items: LineItemInput[]): number {
+  return items.reduce((sum, item) => sum + item.qty * item.harga_satuan - item.diskon, 0)
+}
+
 export function hitungSaldo(
   totalPesanan: number,
   totalDibayar: number
