@@ -38,7 +38,11 @@ export async function createHelper(formData: FormData): Promise<{ error?: string
     nama,
     role: 'helper',
   })
-  if (insertError) return { error: insertError.message }
+  if (insertError) {
+    // Roll back the auth user so it doesn't become an orphan invisible to this UI.
+    await adminClient.auth.admin.deleteUser(created.user.id)
+    return { error: insertError.message }
+  }
 
   revalidatePath('/pengaturan')
   return {}
