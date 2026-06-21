@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { StatusBadge } from '@/components/pesanan/StatusBadge'
 import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionButtons'
 import { DocumentButtons } from '@/components/pesanan/DocumentButtons'
+import { PaymentModal } from '@/components/pesanan/PaymentModal'
+import { DeletePaymentButton } from '@/components/pesanan/DeletePaymentButton'
 import type { InvoiceData } from '@/lib/invoice-data'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -160,20 +162,31 @@ export default async function PesananDetailPage({
         </table>
       </div>
 
-      {/* Payment summary */}
+      {/* Payment recording */}
       <div className="border rounded-lg p-4 space-y-2">
-        <h3 className="font-medium">Pembayaran</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium">Pembayaran</h3>
+          {isOwner && sisaTagihan > 0 && (
+            <PaymentModal pesananId={pesanan.id} sisaTagihan={sisaTagihan} />
+          )}
+        </div>
         {pesanan.pembayaran.length === 0 ? (
           <p className="text-sm text-muted-foreground">Belum ada pembayaran.</p>
         ) : (
           <div className="space-y-1">
             {pesanan.pembayaran.map((p) => (
-              <div key={p.id} className="flex justify-between text-sm">
+              <div key={p.id} className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">
                   {format(new Date(p.dibayar_pada), 'd MMM yyyy', { locale: idLocale })} ·{' '}
                   {p.metode}
+                  {p.catatan ? ` · ${p.catatan}` : ''}
                 </span>
-                <span className="font-mono">{formatRupiah(p.jumlah)}</span>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono">{formatRupiah(p.jumlah)}</span>
+                  {isOwner && (
+                    <DeletePaymentButton pembayaranId={p.id} pesananId={pesanan.id} />
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -181,15 +194,9 @@ export default async function PesananDetailPage({
         <div className="border-t pt-2 flex justify-between font-medium">
           <span>Sisa Tagihan</span>
           <span className={sisaTagihan === 0 ? 'text-green-600' : 'font-mono'}>
-            {sisaTagihan === 0 ? 'Lunas' : formatRupiah(sisaTagihan)}
+            {sisaTagihan === 0 ? 'Lunas ✓' : formatRupiah(sisaTagihan)}
           </span>
         </div>
-        {/* Payment recording — Plan 4. Placeholder note. */}
-        {isOwner && sisaTagihan > 0 && (
-          <p className="text-xs text-muted-foreground">
-            Pencatatan pembayaran tersedia di Plan 4.
-          </p>
-        )}
       </div>
 
       {/* Notes */}
