@@ -2,16 +2,14 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { StatusPesanan, TipeDokumen, User } from '@/lib/types'
+import type { StatusPesanan } from '@/lib/types'
 
 export interface CreatePesananInput {
   pelanggan_id: string | null
   nama_pelanggan: string | null
-  tipe_dokumen: TipeDokumen
   catatan: string | null
   items: Array<{
-    produk_id: string | null
-    nama_custom: string | null
+    nama_barang: string
     qty: number
     harga_satuan: number
     diskon: number
@@ -29,45 +27,10 @@ export async function createPesanan(input: CreatePesananInput) {
     return { error: 'Pilih pelanggan atau masukkan nama pelanggan.' }
   }
   if (input.items.length === 0) {
-    return { error: 'Tambahkan minimal satu produk.' }
+    return { error: 'Tambahkan minimal satu barang.' }
   }
 
-  const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
-  const isOwner = user?.role === 'owner'
-
-  // Helpers cannot set their own harga_satuan — RLS only restricts pesanan
-  // ownership, not this field, so re-price from produk.harga_dasar here.
-  // Custom (off-catalog) items have no harga_dasar to re-price against, so
-  // only owners may add them.
-  let items = input.items
-  if (!isOwner) {
-    const customItem = input.items.find((item) => !item.produk_id)
-    if (customItem) {
-      return { error: 'Hanya pemilik yang dapat menambahkan produk di luar katalog.' }
-    }
-
-    const { data: produkList, error: produkError } = await supabase
-      .from('produk')
-      .select('id, harga_dasar')
-      .in('id', input.items.map((item) => item.produk_id as string))
-      .returns<Array<{ id: string; harga_dasar: number }>>()
-    if (produkError) return { error: produkError.message }
-
-    const hargaMap = new Map(produkList.map((p) => [p.id, p.harga_dasar]))
-    if (input.items.some((item) => !hargaMap.has(item.produk_id as string))) {
-      return { error: 'Salah satu produk tidak ditemukan.' }
-    }
-
-    items = input.items.map((item) => ({
-      ...item,
-      harga_satuan: hargaMap.get(item.produk_id as string)!,
-      diskon: 0,
-    }))
-  }
-
-  const { data: kodeData, error: kodeError } = await supabase
-    .rpc('next_kode_pesanan', { p_tipe: input.tipe_dokumen })
+  const { data: kodeData, error: kodeError } = await supabase.rpc('next_kode_pesanan')
   if (kodeError) return { error: kodeError.message }
 
   const { data: pesanan, error: pesananError } = await supabase
@@ -76,7 +39,6 @@ export async function createPesanan(input: CreatePesananInput) {
       kode_pesanan: kodeData as string,
       pelanggan_id: input.pelanggan_id,
       nama_pelanggan: input.nama_pelanggan,
-      tipe_dokumen: input.tipe_dokumen,
       catatan: input.catatan,
       dibuat_oleh: authUser.id,
       status: 'draft',
@@ -86,13 +48,14 @@ export async function createPesanan(input: CreatePesananInput) {
 
   if (pesananError) return { error: pesananError.message }
 
+  // Non-owners get harga_satuan/diskon forced to 0 by the guard_item_pesanan_write
+  // trigger regardless of what's sent here — the owner fills in the real price later.
   const { error: itemsError } = await supabase
     .from('item_pesanan')
     .insert(
-      items.map((item) => ({
+      input.items.map((item) => ({
         pesanan_id: pesanan.id,
-        produk_id: item.produk_id,
-        nama_custom: item.produk_id ? null : item.nama_custom,
+        nama_barang: item.nama_barang,
         qty: item.qty,
         harga_satuan: item.harga_satuan,
         diskon: item.diskon,
@@ -113,13 +76,42 @@ export async function updateStatusPesanan(pesananId: string, status: StatusPesan
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
   const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
+    .from('users').select('role').eq('id', authUser.id).single<{ role: string }>()
   if (user?.role !== 'owner') return { error: 'Hanya pemilik yang bisa mengubah status.' }
 
   const { error } = await supabase
     .from('pesanan')
     .update({ status })
     .eq('id', pesananId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pesanan/${pesananId}`)
+  revalidatePath('/pesanan')
+  return {}
+}
+
+export interface UpdateItemHargaInput {
+  itemId: string
+  pesananId: string
+  harga_satuan: number
+  diskon: number
+}
+
+export async function updateItemHarga({ itemId, pesananId, harga_satuan, diskon }: UpdateItemHargaInput) {
+  const supabase = await createClient()
+
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const { data: user } = await supabase
+    .from('users').select('role').eq('id', authUser.id).single<{ role: string }>()
+  if (user?.role !== 'owner') return { error: 'Hanya pemilik yang bisa mengubah harga.' }
+
+  const { error } = await supabase
+    .from('item_pesanan')
+    .update({ harga_satuan, diskon })
+    .eq('id', itemId)
 
   if (error) return { error: error.message }
 

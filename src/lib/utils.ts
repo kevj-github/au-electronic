@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { SaldoPesanan, TipeDokumen } from './types'
+import type { SaldoPesanan } from './types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -8,16 +8,6 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatRupiah(amount: number): string {
   return `Rp ${amount.toLocaleString('id-ID')}`
-}
-
-export function generateKodePesanan(
-  tipe: TipeDokumen,
-  year: number,
-  seq: number
-): string {
-  const prefix = tipe === 'invoice' ? 'INV' : 'NOT'
-  const padded = String(seq).padStart(4, '0')
-  return `${prefix}-${year}-${padded}`
 }
 
 export interface LineItemInput {

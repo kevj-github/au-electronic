@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireOwner } from '@/lib/supabase/require-owner'
 import type { User } from '@/lib/types'
 
-export async function createHelper(formData: FormData): Promise<{ error?: string }> {
+export async function createUser(formData: FormData): Promise<{ error?: string }> {
   const supabase = await createClient()
 
   const ownerError = await requireOwner(supabase)
@@ -15,12 +15,16 @@ export async function createHelper(formData: FormData): Promise<{ error?: string
   const nama = formData.get('nama') as string
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const role = formData.get('role') as string
 
   if (!nama || !email || !password) {
     return { error: 'Nama, email, dan password wajib diisi.' }
   }
   if (password.length < 6) {
     return { error: 'Password minimal 6 karakter.' }
+  }
+  if (role !== 'owner' && role !== 'helper') {
+    return { error: 'Role tidak valid.' }
   }
 
   const adminClient = createAdminClient()
@@ -36,7 +40,7 @@ export async function createHelper(formData: FormData): Promise<{ error?: string
     id: created.user.id,
     email,
     nama,
-    role: 'helper',
+    role,
   })
   if (insertError) {
     // Roll back the auth user so it doesn't become an orphan invisible to this UI.

@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Pagination } from '@/components/ui/pagination'
 import type { Pelanggan, TipePelanggan } from '@/lib/types'
 
 interface PelangganListProps {
@@ -13,9 +14,12 @@ interface PelangganListProps {
   isOwner: boolean
 }
 
+const PAGE_SIZE = 10
+
 export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
   const [query, setQuery] = useState('')
   const [tipe, setTipe] = useState<TipePelanggan | 'semua'>('semua')
+  const [page, setPage] = useState(1)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -29,6 +33,12 @@ export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
       )
     })
   }, [pelangganList, query, tipe])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  useEffect(() => {
+    setPage(1)
+  }, [query, tipe])
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   if (pelangganList.length === 0) {
     return <p className="text-muted-foreground text-sm">Belum ada pelanggan.</p>
@@ -62,38 +72,63 @@ export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
           Tidak ada pelanggan yang cocok. Coba kata kunci lain atau ubah filter.
         </p>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium">Nama</th>
-                <th className="text-left px-4 py-3 font-medium">Telepon</th>
-                <th className="text-left px-4 py-3 font-medium">Tipe</th>
-                {isOwner && <th className="px-4 py-3" />}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{p.nama}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.telepon ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={p.tipe === 'grosir' ? 'default' : 'secondary'}>
-                      {p.tipe === 'grosir' ? 'Grosir' : 'Retail'}
-                    </Badge>
-                  </td>
-                  {isOwner && (
-                    <td className="px-4 py-3 text-right">
-                      <Link href={`/pelanggan/${p.id}`}>
-                        <Button variant="outline" size="sm">Edit</Button>
-                      </Link>
-                    </td>
-                  )}
+        <>
+          {/* Mobile: card list */}
+          <div className="space-y-2 sm:hidden">
+            {paged.map((p) => (
+              <div key={p.id} className="border rounded-lg p-3">
+                <div className="flex justify-between items-start">
+                  <p className="font-medium text-sm">{p.nama}</p>
+                  <Badge variant={p.tipe === 'grosir' ? 'default' : 'secondary'}>
+                    {p.tipe === 'grosir' ? 'Grosir' : 'Retail'}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">{p.telepon ?? '—'}</p>
+                {isOwner && (
+                  <Link href={`/pelanggan/${p.id}`} className="inline-block mt-2">
+                    <Button variant="outline" size="sm">Edit</Button>
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden sm:block border rounded-lg overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">Nama</th>
+                  <th className="text-left px-4 py-3 font-medium">Telepon</th>
+                  <th className="text-left px-4 py-3 font-medium">Tipe</th>
+                  {isOwner && <th className="px-4 py-3" />}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {paged.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium">{p.nama}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.telepon ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={p.tipe === 'grosir' ? 'default' : 'secondary'}>
+                        {p.tipe === 'grosir' ? 'Grosir' : 'Retail'}
+                      </Badge>
+                    </td>
+                    {isOwner && (
+                      <td className="px-4 py-3 text-right">
+                        <Link href={`/pelanggan/${p.id}`}>
+                          <Button variant="outline" size="sm">Edit</Button>
+                        </Link>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        </>
       )}
     </div>
   )

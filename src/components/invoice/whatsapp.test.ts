@@ -3,13 +3,12 @@ import { formatWhatsapp } from './whatsapp'
 import type { InvoiceData } from '@/lib/invoice-data'
 
 const mockData: InvoiceData = {
-  kodePesanan: 'NOT-2026-0042',
+  kodePesanan: 'AU.2026.06.00042',
   tanggal: '2026-06-16',
   namaPelanggan: 'Budi',
-  tipeDokumen: 'nota',
   items: [
-    { namaProduk: 'Dinamo Mesin', qty: 5, satuan: 'pcs', hargaSatuan: 150000, subtotal: 750000 },
-    { namaProduk: 'Remote TV', qty: 10, satuan: 'pcs', hargaSatuan: 45000, subtotal: 450000 },
+    { namaBarang: 'Dinamo Mesin', qty: 5, hargaSatuan: 150000, subtotal: 750000 },
+    { namaBarang: 'Remote TV', qty: 10, hargaSatuan: 45000, subtotal: 450000 },
   ],
   totalPesanan: 1200000,
   totalDibayar: 500000,
@@ -21,7 +20,7 @@ describe('formatWhatsapp', () => {
   it('includes shop name and order code', () => {
     const text = formatWhatsapp(mockData)
     expect(text).toContain('*AU Electronic*')
-    expect(text).toContain('NOT-2026-0042')
+    expect(text).toContain('AU.2026.06.00042')
   })
 
   it('includes all line items', () => {

@@ -5,19 +5,19 @@ import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionBu
 import { DocumentButtons } from '@/components/pesanan/DocumentButtons'
 import { PaymentModal } from '@/components/pesanan/PaymentModal'
 import { DeletePaymentButton } from '@/components/pesanan/DeletePaymentButton'
+import { ItemPriceEditor } from '@/components/pesanan/ItemPriceEditor'
 import type { InvoiceData } from '@/lib/invoice-data'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
-import type { Pesanan, ItemPesanan, Pembayaran, Produk, Pelanggan, User, StatusPesanan } from '@/lib/types'
+import type { Pesanan, ItemPesanan, Pembayaran, Pelanggan, User, StatusPesanan } from '@/lib/types'
 import Link from 'next/link'
 
 type PesananDetail = Omit<Pesanan, 'pelanggan' | 'items' | 'pembayaran'> & {
   pelanggan: Pelanggan | null
-  items: (Omit<ItemPesanan, 'produk'> & { produk: Produk | null })[]
+  items: ItemPesanan[]
   pembayaran: Pembayaran[]
 }
 
@@ -52,7 +52,7 @@ export default async function PesananDetailPage({
     supabase.from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>(),
     supabase
       .from('pesanan')
-      .select(`*, pelanggan(*), items:item_pesanan(*, produk(*)), pembayaran(*)`)
+      .select(`*, pelanggan(*), items:item_pesanan(*), pembayaran(*)`)
       .eq('id', id)
       .single<PesananDetail>(),
   ])
@@ -70,11 +70,9 @@ export default async function PesananDetailPage({
     tanggal: pesanan.created_at,
     namaPelanggan: pesanan.pelanggan?.nama ?? pesanan.nama_pelanggan ?? '—',
     alamatPelanggan: pesanan.pelanggan?.alamat ?? undefined,
-    tipeDokumen: pesanan.tipe_dokumen,
     items: pesanan.items.map((i) => ({
-      namaProduk: i.produk?.nama ?? i.nama_custom ?? '—',
+      namaBarang: i.nama_barang,
       qty: i.qty,
-      satuan: i.produk?.satuan ?? '',
       hargaSatuan: i.harga_satuan,
       subtotal: i.subtotal,
     })),
@@ -119,9 +117,6 @@ export default async function PesananDetailPage({
         {pesanan.pelanggan?.telepon && (
           <p className="text-sm text-muted-foreground">{pesanan.pelanggan.telepon}</p>
         )}
-        <Badge variant="outline">
-          {pesanan.tipe_dokumen === 'invoice' ? 'Invoice (B2B)' : 'Nota (B2C)'}
-        </Badge>
       </div>
 
       {/* Line items */}
@@ -130,7 +125,7 @@ export default async function PesananDetailPage({
         <table className="w-full text-sm border rounded-lg overflow-hidden">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-4 py-2 font-medium">Produk</th>
+              <th className="text-left px-4 py-2 font-medium">Nama Barang</th>
               <th className="text-right px-4 py-2 font-medium">Qty</th>
               <th className="text-right px-4 py-2 font-medium">Harga</th>
               <th className="text-right px-4 py-2 font-medium">Subtotal</th>
@@ -139,17 +134,19 @@ export default async function PesananDetailPage({
           <tbody className="divide-y">
             {pesanan.items.map((item) => (
               <tr key={item.id}>
-                <td className="px-4 py-2">
-                  {item.produk?.nama ?? item.nama_custom}
-                  {!item.produk && (
-                    <span className="text-xs text-muted-foreground ml-2">(di luar katalog)</span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  {item.qty} {item.produk?.satuan ?? ''}
-                </td>
+                <td className="px-4 py-2">{item.nama_barang}</td>
+                <td className="px-4 py-2 text-right">{item.qty}</td>
                 <td className="px-4 py-2 text-right font-mono">
-                  {formatRupiah(item.harga_satuan)}
+                  {isOwner ? (
+                    <ItemPriceEditor
+                      itemId={item.id}
+                      pesananId={pesanan.id}
+                      hargaSatuan={item.harga_satuan}
+                      diskon={item.diskon}
+                    />
+                  ) : (
+                    formatRupiah(item.harga_satuan)
+                  )}
                 </td>
                 <td className="px-4 py-2 text-right font-mono">
                   {formatRupiah(item.subtotal)}

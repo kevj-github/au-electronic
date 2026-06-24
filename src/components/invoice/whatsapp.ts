@@ -9,7 +9,7 @@ export function formatWhatsapp(data: InvoiceData): string {
   const itemLines = data.items
     .map(
       (i) =>
-        `• ${i.namaProduk} – ${i.qty}x ${formatRupiah(i.hargaSatuan)} = *${formatRupiah(i.subtotal)}*`
+        `• ${i.namaBarang} – ${i.qty}x ${formatRupiah(i.hargaSatuan)} = *${formatRupiah(i.subtotal)}*`
     )
     .join('\n')
 

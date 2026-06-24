@@ -2,8 +2,6 @@ export type UserRole = 'owner' | 'helper'
 
 export type TipePelanggan = 'retail' | 'grosir'
 
-export type TipeDokumen = 'invoice' | 'nota'
-
 export type StatusPesanan =
   | 'draft'
   | 'konfirmasi'
@@ -32,22 +30,11 @@ export interface Pelanggan {
   created_at: string
 }
 
-export interface Produk {
-  id: string
-  nama: string
-  deskripsi: string | null
-  satuan: string
-  harga_dasar: number
-  aktif: boolean
-  created_at: string
-}
-
 export interface Pesanan {
   id: string
   kode_pesanan: string
   pelanggan_id: string | null
   nama_pelanggan: string | null
-  tipe_dokumen: TipeDokumen
   status: StatusPesanan
   catatan: string | null
   dibuat_oleh: string
@@ -60,14 +47,12 @@ export interface Pesanan {
 export interface ItemPesanan {
   id: string
   pesanan_id: string
-  produk_id: string | null
-  nama_custom: string | null
+  nama_barang: string
   qty: number
   harga_satuan: number
   diskon: number
   subtotal: number
   catatan_item: string | null
-  produk?: Produk | null
 }
 
 export interface Pembayaran {

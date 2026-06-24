@@ -28,11 +28,8 @@ export function DocumentButtons({ data }: DocumentButtonsProps) {
       // Resolve the real component here (not via next/dynamic) — @react-pdf/renderer's
       // pdf() uses its own non-DOM reconciler that doesn't support React.lazy/Suspense,
       // so a next/dynamic-wrapped component renders as empty/broken output.
-      const Component =
-        data.tipeDokumen === 'invoice'
-          ? (await import('@/components/invoice/InvoicePDF')).InvoicePDF
-          : (await import('@/components/invoice/NotaPDF')).NotaPDF
-      const blob = await pdf(<Component data={data} />).toBlob()
+      const { DocumentPDF } = await import('@/components/invoice/DocumentPDF')
+      const blob = await pdf(<DocumentPDF data={data} />).toBlob()
       const url = URL.createObjectURL(blob)
       newWindow.location.href = url
     } catch {
@@ -61,7 +58,7 @@ export function DocumentButtons({ data }: DocumentButtonsProps) {
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfLoading}>
           <Printer className="size-4" />
-          {pdfLoading ? 'Memuat...' : data.tipeDokumen === 'invoice' ? 'Cetak Invoice' : 'Cetak Nota'}
+          {pdfLoading ? 'Memuat...' : 'Cetak PDF'}
         </Button>
         <Button variant="outline" size="sm" onClick={handleCopyWhatsapp}>
           {copying ? <Check className="size-4" /> : <Copy className="size-4" />}

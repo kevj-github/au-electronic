@@ -2,71 +2,42 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Plus } from 'lucide-react'
 import { createPesanan } from '@/app/(app)/pesanan/actions'
 import { OrderLineItem, type LineItem } from './OrderLineItem'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatRupiah } from '@/lib/utils'
-import type { Pelanggan, Produk } from '@/lib/types'
+import type { Pelanggan } from '@/lib/types'
 
 interface OrderFormProps {
   pelangganList: Pelanggan[]
-  produkList: Produk[]
   isOwner: boolean
 }
 
-export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps) {
+export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const [pelangganId, setPelangganId] = useState<string>('')
   const [namaPelanggan, setNamaPelanggan] = useState('')
-  const [tipeDokumen, setTipeDokumen] = useState<'invoice' | 'nota'>('nota')
   const [catatan, setCatatan] = useState('')
   const [items, setItems] = useState<LineItem[]>([])
-  const [produkSearch, setProdukSearch] = useState('')
 
-  function addProduk(produk: Produk) {
-    const existing = items.find((i) => i.produk?.id === produk.id)
-    if (existing) {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.produk?.id === produk.id ? { ...i, qty: i.qty + 1 } : i
-        )
-      )
-    } else {
-      setItems((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          produk,
-          nama_custom: '',
-          qty: 1,
-          harga_satuan: produk.harga_dasar,
-          diskon: 0,
-          catatan_item: '',
-        },
-      ])
-    }
-    setProdukSearch('')
-  }
-
-  function addProdukKustom(nama: string) {
+  function addItem() {
     setItems((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
-        produk: null,
-        nama_custom: nama,
+        nama_barang: '',
         qty: 1,
         harga_satuan: 0,
         diskon: 0,
         catatan_item: '',
       },
     ])
-    setProdukSearch('')
   }
 
   function updateItem(id: string, changes: Partial<LineItem>) {
@@ -82,12 +53,6 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
     0
   )
 
-  const filteredProduk = produkSearch
-    ? produkList
-        .filter((p) => p.aktif && p.nama.toLowerCase().includes(produkSearch.toLowerCase()))
-        .slice(0, 6)
-    : []
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -96,11 +61,9 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
     const result = await createPesanan({
       pelanggan_id: pelangganId || null,
       nama_pelanggan: !pelangganId ? namaPelanggan || null : null,
-      tipe_dokumen: tipeDokumen,
       catatan: catatan || null,
       items: items.map((i) => ({
-        produk_id: i.produk?.id ?? null,
-        nama_custom: i.produk ? null : i.nama_custom,
+        nama_barang: i.nama_barang,
         qty: i.qty,
         harga_satuan: i.harga_satuan,
         diskon: i.diskon,
@@ -122,7 +85,7 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
       {/* Pelanggan */}
       <div className="space-y-3">
         <h3 className="font-medium">Pelanggan</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Pilih dari daftar</Label>
             <select
@@ -156,105 +119,58 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
         </div>
       </div>
 
-      {/* Tipe dokumen */}
-      <div className="space-y-2">
-        <Label>Tipe Dokumen</Label>
-        <div className="flex gap-4">
-          {(['nota', 'invoice'] as const).map((tipe) => (
-            <label key={tipe} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="tipe_dokumen"
-                value={tipe}
-                checked={tipeDokumen === tipe}
-                onChange={() => setTipeDokumen(tipe)}
-              />
-              <span className="text-sm capitalize">{tipe === 'nota' ? 'Nota (B2C)' : 'Invoice (B2B)'}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Produk search + line items */}
+      {/* Line items */}
       <div className="space-y-3">
-        <h3 className="font-medium">Produk</h3>
-
-        {/* Search */}
-        <div className="relative">
-          <Input
-            value={produkSearch}
-            onChange={(e) => setProdukSearch(e.target.value)}
-            placeholder="Cari dan tambah produk..."
-          />
-          {produkSearch && (
-            <div className="absolute top-full left-0 right-0 z-10 bg-white border rounded-md shadow-lg mt-1">
-              {filteredProduk.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className="w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between text-sm"
-                  onClick={() => addProduk(p)}
-                >
-                  <span>{p.nama}</span>
-                  <span className="text-muted-foreground font-mono">
-                    {formatRupiah(p.harga_dasar)} / {p.satuan}
-                  </span>
-                </button>
-              ))}
-              {filteredProduk.length === 0 && (
-                isOwner ? (
-                  <button
-                    type="button"
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-blue-600"
-                    onClick={() => addProdukKustom(produkSearch)}
-                  >
-                    + Tambah &quot;{produkSearch}&quot; sebagai produk di luar katalog
-                  </button>
-                ) : (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">
-                    Produk tidak ditemukan. Hubungi pemilik untuk menambahkannya ke katalog.
-                  </p>
-                )
-              )}
-            </div>
-          )}
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium">Barang</h3>
+          <Button type="button" variant="outline" size="sm" onClick={addItem}>
+            <Plus className="size-4" />
+            Tambah Barang
+          </Button>
         </div>
 
-        {/* Line items table */}
         {items.length > 0 && (
-          <table className="w-full text-sm border rounded-lg overflow-hidden">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-3 py-2 font-medium">Produk</th>
-                <th className="text-right px-3 py-2 font-medium">Qty</th>
-                <th className="text-right px-3 py-2 font-medium">Harga Satuan</th>
-                <th className="text-right px-3 py-2 font-medium">Subtotal</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <OrderLineItem
-                  key={item.id}
-                  item={item}
-                  isOwner={isOwner}
-                  onChange={updateItem}
-                  onRemove={removeItem}
-                />
-              ))}
-            </tbody>
-            <tfoot className="bg-gray-50 border-t">
-              <tr>
-                <td colSpan={3} className="px-3 py-2 text-right font-medium">
-                  Total
-                </td>
-                <td className="px-3 py-2 text-right font-mono font-semibold">
-                  {formatRupiah(grandTotal)}
-                </td>
-                <td />
-              </tr>
-            </tfoot>
-          </table>
+          <div className="overflow-x-auto -mx-3 sm:mx-0">
+            <table className="w-full text-sm border rounded-lg overflow-hidden min-w-[560px]">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium">Nama Barang</th>
+                  <th className="text-right px-3 py-2 font-medium">Qty</th>
+                  <th className="text-right px-3 py-2 font-medium">Harga Satuan</th>
+                  <th className="text-right px-3 py-2 font-medium">Subtotal</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <OrderLineItem
+                    key={item.id}
+                    item={item}
+                    isOwner={isOwner}
+                    onChange={updateItem}
+                    onRemove={removeItem}
+                  />
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t">
+                <tr>
+                  <td colSpan={3} className="px-3 py-2 text-right font-medium">
+                    Total
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold">
+                    {formatRupiah(grandTotal)}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {items.length === 0 && (
+          <p className="text-sm text-muted-foreground border rounded-lg p-4">
+            Belum ada barang. Klik &quot;Tambah Barang&quot; untuk menambahkan.
+          </p>
         )}
       </div>
 
@@ -274,7 +190,7 @@ export function OrderForm({ pelangganList, produkList, isOwner }: OrderFormProps
       <div className="flex gap-2">
         <Button
           type="submit"
-          disabled={loading || items.length === 0 || items.some((i) => !i.produk && !i.nama_custom.trim())}
+          disabled={loading || items.length === 0 || items.some((i) => !i.nama_barang.trim())}
         >
           {loading ? 'Menyimpan...' : 'Simpan Pesanan'}
         </Button>

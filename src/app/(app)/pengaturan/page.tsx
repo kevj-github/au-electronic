@@ -23,7 +23,7 @@ export default async function PengaturanPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold">Pengaturan</h2>
-        <p className="text-sm text-muted-foreground">Kelola akun helper toko.</p>
+        <p className="text-sm text-muted-foreground">Kelola akun owner dan helper toko.</p>
       </div>
 
       <div className="space-y-3">
@@ -47,7 +47,7 @@ export default async function PengaturanPage() {
       </div>
 
       <div className="space-y-3">
-        <h3 className="font-medium">Tambah Helper</h3>
+        <h3 className="font-medium">Tambah Akun</h3>
         <AddHelperForm />
       </div>
     </div>
