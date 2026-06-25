@@ -70,6 +70,10 @@ describe('useRealtimeRefresh', () => {
     await flushMicrotasks()
     expect(setAuth).toHaveBeenCalledWith('test-access-token')
     expect(channel).toHaveBeenCalledWith('pesanan-all')
+    // Order matters: setAuth must apply before the channel joins, or the
+    // socket authenticates as anon and RLS silently drops every event.
+    expect(setAuth.mock.invocationCallOrder[0]).toBeLessThan(channel.mock.invocationCallOrder[0])
+    expect(setAuth.mock.invocationCallOrder[0]).toBeLessThan(subscribe.mock.invocationCallOrder[0])
   })
 
   it('subscribes to postgres_changes for the given table', async () => {
