@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import type { User } from '@/lib/types'
@@ -40,6 +41,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <RealtimeRefresh table="pesanan" />
       <h2 className="text-lg font-semibold">Dashboard</h2>
 
       {/* Summary cards */}

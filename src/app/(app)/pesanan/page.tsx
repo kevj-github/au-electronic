@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import { Button } from '@/components/ui/button'
 import type { User } from '@/lib/types'
@@ -27,6 +28,7 @@ export default async function PesananPage() {
 
   return (
     <div className="space-y-4">
+      <RealtimeRefresh table="pesanan" />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Pesanan</h2>

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { AddHelperForm } from '@/components/pengaturan/AddHelperForm'
 import { DeleteHelperButton } from '@/components/pengaturan/DeleteHelperButton'
 import type { User } from '@/lib/types'
@@ -21,6 +22,7 @@ export default async function PengaturanPage() {
 
   return (
     <div className="space-y-6">
+      <RealtimeRefresh table="users" />
       <div>
         <h2 className="text-lg font-semibold">Pengaturan</h2>
         <p className="text-sm text-muted-foreground">Kelola akun owner dan helper toko.</p>

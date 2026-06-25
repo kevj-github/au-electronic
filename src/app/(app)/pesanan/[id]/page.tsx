@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { StatusBadge } from '@/components/pesanan/StatusBadge'
 import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionButtons'
 import { DocumentButtons } from '@/components/pesanan/DocumentButtons'
@@ -106,6 +107,7 @@ export default async function PesananDetailPage({
 
   return (
     <div className="space-y-6 max-w-3xl">
+      <RealtimeRefresh table="pesanan" filter={{ column: 'id', value: pesanan.id }} />
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
