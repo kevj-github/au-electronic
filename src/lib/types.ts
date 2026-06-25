@@ -39,6 +39,7 @@ export interface Pesanan {
   catatan: string | null
   dibuat_oleh: string
   created_at: string
+  updated_at: string
   pelanggan?: Pelanggan
   items?: ItemPesanan[]
   pembayaran?: Pembayaran[]
