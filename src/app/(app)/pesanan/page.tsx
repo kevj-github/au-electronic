@@ -3,20 +3,25 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import { Button } from '@/components/ui/button'
+import type { User } from '@/lib/types'
 
 export default async function PesananPage() {
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) redirect('/login')
 
+  const { data: user } = await supabase
+    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
+  const isOwner = user?.role === 'owner'
+
+  // Helpers never get price/payment data fetched into the RSC payload at all.
+  const select = isOwner
+    ? `*, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`
+    : `*, pelanggan(nama), items:item_pesanan(diambil_oleh_helper)`
+
   const { data: pesananList } = await supabase
     .from('pesanan')
-    .select(`
-      *,
-      pelanggan(nama),
-      items:item_pesanan(subtotal),
-      pembayaran(jumlah)
-    `)
+    .select(select)
     .order('created_at', { ascending: false })
     .returns<PesananWithRelations[]>()
 
@@ -33,7 +38,7 @@ export default async function PesananPage() {
           <Button>+ Pesanan Baru</Button>
         </Link>
       </div>
-      <OrderList pesananList={pesananList ?? []} />
+      <OrderList pesananList={pesananList ?? []} isOwner={isOwner} />
     </div>
   )
 }

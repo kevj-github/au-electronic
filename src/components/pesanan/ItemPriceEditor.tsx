@@ -39,48 +39,54 @@ export function ItemPriceEditor({ itemId, pesananId, hargaSatuan, diskon }: Item
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="inline-flex items-center gap-1 font-mono hover:text-primary"
+        className="inline-flex items-center gap-1.5 font-mono text-sm hover:text-primary"
       >
         {formatRupiah(hargaSatuan)}
-        <Pencil className="size-3 text-muted-foreground" />
+        <Pencil className="size-3.5 text-muted-foreground" />
       </button>
     )
   }
 
   return (
-    <div className="inline-flex flex-col items-end gap-1">
-      <div className="flex items-center gap-1">
+    <div className="inline-flex w-full max-w-56 flex-col gap-2 rounded-md border bg-muted/40 p-2.5 text-left">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-muted-foreground">Harga satuan</label>
         <Input
           type="number"
           min="0"
           value={harga}
           onChange={(e) => setHarga(Number(e.target.value))}
           aria-label="Harga satuan"
-          className="h-7 w-28 text-right font-mono text-xs"
+          className="h-9 w-full text-right font-mono text-sm"
         />
-        <Button type="button" size="sm" className="h-7 w-7 p-0" onClick={handleSave} disabled={loading}>
-          <Check className="size-3.5" />
-        </Button>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-muted-foreground">Diskon</label>
+        <Input
+          type="number"
+          min="0"
+          value={disc}
+          onChange={(e) => setDisc(Number(e.target.value))}
+          aria-label="Diskon"
+          className="h-9 w-full text-right font-mono text-sm"
+        />
+      </div>
+      <div className="flex items-center justify-end gap-2 pt-0.5">
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0"
           onClick={() => setEditing(false)}
           disabled={loading}
         >
-          <X className="size-3.5" />
+          <X className="size-4" />
+          Batal
+        </Button>
+        <Button type="button" size="sm" onClick={handleSave} disabled={loading}>
+          <Check className="size-4" />
+          Simpan
         </Button>
       </div>
-      <Input
-        type="number"
-        min="0"
-        value={disc}
-        onChange={(e) => setDisc(Number(e.target.value))}
-        aria-label="Diskon"
-        placeholder="Diskon"
-        className="h-7 w-28 text-right font-mono text-xs"
-      />
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )

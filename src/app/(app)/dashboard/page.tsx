@@ -19,7 +19,7 @@ export default async function DashboardPage() {
 
   const { data: allPesanan } = await supabase
     .from('pesanan')
-    .select(`*, pelanggan(nama), items:item_pesanan(subtotal), pembayaran(jumlah)`)
+    .select(`*, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`)
     .neq('status', 'dibatalkan')
     .order('created_at', { ascending: true })
     .returns<PesananWithRelations[]>()
@@ -27,14 +27,14 @@ export default async function DashboardPage() {
   const todayCount = (allPesanan ?? []).filter((p) => p.created_at >= todayStart).length
 
   const piutangList = (allPesanan ?? []).filter((p) => {
-    const totalPesanan = p.items.reduce((s, i) => s + i.subtotal, 0)
-    const totalDibayar = p.pembayaran.reduce((s, pm) => s + pm.jumlah, 0)
+    const totalPesanan = p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0)
+    const totalDibayar = (p.pembayaran ?? []).reduce((s, pm) => s + pm.jumlah, 0)
     return hitungSaldo(totalPesanan, totalDibayar).sisaTagihan > 0
   })
 
   const totalPiutang = piutangList.reduce((sum, p) => {
-    const totalPesanan = p.items.reduce((s, i) => s + i.subtotal, 0)
-    const totalDibayar = p.pembayaran.reduce((s, pm) => s + pm.jumlah, 0)
+    const totalPesanan = p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0)
+    const totalDibayar = (p.pembayaran ?? []).reduce((s, pm) => s + pm.jumlah, 0)
     return sum + hitungSaldo(totalPesanan, totalDibayar).sisaTagihan
   }, 0)
 
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
         {piutangList.length === 0 ? (
           <p className="text-sm text-muted-foreground">Semua pesanan sudah lunas.</p>
         ) : (
-          <OrderList pesananList={piutangList} />
+          <OrderList pesananList={piutangList} isOwner />
         )}
       </div>
     </div>

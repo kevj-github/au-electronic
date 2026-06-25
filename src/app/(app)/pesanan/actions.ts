@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { requireOwner } from '@/lib/supabase/require-owner'
 import type { StatusPesanan } from '@/lib/types'
 
 export interface CreatePesananInput {
@@ -117,5 +118,64 @@ export async function updateItemHarga({ itemId, pesananId, harga_satuan, diskon 
 
   revalidatePath(`/pesanan/${pesananId}`)
   revalidatePath('/pesanan')
+  return {}
+}
+
+// Anyone authenticated can tick this off — any helper may be the one fetching
+// items from the etalase, not just whoever created the order. guard_item_pesanan_write
+// is the real gatekeeper limiting non-owners to only this column on orders they didn't create.
+export async function toggleItemDiambil(itemId: string, pesananId: string, value: boolean): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const { error } = await supabase
+    .from('item_pesanan')
+    .update({ diambil_oleh_helper: value })
+    .eq('id', itemId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pesanan/${pesananId}`)
+  return {}
+}
+
+export async function toggleItemDicekOwner(itemId: string, pesananId: string, value: boolean): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  const { error } = await supabase
+    .from('item_pesanan')
+    .update({ dicek_oleh_owner: value })
+    .eq('id', itemId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pesanan/${pesananId}`)
+  return {}
+}
+
+export async function resetChecklist(pesananId: string, target: 'helper' | 'owner'): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  if (target === 'owner') {
+    const ownerError = await requireOwner(supabase)
+    if (ownerError) return ownerError
+  } else {
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser) return { error: 'Tidak terautentikasi.' }
+  }
+
+  const column = target === 'owner' ? 'dicek_oleh_owner' : 'diambil_oleh_helper'
+  const { error } = await supabase
+    .from('item_pesanan')
+    .update({ [column]: false })
+    .eq('pesanan_id', pesananId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pesanan/${pesananId}`)
   return {}
 }

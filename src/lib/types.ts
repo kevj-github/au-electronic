@@ -53,6 +53,8 @@ export interface ItemPesanan {
   diskon: number
   subtotal: number
   catatan_item: string | null
+  diambil_oleh_helper: boolean
+  dicek_oleh_owner: boolean
 }
 
 export interface Pembayaran {

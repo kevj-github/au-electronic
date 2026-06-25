@@ -12,12 +12,13 @@ import { Pagination } from '@/components/ui/pagination'
 import type { Pesanan, ItemPesanan, Pembayaran, StatusPesanan } from '@/lib/types'
 
 export type PesananWithRelations = Pesanan & {
-  items: Pick<ItemPesanan, 'subtotal'>[]
-  pembayaran: Pick<Pembayaran, 'jumlah'>[]
+  items: Array<Partial<Pick<ItemPesanan, 'subtotal'>> & Pick<ItemPesanan, 'diambil_oleh_helper'>>
+  pembayaran?: Pick<Pembayaran, 'jumlah'>[]
 }
 
 interface OrderListProps {
   pesananList: PesananWithRelations[]
+  isOwner: boolean
 }
 
 const statusOptions: Array<{ value: StatusPesanan | 'semua'; label: string }> = [
@@ -31,7 +32,7 @@ const statusOptions: Array<{ value: StatusPesanan | 'semua'; label: string }> = 
 
 const PAGE_SIZE = 10
 
-export function OrderList({ pesananList }: OrderListProps) {
+export function OrderList({ pesananList, isOwner }: OrderListProps) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusPesanan | 'semua'>('semua')
   const [page, setPage] = useState(1)
@@ -91,8 +92,9 @@ export function OrderList({ pesananList }: OrderListProps) {
           {/* Mobile: card list */}
           <div className="space-y-2 sm:hidden">
             {paged.map((p) => {
-              const totalPesanan = p.items.reduce((s, i) => s + i.subtotal, 0)
-              const totalDibayar = p.pembayaran.reduce((s, pm) => s + pm.jumlah, 0)
+              const diambilCount = p.items.filter((i) => i.diambil_oleh_helper).length
+              const totalPesanan = isOwner ? p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0) : 0
+              const totalDibayar = isOwner ? (p.pembayaran ?? []).reduce((s, pm) => s + pm.jumlah, 0) : 0
               const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
 
               return (
@@ -110,11 +112,17 @@ export function OrderList({ pesananList }: OrderListProps) {
                     <span className="text-muted-foreground">
                       {format(new Date(p.created_at), 'd MMM yyyy', { locale: idLocale })}
                     </span>
-                    <span className="font-mono font-medium">
-                      {sisaTagihan > 0 ? formatRupiah(sisaTagihan) : (
-                        <span className="text-green-600">Lunas</span>
-                      )}
-                    </span>
+                    {isOwner ? (
+                      <span className="font-mono font-medium">
+                        {sisaTagihan > 0 ? formatRupiah(sisaTagihan) : (
+                          <span className="text-green-600">Lunas</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {diambilCount}/{p.items.length} diambil
+                      </span>
+                    )}
                   </div>
                 </Link>
               )
@@ -129,15 +137,22 @@ export function OrderList({ pesananList }: OrderListProps) {
                   <th className="text-left px-4 py-3 font-medium">Kode</th>
                   <th className="text-left px-4 py-3 font-medium">Pelanggan</th>
                   <th className="text-left px-4 py-3 font-medium">Tanggal</th>
-                  <th className="text-right px-4 py-3 font-medium">Total</th>
-                  <th className="text-right px-4 py-3 font-medium">Sisa</th>
+                  {isOwner ? (
+                    <>
+                      <th className="text-right px-4 py-3 font-medium">Total</th>
+                      <th className="text-right px-4 py-3 font-medium">Sisa</th>
+                    </>
+                  ) : (
+                    <th className="text-right px-4 py-3 font-medium">Diambil</th>
+                  )}
                   <th className="text-left px-4 py-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {paged.map((p) => {
-                  const totalPesanan = p.items.reduce((s, i) => s + i.subtotal, 0)
-                  const totalDibayar = p.pembayaran.reduce((s, pm) => s + pm.jumlah, 0)
+                  const diambilCount = p.items.filter((i) => i.diambil_oleh_helper).length
+                  const totalPesanan = isOwner ? p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0) : 0
+                  const totalDibayar = isOwner ? (p.pembayaran ?? []).reduce((s, pm) => s + pm.jumlah, 0) : 0
                   const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
 
                   return (
@@ -156,16 +171,24 @@ export function OrderList({ pesananList }: OrderListProps) {
                       <td className="px-4 py-3 text-muted-foreground">
                         {format(new Date(p.created_at), 'd MMM yyyy', { locale: idLocale })}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono">
-                        {formatRupiah(totalPesanan)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono">
-                        {sisaTagihan > 0 ? (
-                          formatRupiah(sisaTagihan)
-                        ) : (
-                          <span className="text-green-600 font-medium">Lunas</span>
-                        )}
-                      </td>
+                      {isOwner ? (
+                        <>
+                          <td className="px-4 py-3 text-right font-mono">
+                            {formatRupiah(totalPesanan)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono">
+                            {sisaTagihan > 0 ? (
+                              formatRupiah(sisaTagihan)
+                            ) : (
+                              <span className="text-green-600 font-medium">Lunas</span>
+                            )}
+                          </td>
+                        </>
+                      ) : (
+                        <td className="px-4 py-3 text-right text-muted-foreground">
+                          {diambilCount}/{p.items.length}
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <StatusBadge status={p.status} />
                       </td>
