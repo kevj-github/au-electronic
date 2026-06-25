@@ -230,9 +230,9 @@ export default async function PesananDetailPage({
             <tbody className="divide-y">
               {pesanan.items.map((item) => (
                 <tr key={item.id}>
-                  <td className="px-4 py-2">{item.nama_barang}</td>
-                  <td className="px-4 py-2 text-right">{item.qty}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2 align-top">{item.nama_barang}</td>
+                  <td className="px-4 py-2 text-right align-top">{item.qty}</td>
+                  <td className="px-4 py-2 align-top">
                     <ItemChecklistCheckbox
                       itemId={item.id}
                       pesananId={pesanan.id}
@@ -242,7 +242,7 @@ export default async function PesananDetailPage({
                     />
                   </td>
                   {isOwner && (
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 align-top">
                       <ItemChecklistCheckbox
                         itemId={item.id}
                         pesananId={pesanan.id}
@@ -253,7 +253,7 @@ export default async function PesananDetailPage({
                     </td>
                   )}
                   {isOwner && (
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 py-2 text-right align-top">
                       <ItemPriceEditor
                         itemId={item.id}
                         pesananId={pesanan.id}
@@ -263,7 +263,7 @@ export default async function PesananDetailPage({
                     </td>
                   )}
                   {isOwner && (
-                    <td className="px-4 py-2 text-right font-mono">
+                    <td className="px-4 py-2 text-right font-mono align-top">
                       {formatRupiah((item as OwnerItem).subtotal)}
                     </td>
                   )}
