@@ -142,30 +142,34 @@ export default async function PesananDetailPage({
 
       {/* Line items */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="font-medium">Item Pesanan</h3>
-          <span className="text-sm text-muted-foreground">
-            {diambilCount}/{totalItems} diambil dari etalase
-          </span>
-        </div>
+        <h3 className="font-medium">Item Pesanan</h3>
 
-        <div className="flex items-center justify-between flex-wrap gap-2 text-sm">
-          <ResetChecklistButton
-            pesananId={pesanan.id}
-            target="helper"
-            confirmLabel="Kosongkan checklist pengambilan? Semua tanda centang akan dihapus."
-          />
-          {isOwner && (
+        <div className="space-y-1.5 text-sm">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-muted-foreground">
-              {dicekCount}/{totalItems} dicek pemilik
+              {diambilCount}/{totalItems} diambil dari etalase
             </span>
-          )}
-          {isOwner && (
             <ResetChecklistButton
               pesananId={pesanan.id}
-              target="owner"
-              confirmLabel="Kosongkan checklist pemeriksaan pemilik? Semua tanda centang akan dihapus."
+              target="helper"
+              label="Reset Diambil"
+              confirmTitle="Reset checklist pengambilan?"
+              confirmDescription="Semua tanda centang pengambilan dari etalase akan dihapus."
             />
+          </div>
+          {isOwner && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">
+                {dicekCount}/{totalItems} dicek pemilik
+              </span>
+              <ResetChecklistButton
+                pesananId={pesanan.id}
+                target="owner"
+                label="Reset Dicek"
+                confirmTitle="Reset checklist pemeriksaan pemilik?"
+                confirmDescription="Semua tanda centang pemeriksaan pemilik akan dihapus."
+              />
+            </div>
           )}
         </div>
 
