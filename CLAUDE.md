@@ -1,5 +1,24 @@
 @AGENTS.md
 
+## Commands
+
+```bash
+npm run dev        # Next.js dev server (Turbopack)
+npm run build       # Production build — the only check that catches async/Server Action errors (see below)
+npm run test:run    # Vitest, single run
+npm run lint        # ESLint
+```
+
+## Architecture
+
+- Route groups: `src/app/(auth)/` (login/register, public) and `src/app/(app)/` (dashboard/pelanggan/pengaturan/pesanan, behind auth + role checks). Layout for `(app)` composes `AppShell` (client) wrapping `Sidebar`/`TopBar`/children.
+- Supabase is **remote-only** — there is no local CLI/`supabase start` workflow. Schema changes go straight to the live project (ref `pjkddahrjjqblexxhaef`, region ap-southeast-1) via the Supabase MCP tools (`apply_migration`, `execute_sql`, `get_advisors`); migration files in `supabase/migrations/` are a record of what's already been applied, not a local source of truth to replay.
+- `src/lib/supabase/server.ts` / `client.ts` / `admin.ts` are the only places Supabase clients should be constructed (server component / browser / service-role respectively); `require-owner.ts` wraps the owner-role check used by gated Server Actions.
+
+## Environment
+
+`.env.example` lists the 3 required vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (service-role key is server-only, used by `admin.ts` for user-management actions like `createUser`/`deleteHelper`).
+
 ## Codebase conventions (learned from Plans 2-4 implementation)
 
 - **`'use server'` files: every export must be `async`.** A sync helper in a Server Actions file compiles fine under `tsc`/`eslint`/`vitest` but breaks `npm run build` ("Server Actions must be async functions"). Always run `npm run build` before calling Server Action changes done — it's the only check that catches this.
