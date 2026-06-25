@@ -47,6 +47,8 @@ export function useRealtimeRefresh(table: string, filter?: RealtimeRefreshFilter
           }
         )
         .subscribe()
+    }).catch((error) => {
+      console.error(`[useRealtimeRefresh] failed to start session for ${channelName}:`, error)
     })
 
     return () => {
