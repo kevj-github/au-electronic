@@ -428,7 +428,14 @@ Call the `apply_migration` MCP tool with:
 ```sql
 -- 1. Add updated_at to pesanan, defaulting existing rows to created_at.
 alter table public.pesanan add column updated_at timestamptz not null default now();
+
+-- The pesanan_write_guard trigger rejects updates to non-draft pesanan from
+-- a non-owner session; migrations run without a real auth session, so the
+-- backfill below must run with that guard disabled (same pattern as the
+-- existing kode_pesanan backfill in this codebase).
+alter table public.pesanan disable trigger pesanan_write_guard;
 update public.pesanan set updated_at = created_at;
+alter table public.pesanan enable trigger pesanan_write_guard;
 
 -- 2. Bump updated_at on any direct edit to pesanan itself.
 create or replace function public.set_pesanan_updated_at()
