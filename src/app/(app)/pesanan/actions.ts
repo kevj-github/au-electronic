@@ -34,13 +34,19 @@ export async function createPesanan(input: CreatePesananInput) {
   const { data: kodeData, error: kodeError } = await supabase.rpc('next_kode_pesanan')
   if (kodeError) return { error: kodeError.message }
 
-  // Check if helpers are locked from creating new pesanan
+  // Check if helpers are locked from creating new pesanan.
+  // Fail-closed: any DB error reading the lock setting blocks the action rather
+  // than silently allowing it through (a missing row means the table wasn't seeded,
+  // which is an infrastructure problem that should surface, not be swallowed).
   const { data: userRow } = await supabase
     .from('users').select('role').eq('id', authUser.id).single<{ role: string }>()
   if (userRow?.role !== 'owner') {
-    const { data: lockSetting } = await supabase
+    const { data: lockSetting, error: lockErr } = await supabase
       .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
-    if (lockSetting?.value === 'true') {
+    if (lockErr || !lockSetting) {
+      return { error: 'Tidak dapat memverifikasi status kunci pesanan.' }
+    }
+    if (lockSetting.value === 'true') {
       return { error: 'Pembuatan pesanan baru sedang dikunci oleh pemilik.' }
     }
   }
@@ -202,6 +208,14 @@ export async function addItemToPesanan(pesananId: string, item: AddItemInput): P
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
+  // App-layer status guard: the DB trigger enforces this for non-owners, but the owner
+  // bypasses the trigger. Checking here closes that gap for all callers.
+  const { data: pesanan } = await supabase
+    .from('pesanan').select('status').eq('id', pesananId).single<{ status: string }>()
+  if (!pesanan || pesanan.status !== 'diproses') {
+    return { error: 'Pesanan tidak dapat diubah.' }
+  }
+
   const { error } = await supabase
     .from('item_pesanan')
     .insert({
@@ -227,13 +241,25 @@ export async function updateItemDetails(
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
+  // Look up the item's actual pesanan_id from the DB rather than trusting the
+  // client-supplied pesananId, then verify the parent pesanan is still active.
+  const { data: existingItem } = await supabase
+    .from('item_pesanan').select('pesanan_id').eq('id', itemId).single<{ pesanan_id: string }>()
+  if (!existingItem) return { error: 'Item tidak ditemukan.' }
+
+  const { data: pesanan } = await supabase
+    .from('pesanan').select('status').eq('id', existingItem.pesanan_id).single<{ status: string }>()
+  if (!pesanan || pesanan.status !== 'diproses') {
+    return { error: 'Pesanan tidak dapat diubah.' }
+  }
+
   const { error } = await supabase
     .from('item_pesanan')
     .update({ nama_barang: changes.nama_barang, qty: changes.qty, catatan_item: changes.catatan_item })
     .eq('id', itemId)
 
   if (error) return { error: error.message }
-  revalidatePath(`/pesanan/${pesananId}`)
+  revalidatePath(`/pesanan/${existingItem.pesanan_id}`)
   return {}
 }
 
@@ -242,13 +268,24 @@ export async function deleteItemFromPesanan(itemId: string, pesananId: string): 
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
+  // Look up the item's actual pesanan_id from the DB; don't trust client-supplied value.
+  const { data: existingItem } = await supabase
+    .from('item_pesanan').select('pesanan_id').eq('id', itemId).single<{ pesanan_id: string }>()
+  if (!existingItem) return { error: 'Item tidak ditemukan.' }
+
+  const { data: pesanan } = await supabase
+    .from('pesanan').select('status').eq('id', existingItem.pesanan_id).single<{ status: string }>()
+  if (!pesanan || pesanan.status !== 'diproses') {
+    return { error: 'Pesanan tidak dapat diubah.' }
+  }
+
   const { error } = await supabase
     .from('item_pesanan')
     .delete()
     .eq('id', itemId)
 
   if (error) return { error: error.message }
-  revalidatePath(`/pesanan/${pesananId}`)
+  revalidatePath(`/pesanan/${existingItem.pesanan_id}`)
   return {}
 }
 
@@ -259,6 +296,13 @@ export async function updateAllItemHarga(
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
+
+  // Verify the pesanan is still active even for owner (owner bypasses the DB trigger).
+  const { data: pesanan } = await supabase
+    .from('pesanan').select('status').eq('id', pesananId).single<{ status: string }>()
+  if (!pesanan || pesanan.status !== 'diproses') {
+    return { error: 'Pesanan tidak dapat diubah.' }
+  }
 
   for (const item of items) {
     const { error } = await supabase
