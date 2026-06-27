@@ -144,7 +144,9 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                       </span>
                       {isOwner ? (
                         <span className="font-mono font-medium">
-                          {sisaTagihan > 0 ? formatRupiah(sisaTagihan) : (
+                          {totalPesanan === 0 && (p.pembayaran ?? []).length === 0 ? (
+                            <span className="text-muted-foreground font-normal text-xs">Belum ada harga</span>
+                          ) : sisaTagihan > 0 ? formatRupiah(sisaTagihan) : (
                             <span className="text-green-600">Lunas</span>
                           )}
                         </span>
@@ -210,7 +212,9 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                             {formatRupiah(totalPesanan)}
                           </td>
                           <td className="px-4 py-3 text-right font-mono">
-                            {sisaTagihan > 0 ? (
+                            {totalPesanan === 0 && (p.pembayaran ?? []).length === 0 ? (
+                              <span className="text-muted-foreground font-normal text-xs">Belum ada harga</span>
+                            ) : sisaTagihan > 0 ? (
                               formatRupiah(sisaTagihan)
                             ) : (
                               <span className="text-green-600 font-medium">Lunas</span>
