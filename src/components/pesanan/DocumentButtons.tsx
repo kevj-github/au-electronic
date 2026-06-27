@@ -11,30 +11,9 @@ interface DocumentButtonsProps {
   data: InvoiceData
 }
 
-// Loads the logo image and crops off the bottom address lines (bottom ~43% of the image).
-async function loadLogoBase64(): Promise<string | undefined> {
+async function loadImageBase64(path: string): Promise<string | undefined> {
   try {
-    const img = new window.Image()
-    img.crossOrigin = 'anonymous'
-    await new Promise<void>((res, rej) => {
-      img.onload = () => res()
-      img.onerror = () => rej(new Error('load failed'))
-      img.src = '/au-logo.jpg'
-    })
-    const cropH = Math.floor(img.naturalHeight * 0.57)
-    const canvas = document.createElement('canvas')
-    canvas.width = img.naturalWidth
-    canvas.height = cropH
-    canvas.getContext('2d')!.drawImage(img, 0, 0)
-    return canvas.toDataURL('image/png')
-  } catch {
-    return undefined
-  }
-}
-
-async function loadWatermarkBase64(): Promise<string | undefined> {
-  try {
-    const resp = await fetch('/au-trademark.jpg')
+    const resp = await fetch(path)
     const blob = await resp.blob()
     return new Promise((res) => {
       const reader = new FileReader()
@@ -62,8 +41,8 @@ export function DocumentButtons({ data }: DocumentButtonsProps) {
     try {
       const [{ DocumentPDF }, logoSrc, watermarkSrc] = await Promise.all([
         import('@/components/invoice/DocumentPDF'),
-        loadLogoBase64(),
-        loadWatermarkBase64(),
+        loadImageBase64('/au-logo.png'),
+        loadImageBase64('/au-trademark.png'),
       ])
       const blob = await pdf(<DocumentPDF data={data} logoSrc={logoSrc} watermarkSrc={watermarkSrc} />).toBlob()
       const url = URL.createObjectURL(blob)
