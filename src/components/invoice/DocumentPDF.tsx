@@ -15,7 +15,7 @@ const styles = StyleSheet.create({
     opacity: 0.07,
   },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  logoImage: { width: 200, height: 53 },
+  logoImage: { width: 200, height: 48 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoCircle: {
     width: 36,
