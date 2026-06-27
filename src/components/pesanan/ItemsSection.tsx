@@ -201,7 +201,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
               <div className="flex flex-col gap-1 border-t pt-2">
                 <ItemChecklistCheckbox
                   itemId={item.id}
-                  pesananId={pesananId}
                   checked={item.diambil_oleh_helper}
                   kind="helper"
                   label="Diambil dari etalase"
@@ -210,7 +209,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                 {isOwner && (
                   <ItemChecklistCheckbox
                     itemId={item.id}
-                    pesananId={pesananId}
                     checked={item.dicek_oleh_owner ?? false}
                     kind="owner"
                     label="Dicek pemilik"
@@ -377,7 +375,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                     <td className="px-4 py-2 align-top">
                       <ItemChecklistCheckbox
                         itemId={item.id}
-                        pesananId={pesananId}
                         checked={item.diambil_oleh_helper}
                         kind="helper"
                         label="Diambil"
@@ -388,7 +385,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                       <td className="px-4 py-2 align-top">
                         <ItemChecklistCheckbox
                           itemId={item.id}
-                          pesananId={pesananId}
                           checked={item.dicek_oleh_owner ?? false}
                           kind="owner"
                           label="Dicek"

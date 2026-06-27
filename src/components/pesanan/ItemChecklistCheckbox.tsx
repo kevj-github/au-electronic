@@ -6,7 +6,6 @@ import { toggleItemDiambil, toggleItemDicekOwner } from '@/app/(app)/pesanan/act
 
 interface ItemChecklistCheckboxProps {
   itemId: string
-  pesananId: string
   checked: boolean
   kind: 'helper' | 'owner'
   label: string
@@ -15,7 +14,6 @@ interface ItemChecklistCheckboxProps {
 
 export function ItemChecklistCheckbox({
   itemId,
-  pesananId,
   checked,
   kind,
   label,
@@ -41,8 +39,8 @@ export function ItemChecklistCheckbox({
     setPending(next)
     setLoading(true)
     const result = kind === 'owner'
-      ? await toggleItemDicekOwner(itemId, pesananId, next)
-      : await toggleItemDiambil(itemId, pesananId, next)
+      ? await toggleItemDicekOwner(itemId, next)
+      : await toggleItemDiambil(itemId, next)
     if (result?.error) {
       setPending(null)
     }

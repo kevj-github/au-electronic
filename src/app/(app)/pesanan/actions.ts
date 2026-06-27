@@ -109,43 +109,39 @@ export async function updateStatusPesanan(pesananId: string, status: StatusPesan
   return {}
 }
 
-export interface UpdateItemHargaInput {
+// Looks up an item's parent pesanan_id and status in one round-trip.
+// Returns null when the item doesn't exist or the pesanan isn't accessible.
+async function getItemPesananStatus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
   itemId: string
-  pesananId: string
-  harga_satuan: number
-  diskon: number
-}
-
-export async function updateItemHarga({ itemId, pesananId, harga_satuan, diskon }: UpdateItemHargaInput) {
-  const supabase = await createClient()
-
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) return { error: 'Tidak terautentikasi.' }
-
-  const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<{ role: string }>()
-  if (user?.role !== 'owner') return { error: 'Hanya pemilik yang bisa mengubah harga.' }
-
-  const { error } = await supabase
+): Promise<{ pesanan_id: string; status: string } | null> {
+  const { data: item } = await supabase
     .from('item_pesanan')
-    .update({ harga_satuan, diskon })
+    .select('pesanan_id')
     .eq('id', itemId)
+    .single<{ pesanan_id: string }>()
+  if (!item) return null
 
-  if (error) return { error: error.message }
+  const { data: pesanan } = await supabase
+    .from('pesanan')
+    .select('status')
+    .eq('id', item.pesanan_id)
+    .single<{ status: string }>()
+  if (!pesanan) return null
 
-  revalidatePath(`/pesanan/${pesananId}`)
-  revalidatePath('/pesanan')
-  return {}
+  return { pesanan_id: item.pesanan_id, status: pesanan.status }
 }
 
-// Anyone authenticated can tick this off — any helper may be the one fetching
-// items from the etalase, not just whoever created the order. guard_item_pesanan_write
-// is the real gatekeeper limiting non-owners to only this column on orders they didn't create.
-export async function toggleItemDiambil(itemId: string, pesananId: string, value: boolean): Promise<{ error?: string }> {
+// Any authenticated user can tick diambil_oleh_helper — any helper may be the one
+// fetching items from the etalase. guard_item_pesanan_write is the DB-level gatekeeper;
+// the status check here closes the owner bypass gap at the app layer.
+export async function toggleItemDiambil(itemId: string, value: boolean): Promise<{ error?: string }> {
   const supabase = await createClient()
-
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const info = await getItemPesananStatus(supabase, itemId)
+  if (!info || info.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
 
   const { error } = await supabase
     .from('item_pesanan')
@@ -153,15 +149,17 @@ export async function toggleItemDiambil(itemId: string, pesananId: string, value
     .eq('id', itemId)
 
   if (error) return { error: error.message }
-
-  revalidatePath(`/pesanan/${pesananId}`)
+  revalidatePath(`/pesanan/${info.pesanan_id}`)
   return {}
 }
 
-export async function toggleItemDicekOwner(itemId: string, pesananId: string, value: boolean): Promise<{ error?: string }> {
+export async function toggleItemDicekOwner(itemId: string, value: boolean): Promise<{ error?: string }> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
+
+  const info = await getItemPesananStatus(supabase, itemId)
+  if (!info || info.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
 
   const { error } = await supabase
     .from('item_pesanan')
@@ -169,8 +167,7 @@ export async function toggleItemDicekOwner(itemId: string, pesananId: string, va
     .eq('id', itemId)
 
   if (error) return { error: error.message }
-
-  revalidatePath(`/pesanan/${pesananId}`)
+  revalidatePath(`/pesanan/${info.pesanan_id}`)
   return {}
 }
 
@@ -185,6 +182,11 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
     if (!authUser) return { error: 'Tidak terautentikasi.' }
   }
 
+  // App-layer status check — owner bypasses the DB trigger.
+  const { data: pesanan } = await supabase
+    .from('pesanan').select('status').eq('id', pesananId).single<{ status: string }>()
+  if (!pesanan || pesanan.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
+
   const column = target === 'owner' ? 'dicek_oleh_owner' : 'diambil_oleh_helper'
   const { error } = await supabase
     .from('item_pesanan')
@@ -192,7 +194,6 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
     .eq('pesanan_id', pesananId)
 
   if (error) return { error: error.message }
-
   revalidatePath(`/pesanan/${pesananId}`)
   return {}
 }
