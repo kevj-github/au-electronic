@@ -71,3 +71,18 @@ export async function deleteHelper(userId: string): Promise<{ error?: string }> 
   revalidatePath('/pengaturan')
   return {}
 }
+
+export async function setPesananLocked(locked: boolean): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  const { error } = await supabase
+    .from('settings')
+    .update({ value: locked ? 'true' : 'false' })
+    .eq('key', 'pesanan_locked')
+
+  if (error) return { error: error.message }
+  revalidatePath('/pengaturan')
+  return {}
+}

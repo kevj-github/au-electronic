@@ -6,8 +6,8 @@ import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionBu
 import { DocumentButtons } from '@/components/pesanan/DocumentButtons'
 import { PaymentModal } from '@/components/pesanan/PaymentModal'
 import { DeletePaymentButton } from '@/components/pesanan/DeletePaymentButton'
-import { ItemPriceEditor } from '@/components/pesanan/ItemPriceEditor'
-import { ItemChecklistCheckbox } from '@/components/pesanan/ItemChecklistCheckbox'
+import { ItemsSection } from '@/components/pesanan/ItemsSection'
+import { BulkPriceForm } from '@/components/pesanan/BulkPriceForm'
 import { ResetChecklistButton } from '@/components/pesanan/ResetChecklistButton'
 import type { InvoiceData } from '@/lib/invoice-data'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
@@ -28,17 +28,13 @@ type PesananDetail = Omit<Pesanan, 'pelanggan' | 'items' | 'pembayaran'> & {
 }
 
 const statusTransitions: Record<StatusPesanan, StatusPesanan[]> = {
-  draft: ['konfirmasi', 'dibatalkan'],
-  konfirmasi: ['diproses', 'dibatalkan'],
   diproses: ['selesai', 'dibatalkan'],
   selesai: [],
   dibatalkan: [],
 }
 
 const statusLabel: Record<StatusPesanan, string> = {
-  draft: 'Draft',
-  konfirmasi: 'Konfirmasi',
-  diproses: 'Proses',
+  diproses: 'Diproses',
   selesai: 'Selesai',
   dibatalkan: 'Batalkan',
 }
@@ -75,6 +71,7 @@ export default async function PesananDetailPage({
 
   if (!pesanan) notFound()
 
+  const isLocked = pesanan.status !== 'diproses'
   const ownerItems = isOwner ? (pesanan.items as OwnerItem[]) : []
   const pembayaranList = pesanan.pembayaran ?? []
   const totalPesanan = ownerItems.reduce((s, i) => s + i.subtotal, 0)
@@ -105,9 +102,32 @@ export default async function PesananDetailPage({
       }
     : null
 
+  // Items passed to client components — no price data for helpers
+  const sectionItems = pesanan.items.map((item) => {
+    if (isOwner) {
+      const o = item as OwnerItem
+      return {
+        id: o.id,
+        nama_barang: o.nama_barang,
+        qty: o.qty,
+        catatan_item: o.catatan_item,
+        diambil_oleh_helper: o.diambil_oleh_helper,
+        dicek_oleh_owner: o.dicek_oleh_owner,
+      }
+    }
+    return {
+      id: item.id,
+      nama_barang: item.nama_barang,
+      qty: item.qty,
+      catatan_item: item.catatan_item,
+      diambil_oleh_helper: item.diambil_oleh_helper,
+    }
+  })
+
   return (
     <div className="space-y-6 max-w-3xl">
       <RealtimeRefresh table="pesanan" filter={{ column: 'id', value: pesanan.id }} />
+
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
@@ -151,144 +171,87 @@ export default async function PesananDetailPage({
             <span className="text-muted-foreground">
               {diambilCount}/{totalItems} diambil dari etalase
             </span>
-            <ResetChecklistButton
-              pesananId={pesanan.id}
-              target="helper"
-              label="Reset Diambil"
-              confirmTitle="Reset checklist pengambilan?"
-              confirmDescription="Semua tanda centang pengambilan dari etalase akan dihapus."
-            />
+            {!isLocked && (
+              <ResetChecklistButton
+                pesananId={pesanan.id}
+                target="helper"
+                label="Reset Diambil"
+                confirmTitle="Reset checklist pengambilan?"
+                confirmDescription="Semua tanda centang pengambilan dari etalase akan dihapus."
+              />
+            )}
           </div>
           {isOwner && (
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">
                 {dicekCount}/{totalItems} dicek pemilik
               </span>
-              <ResetChecklistButton
-                pesananId={pesanan.id}
-                target="owner"
-                label="Reset Dicek"
-                confirmTitle="Reset checklist pemeriksaan pemilik?"
-                confirmDescription="Semua tanda centang pemeriksaan pemilik akan dihapus."
-              />
+              {!isLocked && (
+                <ResetChecklistButton
+                  pesananId={pesanan.id}
+                  target="owner"
+                  label="Reset Dicek"
+                  confirmTitle="Reset checklist pemeriksaan pemilik?"
+                  confirmDescription="Semua tanda centang pemeriksaan pemilik akan dihapus."
+                />
+              )}
             </div>
           )}
         </div>
 
-        {/* Mobile: card list */}
-        <div className="space-y-2 sm:hidden">
-          {pesanan.items.map((item) => (
-            <div key={item.id} className="border rounded-lg p-3 space-y-3">
-              <div className="flex justify-between items-start gap-3">
-                <div>
-                  <p className="font-medium text-sm">{item.nama_barang}</p>
-                  <p className="text-xs text-muted-foreground">Qty {item.qty}</p>
-                </div>
-                {isOwner && (
-                  <div className="text-right space-y-1">
-                    <ItemPriceEditor
-                      itemId={item.id}
-                      pesananId={pesanan.id}
-                      hargaSatuan={(item as OwnerItem).harga_satuan}
-                      diskon={(item as OwnerItem).diskon}
-                    />
-                    <p className="text-xs text-muted-foreground font-mono">
-                      Subtotal: {formatRupiah((item as OwnerItem).subtotal)}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-1 border-t pt-2">
-                <ItemChecklistCheckbox
-                  itemId={item.id}
-                  pesananId={pesanan.id}
-                  checked={item.diambil_oleh_helper}
-                  kind="helper"
-                  label="Diambil dari etalase"
-                />
-                {isOwner && (
-                  <ItemChecklistCheckbox
-                    itemId={item.id}
-                    pesananId={pesanan.id}
-                    checked={(item as OwnerItem).dicek_oleh_owner}
-                    kind="owner"
-                    label="Dicek pemilik"
-                  />
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <ItemsSection
+          pesananId={pesanan.id}
+          items={sectionItems}
+          isOwner={isOwner}
+          isLocked={isLocked}
+        />
+      </div>
 
-        {/* Desktop: table */}
-        <div className="hidden sm:block border rounded-lg overflow-hidden overflow-x-auto">
+      {/* Bulk price editor — owner only, active orders only */}
+      {isOwner && !isLocked && (
+        <BulkPriceForm
+          pesananId={pesanan.id}
+          items={ownerItems.map((i) => ({
+            id: i.id,
+            nama_barang: i.nama_barang,
+            qty: i.qty,
+            harga_satuan: i.harga_satuan,
+            diskon: i.diskon,
+          }))}
+        />
+      )}
+
+      {/* Price summary for owner on locked orders */}
+      {isOwner && isLocked && (
+        <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left px-4 py-2 font-medium">Nama Barang</th>
+                <th className="text-left px-4 py-2 font-medium">Barang</th>
                 <th className="text-right px-4 py-2 font-medium">Qty</th>
-                <th className="text-left px-4 py-2 font-medium">Diambil</th>
-                {isOwner && <th className="text-left px-4 py-2 font-medium">Dicek Pemilik</th>}
-                {isOwner && <th className="text-right px-4 py-2 font-medium">Harga</th>}
-                {isOwner && <th className="text-right px-4 py-2 font-medium">Subtotal</th>}
+                <th className="text-right px-4 py-2 font-medium">Harga</th>
+                <th className="text-right px-4 py-2 font-medium">Subtotal</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {pesanan.items.map((item) => (
-                <tr key={item.id}>
-                  <td className="px-4 py-2 align-top">{item.nama_barang}</td>
-                  <td className="px-4 py-2 text-right align-top">{item.qty}</td>
-                  <td className="px-4 py-2 align-top">
-                    <ItemChecklistCheckbox
-                      itemId={item.id}
-                      pesananId={pesanan.id}
-                      checked={item.diambil_oleh_helper}
-                      kind="helper"
-                      label="Diambil"
-                    />
-                  </td>
-                  {isOwner && (
-                    <td className="px-4 py-2 align-top">
-                      <ItemChecklistCheckbox
-                        itemId={item.id}
-                        pesananId={pesanan.id}
-                        checked={(item as OwnerItem).dicek_oleh_owner}
-                        kind="owner"
-                        label="Dicek"
-                      />
-                    </td>
-                  )}
-                  {isOwner && (
-                    <td className="px-4 py-2 text-right align-top">
-                      <ItemPriceEditor
-                        itemId={item.id}
-                        pesananId={pesanan.id}
-                        hargaSatuan={(item as OwnerItem).harga_satuan}
-                        diskon={(item as OwnerItem).diskon}
-                      />
-                    </td>
-                  )}
-                  {isOwner && (
-                    <td className="px-4 py-2 text-right font-mono align-top">
-                      {formatRupiah((item as OwnerItem).subtotal)}
-                    </td>
-                  )}
+              {ownerItems.map((i) => (
+                <tr key={i.id}>
+                  <td className="px-4 py-2">{i.nama_barang}</td>
+                  <td className="px-4 py-2 text-right">{i.qty}</td>
+                  <td className="px-4 py-2 text-right font-mono">{formatRupiah(i.harga_satuan)}</td>
+                  <td className="px-4 py-2 text-right font-mono">{formatRupiah(i.subtotal)}</td>
                 </tr>
               ))}
             </tbody>
-            {isOwner && (
-              <tfoot className="border-t bg-gray-50">
-                <tr>
-                  <td colSpan={5} className="px-4 py-2 text-right font-medium">Total</td>
-                  <td className="px-4 py-2 text-right font-mono font-semibold">
-                    {formatRupiah(totalPesanan)}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
+            <tfoot className="border-t bg-gray-50">
+              <tr>
+                <td colSpan={3} className="px-4 py-2 text-right font-medium">Total</td>
+                <td className="px-4 py-2 text-right font-mono font-semibold">{formatRupiah(totalPesanan)}</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
-      </div>
+      )}
 
       {/* Payment recording — owner only */}
       {isOwner && (

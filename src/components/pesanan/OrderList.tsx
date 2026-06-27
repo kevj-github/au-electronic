@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
@@ -23,8 +23,6 @@ interface OrderListProps {
 
 const statusOptions: Array<{ value: StatusPesanan | 'semua'; label: string }> = [
   { value: 'semua', label: 'Semua status' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'konfirmasi', label: 'Dikonfirmasi' },
   { value: 'diproses', label: 'Diproses' },
   { value: 'selesai', label: 'Selesai' },
   { value: 'dibatalkan', label: 'Dibatalkan' },
@@ -35,12 +33,19 @@ const PAGE_SIZE = 10
 export function OrderList({ pesananList, isOwner }: OrderListProps) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusPesanan | 'semua'>('semua')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return pesananList.filter((p) => {
       if (status !== 'semua' && p.status !== status) return false
+      if (dateFrom || dateTo) {
+        const created = parseISO(p.created_at)
+        if (dateFrom && created < startOfDay(parseISO(dateFrom))) return false
+        if (dateTo && created > endOfDay(parseISO(dateTo))) return false
+      }
       if (!q) return true
       const nama = p.pelanggan?.nama ?? p.nama_pelanggan ?? ''
       return (
@@ -48,12 +53,12 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
         nama.toLowerCase().includes(q)
       )
     })
-  }, [pesananList, query, status])
+  }, [pesananList, query, status, dateFrom, dateTo])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   useEffect(() => {
     setPage(1)
-  }, [query, status])
+  }, [query, status, dateFrom, dateTo])
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   if (pesananList.length === 0) {
@@ -81,6 +86,33 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground">Tanggal:</span>
+        <Input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="h-8 w-36 text-sm"
+          aria-label="Dari tanggal"
+        />
+        <span className="text-xs text-muted-foreground">—</span>
+        <Input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="h-8 w-36 text-sm"
+          aria-label="Sampai tanggal"
+        />
+        {(dateFrom || dateTo) && (
+          <button
+            type="button"
+            onClick={() => { setDateFrom(''); setDateTo('') }}
+            className="text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            Reset
+          </button>
+        )}
       </div>
 
       {filtered.length === 0 ? (

@@ -23,8 +23,15 @@ export default async function AppLayout({
 
   if (!user) redirect('/login')
 
+  const { data: lockSetting } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'pesanan_locked')
+    .single<{ value: string }>()
+  const pesananLocked = lockSetting?.value === 'true'
+
   return (
-    <AppShell role={user.role} nama={user.nama}>
+    <AppShell role={user.role} nama={user.nama} pesananLocked={pesananLocked}>
       {children}
     </AppShell>
   )

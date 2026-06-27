@@ -3,8 +3,6 @@ export type UserRole = 'owner' | 'helper'
 export type TipePelanggan = 'retail' | 'grosir'
 
 export type StatusPesanan =
-  | 'draft'
-  | 'konfirmasi'
   | 'diproses'
   | 'selesai'
   | 'dibatalkan'

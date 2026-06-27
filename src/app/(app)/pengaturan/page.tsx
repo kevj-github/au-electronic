@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { AddHelperForm } from '@/components/pengaturan/AddHelperForm'
 import { DeleteHelperButton } from '@/components/pengaturan/DeleteHelperButton'
+import { PesananLockToggle } from '@/components/pengaturan/PesananLockToggle'
 import type { User } from '@/lib/types'
 
 export default async function PengaturanPage() {
@@ -14,11 +15,11 @@ export default async function PengaturanPage() {
     .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
   if (user?.role !== 'owner') redirect('/pesanan')
 
-  const { data: userList } = await supabase
-    .from('users')
-    .select('*')
-    .order('created_at', { ascending: true })
-    .returns<User[]>()
+  const [{ data: userList }, { data: lockSetting }] = await Promise.all([
+    supabase.from('users').select('*').order('created_at', { ascending: true }).returns<User[]>(),
+    supabase.from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>(),
+  ])
+  const pesananLocked = lockSetting?.value === 'true'
 
   return (
     <div className="space-y-6">
@@ -46,6 +47,11 @@ export default async function PengaturanPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="border rounded-lg p-4 space-y-3">
+        <h3 className="font-medium">Kontrol Pesanan</h3>
+        <PesananLockToggle locked={pesananLocked} />
       </div>
 
       <div className="space-y-3">

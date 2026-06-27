@@ -2,11 +2,31 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Plus, Lock } from 'lucide-react'
+import type { UserRole } from '@/lib/types'
 
-export function NewOrderFab() {
+interface NewOrderFabProps {
+  role: UserRole
+  pesananLocked: boolean
+}
+
+export function NewOrderFab({ role, pesananLocked }: NewOrderFabProps) {
   const pathname = usePathname()
   if (pathname === '/pesanan/baru') return null
+
+  const isLockedForHelper = role === 'helper' && pesananLocked
+
+  if (isLockedForHelper) {
+    return (
+      <div
+        title="Pembuatan pesanan baru sedang dikunci oleh pemilik"
+        className="fixed bottom-6 right-6 z-20 flex items-center gap-2 rounded-full bg-muted text-muted-foreground pl-4 pr-5 py-3 shadow-lg cursor-not-allowed select-none"
+      >
+        <Lock className="size-5" />
+        <span className="text-sm font-medium">Pesanan Baru</span>
+      </div>
+    )
+  }
 
   return (
     <Link

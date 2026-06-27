@@ -9,10 +9,11 @@ import type { UserRole } from '@/lib/types'
 interface AppShellProps {
   role: UserRole
   nama: string
+  pesananLocked: boolean
   children: React.ReactNode
 }
 
-export function AppShell({ role, nama, children }: AppShellProps) {
+export function AppShell({ role, nama, pesananLocked, children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
@@ -22,7 +23,7 @@ export function AppShell({ role, nama, children }: AppShellProps) {
         <TopBar title="AU Electronic" onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 sm:p-6">{children}</main>
       </div>
-      <NewOrderFab />
+      <NewOrderFab role={role} pesananLocked={pesananLocked} />
     </div>
   )
 }

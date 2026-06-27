@@ -10,6 +10,7 @@ interface ItemChecklistCheckboxProps {
   checked: boolean
   kind: 'helper' | 'owner'
   label: string
+  disabled?: boolean
 }
 
 export function ItemChecklistCheckbox({
@@ -18,6 +19,7 @@ export function ItemChecklistCheckbox({
   checked,
   kind,
   label,
+  disabled = false,
 }: ItemChecklistCheckboxProps) {
   const [prevChecked, setPrevChecked] = useState(checked)
   const [pending, setPending] = useState<boolean | null>(null)
@@ -51,7 +53,7 @@ export function ItemChecklistCheckbox({
     <label className="inline-flex items-center gap-2 cursor-pointer select-none py-1">
       <Checkbox
         checked={value}
-        disabled={loading}
+        disabled={loading || disabled}
         onCheckedChange={(next) => handleChange(next === true)}
         aria-label={label}
       />

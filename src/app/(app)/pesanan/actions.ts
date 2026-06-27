@@ -34,6 +34,17 @@ export async function createPesanan(input: CreatePesananInput) {
   const { data: kodeData, error: kodeError } = await supabase.rpc('next_kode_pesanan')
   if (kodeError) return { error: kodeError.message }
 
+  // Check if helpers are locked from creating new pesanan
+  const { data: userRow } = await supabase
+    .from('users').select('role').eq('id', authUser.id).single<{ role: string }>()
+  if (userRow?.role !== 'owner') {
+    const { data: lockSetting } = await supabase
+      .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
+    if (lockSetting?.value === 'true') {
+      return { error: 'Pembuatan pesanan baru sedang dikunci oleh pemilik.' }
+    }
+  }
+
   const { data: pesanan, error: pesananError } = await supabase
     .from('pesanan')
     .insert({
@@ -42,7 +53,7 @@ export async function createPesanan(input: CreatePesananInput) {
       nama_pelanggan: input.nama_pelanggan,
       catatan: input.catatan,
       dibuat_oleh: authUser.id,
-      status: 'draft',
+      status: 'diproses',
     })
     .select('id')
     .single<{ id: string }>()
@@ -177,5 +188,87 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
   if (error) return { error: error.message }
 
   revalidatePath(`/pesanan/${pesananId}`)
+  return {}
+}
+
+export interface AddItemInput {
+  nama_barang: string
+  qty: number
+  catatan_item: string | null
+}
+
+export async function addItemToPesanan(pesananId: string, item: AddItemInput): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const { error } = await supabase
+    .from('item_pesanan')
+    .insert({
+      pesanan_id: pesananId,
+      nama_barang: item.nama_barang,
+      qty: item.qty,
+      harga_satuan: 0,
+      diskon: 0,
+      catatan_item: item.catatan_item,
+    })
+
+  if (error) return { error: error.message }
+  revalidatePath(`/pesanan/${pesananId}`)
+  return {}
+}
+
+export async function updateItemDetails(
+  itemId: string,
+  pesananId: string,
+  changes: { nama_barang: string; qty: number; catatan_item: string | null }
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const { error } = await supabase
+    .from('item_pesanan')
+    .update({ nama_barang: changes.nama_barang, qty: changes.qty, catatan_item: changes.catatan_item })
+    .eq('id', itemId)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/pesanan/${pesananId}`)
+  return {}
+}
+
+export async function deleteItemFromPesanan(itemId: string, pesananId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const { error } = await supabase
+    .from('item_pesanan')
+    .delete()
+    .eq('id', itemId)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/pesanan/${pesananId}`)
+  return {}
+}
+
+export async function updateAllItemHarga(
+  pesananId: string,
+  items: Array<{ id: string; harga_satuan: number; diskon: number }>
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  for (const item of items) {
+    const { error } = await supabase
+      .from('item_pesanan')
+      .update({ harga_satuan: item.harga_satuan, diskon: item.diskon })
+      .eq('id', item.id)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/pesanan/${pesananId}`)
+  revalidatePath('/pesanan')
   return {}
 }

@@ -11,9 +11,12 @@ export default async function PesananPage() {
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) redirect('/login')
 
-  const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
+  const [{ data: user }, { data: lockSetting }] = await Promise.all([
+    supabase.from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>(),
+    supabase.from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>(),
+  ])
   const isOwner = user?.role === 'owner'
+  const pesananLocked = !isOwner && lockSetting?.value === 'true'
 
   // Helpers never get price/payment data fetched into the RSC payload at all.
   const select = isOwner
@@ -36,9 +39,11 @@ export default async function PesananPage() {
             {pesananList?.length ?? 0} pesanan
           </p>
         </div>
-        <Link href="/pesanan/baru">
-          <Button>+ Pesanan Baru</Button>
-        </Link>
+        {!pesananLocked && (
+          <Link href="/pesanan/baru">
+            <Button>+ Pesanan Baru</Button>
+          </Link>
+        )}
       </div>
       <OrderList pesananList={pesananList ?? []} isOwner={isOwner} />
     </div>

@@ -8,10 +8,15 @@ export default async function PesananBaruPage() {
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) redirect('/login')
 
-  const [{ data: user }, { data: pelangganList }] = await Promise.all([
+  const [{ data: user }, { data: pelangganList }, { data: lockSetting }] = await Promise.all([
     supabase.from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>(),
     supabase.from('pelanggan').select('*').order('nama').returns<Pelanggan[]>(),
+    supabase.from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>(),
   ])
+
+  if (user?.role === 'helper' && lockSetting?.value === 'true') {
+    redirect('/pesanan')
+  }
 
   return (
     <div className="space-y-4">
