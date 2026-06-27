@@ -72,6 +72,43 @@ export async function deleteHelper(userId: string): Promise<{ error?: string }> 
   return {}
 }
 
+export async function clearAllPesanan(): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  // item_pesanan and pembayaran cascade via FK ON DELETE CASCADE
+  const { error } = await supabase.from('pesanan').delete().not('id', 'is', null)
+  if (error) return { error: error.message }
+
+  revalidatePath('/pesanan')
+  return {}
+}
+
+export async function clearAllPelanggan(): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  // Gather all pelanggan names first so linked pesanan don't lose the customer name
+  const { data: pelangganList } = await supabase
+    .from('pelanggan').select('id, nama').returns<Array<{ id: string; nama: string }>>()
+
+  for (const p of pelangganList ?? []) {
+    await supabase
+      .from('pesanan')
+      .update({ pelanggan_id: null, nama_pelanggan: p.nama })
+      .eq('pelanggan_id', p.id)
+  }
+
+  const { error } = await supabase.from('pelanggan').delete().not('id', 'is', null)
+  if (error) return { error: error.message }
+
+  revalidatePath('/pelanggan')
+  revalidatePath('/pesanan')
+  return {}
+}
+
 export async function setPesananLocked(locked: boolean): Promise<{ error?: string }> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)

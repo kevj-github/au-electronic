@@ -7,6 +7,7 @@ import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-f
 import { id as idLocale } from 'date-fns/locale'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
+import { DeletePesananButton } from './DeletePesananButton'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
 import type { Pesanan, ItemPesanan, Pembayaran, StatusPesanan } from '@/lib/types'
@@ -130,33 +131,32 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
               const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
 
               return (
-                <Link
-                  key={p.id}
-                  href={`/pesanan/${p.id}`}
-                  className="block border rounded-lg p-3 hover:bg-gray-50"
-                >
-                  <div className="flex justify-between items-start">
-                    <span className="font-mono text-sm text-primary">{p.kode_pesanan}</span>
-                    <StatusBadge status={p.status} />
-                  </div>
-                  <p className="text-sm mt-1">{p.pelanggan?.nama ?? p.nama_pelanggan ?? '—'}</p>
-                  <div className="flex justify-between items-center mt-2 text-sm">
-                    <span className="text-muted-foreground">
-                      {format(new Date(p.created_at), 'd MMM yyyy', { locale: idLocale })}
-                    </span>
-                    {isOwner ? (
-                      <span className="font-mono font-medium">
-                        {sisaTagihan > 0 ? formatRupiah(sisaTagihan) : (
-                          <span className="text-green-600">Lunas</span>
-                        )}
-                      </span>
-                    ) : (
+                <div key={p.id} className="border rounded-lg p-3 flex gap-2 items-start hover:bg-gray-50">
+                  <Link href={`/pesanan/${p.id}`} className="flex-1 min-w-0 block">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-mono text-sm text-primary">{p.kode_pesanan}</span>
+                      <StatusBadge status={p.status} />
+                    </div>
+                    <p className="text-sm mt-1">{p.pelanggan?.nama ?? p.nama_pelanggan ?? '—'}</p>
+                    <div className="flex justify-between items-center mt-2 text-sm">
                       <span className="text-muted-foreground">
-                        {diambilCount}/{p.items.length} diambil
+                        {format(new Date(p.created_at), 'd MMM yyyy', { locale: idLocale })}
                       </span>
-                    )}
-                  </div>
-                </Link>
+                      {isOwner ? (
+                        <span className="font-mono font-medium">
+                          {sisaTagihan > 0 ? formatRupiah(sisaTagihan) : (
+                            <span className="text-green-600">Lunas</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          {diambilCount}/{p.items.length} diambil
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                  {isOwner && <DeletePesananButton pesananId={p.id} />}
+                </div>
               )
             })}
           </div>
@@ -178,6 +178,7 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                     <th className="text-right px-4 py-3 font-medium">Diambil</th>
                   )}
                   <th className="text-left px-4 py-3 font-medium">Status</th>
+                  {isOwner && <th className="px-4 py-3 w-12" />}
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -224,6 +225,11 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                       <td className="px-4 py-3">
                         <StatusBadge status={p.status} />
                       </td>
+                      {isOwner && (
+                        <td className="px-4 py-3 text-right">
+                          <DeletePesananButton pesananId={p.id} />
+                        </td>
+                      )}
                     </tr>
                   )
                 })}

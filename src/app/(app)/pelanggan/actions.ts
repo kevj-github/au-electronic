@@ -5,6 +5,30 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
 
+export async function deletePelanggan(pelangganId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  const { data: pelanggan } = await supabase
+    .from('pelanggan').select('nama').eq('id', pelangganId).single<{ nama: string }>()
+  if (!pelanggan) return { error: 'Pelanggan tidak ditemukan.' }
+
+  // Preserve the name in any linked pesanan before breaking the FK
+  const { error: unlinkError } = await supabase
+    .from('pesanan')
+    .update({ pelanggan_id: null, nama_pelanggan: pelanggan.nama })
+    .eq('pelanggan_id', pelangganId)
+  if (unlinkError) return { error: unlinkError.message }
+
+  const { error } = await supabase.from('pelanggan').delete().eq('id', pelangganId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/pelanggan')
+  revalidatePath('/pesanan')
+  return {}
+}
+
 export async function upsertPelanggan(formData: FormData) {
   const supabase = await createClient()
 

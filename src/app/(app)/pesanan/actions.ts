@@ -320,6 +320,19 @@ export async function deleteItemFromPesanan(itemId: string, pesananId: string): 
   return {}
 }
 
+export async function deletePesanan(pesananId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  // item_pesanan and pembayaran cascade via FK ON DELETE CASCADE
+  const { error } = await supabase.from('pesanan').delete().eq('id', pesananId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/pesanan')
+  return {}
+}
+
 export async function updateAllItemHarga(
   pesananId: string,
   items: Array<{ id: string; harga_satuan: number; diskon: number }>

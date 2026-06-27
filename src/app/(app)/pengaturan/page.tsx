@@ -4,6 +4,8 @@ import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { AddHelperForm } from '@/components/pengaturan/AddHelperForm'
 import { DeleteHelperButton } from '@/components/pengaturan/DeleteHelperButton'
 import { PesananLockToggle } from '@/components/pengaturan/PesananLockToggle'
+import { ClearAllButton } from '@/components/pengaturan/ClearAllButton'
+import { clearAllPesanan, clearAllPelanggan } from '@/app/(app)/pengaturan/actions'
 import type { User } from '@/lib/types'
 
 export default async function PengaturanPage() {
@@ -52,6 +54,27 @@ export default async function PengaturanPage() {
       <div className="border rounded-lg p-4 space-y-3">
         <h3 className="font-medium">Kontrol Pesanan</h3>
         <PesananLockToggle locked={pesananLocked} />
+      </div>
+
+      <div className="border rounded-lg p-4 space-y-4">
+        <div>
+          <h3 className="font-medium">Hapus Data</h3>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Tindakan ini permanen dan tidak dapat dibatalkan.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <ClearAllButton
+            label="Hapus Semua Pesanan"
+            description="Semua pesanan beserta item dan pembayarannya akan dihapus permanen dari database."
+            action={clearAllPesanan}
+          />
+          <ClearAllButton
+            label="Hapus Semua Pelanggan"
+            description="Semua data pelanggan akan dihapus. Pesanan yang terhubung akan tetap ada namun tidak lagi tertaut ke pelanggan."
+            action={clearAllPelanggan}
+          />
+        </div>
       </div>
 
       <div className="space-y-3">

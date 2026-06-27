@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
+import { DeletePelangganButton } from './DeletePelangganButton'
 import type { Pelanggan, TipePelanggan } from '@/lib/types'
 
 interface PelangganListProps {
@@ -85,9 +86,12 @@ export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">{p.telepon ?? '—'}</p>
                 {isOwner && (
-                  <Link href={`/pelanggan/${p.id}`} className="inline-block mt-2">
-                    <Button variant="outline" size="sm">Edit</Button>
-                  </Link>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Link href={`/pelanggan/${p.id}`}>
+                      <Button variant="outline" size="sm">Edit</Button>
+                    </Link>
+                    <DeletePelangganButton pelangganId={p.id} />
+                  </div>
                 )}
               </div>
             ))}
@@ -116,9 +120,12 @@ export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
                     </td>
                     {isOwner && (
                       <td className="px-4 py-3 text-right">
-                        <Link href={`/pelanggan/${p.id}`}>
-                          <Button variant="outline" size="sm">Edit</Button>
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          <Link href={`/pelanggan/${p.id}`}>
+                            <Button variant="outline" size="sm">Edit</Button>
+                          </Link>
+                          <DeletePelangganButton pelangganId={p.id} />
+                        </div>
                       </td>
                     )}
                   </tr>
