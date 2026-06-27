@@ -8,14 +8,14 @@ const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica', color: '#1a1a1a' },
   watermark: {
     position: 'absolute',
-    top: 191,
-    left: 157,
+    top: 212,
+    left: 158,
     width: 280,
-    height: 429,
+    height: 417,
     opacity: 0.07,
   },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  logoImage: { width: 200, height: 34 },
+  logoImage: { width: 200, height: 38 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoCircle: {
     width: 36,
