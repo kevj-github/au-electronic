@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { createPesanan } from '@/app/(app)/pesanan/actions'
 import { OrderLineItem, type LineItem } from './OrderLineItem'
 import { Button } from '@/components/ui/button'
@@ -130,41 +130,109 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
         </div>
 
         {items.length > 0 && (
-          <div className="overflow-x-auto -mx-3 sm:mx-0">
-            <table className="w-full text-sm border rounded-lg overflow-hidden min-w-[560px]">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-3 py-2 font-medium">Nama Barang</th>
-                  <th className="text-right px-3 py-2 font-medium">Qty</th>
-                  <th className="text-right px-3 py-2 font-medium">Harga Satuan</th>
-                  <th className="text-right px-3 py-2 font-medium">Subtotal</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <OrderLineItem
-                    key={item.id}
-                    item={item}
-                    isOwner={isOwner}
-                    onChange={updateItem}
-                    onRemove={removeItem}
-                  />
-                ))}
-              </tbody>
-              <tfoot className="bg-gray-50 border-t">
-                <tr>
-                  <td colSpan={3} className="px-3 py-2 text-right font-medium">
-                    Total
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono font-semibold">
-                    {formatRupiah(grandTotal)}
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <>
+            {/* Mobile: card layout */}
+            <div className="sm:hidden space-y-2">
+              {items.map((item) => {
+                const subtotal = item.qty * item.harga_satuan - item.diskon
+                return (
+                  <div key={item.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        value={item.nama_barang}
+                        onChange={(e) => updateItem(item.id, { nama_barang: e.target.value })}
+                        placeholder="Nama barang..."
+                        className="h-8 text-sm flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 shrink-0"
+                        onClick={() => removeItem(item.id)}
+                        aria-label="Hapus barang"
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                    <div className="flex gap-2 items-start">
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">Qty</p>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.qty || ''}
+                          onChange={(e) => updateItem(item.id, { qty: parseInt(e.target.value, 10) || 0 })}
+                          className="h-8 w-20 text-sm text-right"
+                          aria-label="Qty"
+                        />
+                      </div>
+                      <div className="space-y-0.5 flex-1">
+                        <p className="text-xs text-muted-foreground">Harga Satuan</p>
+                        {isOwner ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            value={item.harga_satuan || ''}
+                            onChange={(e) => updateItem(item.id, { harga_satuan: parseInt(e.target.value, 10) || 0 })}
+                            className="h-8 text-sm text-right font-mono w-full"
+                            aria-label="Harga satuan"
+                          />
+                        ) : (
+                          <p className="text-xs text-muted-foreground pt-2">Diisi oleh pemilik nanti</p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-right text-muted-foreground">
+                      Subtotal:{' '}
+                      <span className="font-mono font-medium text-foreground">{formatRupiah(subtotal)}</span>
+                    </p>
+                  </div>
+                )
+              })}
+              <div className="text-right text-sm font-medium pr-1">
+                Total:{' '}
+                <span className="font-mono font-semibold">{formatRupiah(grandTotal)}</span>
+              </div>
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm border rounded-lg overflow-hidden min-w-[560px]">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left px-3 py-2 font-medium">Nama Barang</th>
+                    <th className="text-right px-3 py-2 font-medium">Qty</th>
+                    <th className="text-right px-3 py-2 font-medium">Harga Satuan</th>
+                    <th className="text-right px-3 py-2 font-medium">Subtotal</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <OrderLineItem
+                      key={item.id}
+                      item={item}
+                      isOwner={isOwner}
+                      onChange={updateItem}
+                      onRemove={removeItem}
+                    />
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 border-t">
+                  <tr>
+                    <td colSpan={3} className="px-3 py-2 text-right font-medium">
+                      Total
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono font-semibold">
+                      {formatRupiah(grandTotal)}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </>
         )}
 
         {items.length === 0 && (
