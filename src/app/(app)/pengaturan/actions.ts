@@ -94,12 +94,14 @@ export async function clearAllPelanggan(): Promise<{ error?: string }> {
   const { data: pelangganList } = await supabase
     .from('pelanggan').select('id, nama').returns<Array<{ id: string; nama: string }>>()
 
-  for (const p of pelangganList ?? []) {
-    await supabase
-      .from('pesanan')
-      .update({ pelanggan_id: null, nama_pelanggan: p.nama })
-      .eq('pelanggan_id', p.id)
-  }
+  await Promise.all(
+    (pelangganList ?? []).map((p) =>
+      supabase
+        .from('pesanan')
+        .update({ pelanggan_id: null, nama_pelanggan: p.nama })
+        .eq('pelanggan_id', p.id)
+    )
+  )
 
   const { error } = await supabase.from('pelanggan').delete().not('id', 'is', null)
   if (error) return { error: error.message }

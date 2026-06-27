@@ -2,26 +2,24 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 
 export const metadata: Metadata = { title: 'Pesanan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import { Button } from '@/components/ui/button'
-import type { User } from '@/lib/types'
 
 export default async function PesananPage() {
-  const supabase = await createClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) redirect('/login')
-
-  const [{ data: user }, { data: lockSetting }] = await Promise.all([
-    supabase.from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>(),
-    supabase.from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>(),
+  const [user, pesananLocked] = await Promise.all([
+    getCurrentUser(),
+    getPesananLocked(),
   ])
-  const isOwner = user?.role === 'owner'
-  const pesananLocked = !isOwner && lockSetting?.value === 'true'
+  if (!user) redirect('/login')
 
-  // Helpers never get price/payment data fetched into the RSC payload at all.
+  const isOwner = user.role === 'owner'
+  const isLocked = !isOwner && pesananLocked
+
+  const supabase = await createClient()
   const select = isOwner
     ? `*, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`
     : `*, pelanggan(nama), items:item_pesanan(diambil_oleh_helper)`
@@ -42,7 +40,7 @@ export default async function PesananPage() {
             {pesananList?.length ?? 0} pesanan
           </p>
         </div>
-        {!pesananLocked && (
+        {!isLocked && (
           <Link href="/pesanan/baru">
             <Button>+ Pesanan Baru</Button>
           </Link>

@@ -1,53 +1,51 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/supabase/request-cache'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { DashboardDateFilter } from '@/components/pesanan/DashboardDateFilter'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
-import type { User } from '@/lib/types'
 
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ from?: string; to?: string }>
 }) {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (user.role !== 'owner') redirect('/pesanan')
+
   const supabase = await createClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) redirect('/login')
-
-  const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
-  if (user?.role !== 'owner') redirect('/pesanan')
-
   const { from, to } = await searchParams
 
-  // Default to current month when no filter applied
   const now = new Date()
   const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
   const defaultTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
   const filterFrom = from ?? defaultFrom
   const filterTo = to ?? defaultTo
 
-  // All non-cancelled pesanan for piutang calculation (not date-filtered — piutang is a running balance)
-  const { data: allPesanan } = await supabase
-    .from('pesanan')
-    .select(`*, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`)
-    .neq('status', 'dibatalkan')
-    .order('created_at', { ascending: true })
-    .returns<PesananWithRelations[]>()
+  const select = 'id, kode_pesanan, status, created_at, nama_pelanggan, catatan, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)'
 
-  // Pesanan in the selected period for revenue calculation
-  const { data: periodPesanan } = await supabase
-    .from('pesanan')
-    .select(`*, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`)
-    .neq('status', 'dibatalkan')
-    .gte('created_at', `${filterFrom}T00:00:00`)
-    .lte('created_at', `${filterTo}T23:59:59`)
-    .order('created_at', { ascending: false })
-    .returns<PesananWithRelations[]>()
+  // Both queries are independent — run them in parallel.
+  const [{ data: allPesanan }, { data: periodPesanan }] = await Promise.all([
+    supabase
+      .from('pesanan')
+      .select(select)
+      .neq('status', 'dibatalkan')
+      .order('created_at', { ascending: true })
+      .returns<PesananWithRelations[]>(),
+    supabase
+      .from('pesanan')
+      .select(select)
+      .neq('status', 'dibatalkan')
+      .gte('created_at', `${filterFrom}T00:00:00`)
+      .lte('created_at', `${filterTo}T23:59:59`)
+      .order('created_at', { ascending: false })
+      .returns<PesananWithRelations[]>(),
+  ])
 
   const periodList = periodPesanan ?? []
   const allList = allPesanan ?? []

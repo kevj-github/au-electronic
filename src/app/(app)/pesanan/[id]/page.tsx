@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { StatusBadge } from '@/components/pesanan/StatusBadge'
 import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionButtons'
@@ -15,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
-import type { Pesanan, ItemPesanan, Pembayaran, Pelanggan, User, StatusPesanan } from '@/lib/types'
+import type { Pesanan, ItemPesanan, Pembayaran, Pelanggan, StatusPesanan } from '@/lib/types'
 import Link from 'next/link'
 
 type HelperItem = Pick<ItemPesanan, 'id' | 'nama_barang' | 'qty' | 'catatan_item' | 'diambil_oleh_helper'>
@@ -45,14 +46,12 @@ export default async function PesananDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  const isOwner = user.role === 'owner'
+
   const supabase = await createClient()
-
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) redirect('/login')
-
-  const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
-  const isOwner = user?.role === 'owner'
 
   // Helpers never get price/payment data fetched into the RSC payload at all —
   // not just hidden in the UI. requireOwner/RLS still back this up server-side.
@@ -63,17 +62,17 @@ export default async function PesananDetailPage({
     ? `*, pelanggan(*), items:item_pesanan(${itemsSelect}), pembayaran(*)`
     : `*, pelanggan(*), items:item_pesanan(${itemsSelect})`
 
-  const { data: pesanan } = await supabase
-    .from('pesanan')
-    .select(pesananSelect)
-    .eq('id', id)
-    .single<PesananDetail>()
+  // Fetch pesanan and lock setting in parallel.
+  const [{ data: pesanan }, pesananLocked] = await Promise.all([
+    supabase
+      .from('pesanan')
+      .select(pesananSelect)
+      .eq('id', id)
+      .single<PesananDetail>(),
+    getPesananLocked(),
+  ])
 
   if (!pesanan) notFound()
-
-  const { data: lockSetting } = await supabase
-    .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
-  const pesananLocked = lockSetting?.value === 'true'
 
   const statusLocked = pesanan.status !== 'diproses'
   const isLocked = statusLocked || (!isOwner && pesananLocked)

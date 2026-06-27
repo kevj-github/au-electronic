@@ -1,20 +1,20 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/supabase/request-cache'
 import { PelangganForm } from '@/components/pelanggan/PelangganForm'
-import type { Pelanggan, User } from '@/lib/types'
+import type { Pelanggan } from '@/lib/types'
 
 export default async function EditPelangganPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) redirect('/login')
-  const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
-  if (user?.role !== 'owner') redirect('/pelanggan')
-
-  const { data: pelanggan } = await supabase
-    .from('pelanggan').select('*').eq('id', id).single<Pelanggan>()
+  // Auth check and pelanggan fetch are independent — run in parallel.
+  const [user, { data: pelanggan }] = await Promise.all([
+    getCurrentUser(),
+    supabase.from('pelanggan').select('*').eq('id', id).single<Pelanggan>(),
+  ])
+  if (!user) redirect('/login')
+  if (user.role !== 'owner') redirect('/pelanggan')
   if (!pelanggan) notFound()
 
   return (

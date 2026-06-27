@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/supabase/request-cache'
 
 export const metadata: Metadata = { title: 'Pengaturan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
@@ -12,14 +13,11 @@ import { clearAllPesanan, clearAllPelanggan } from '@/app/(app)/pengaturan/actio
 import type { User } from '@/lib/types'
 
 export default async function PengaturanPage() {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (user.role !== 'owner') redirect('/pesanan')
+
   const supabase = await createClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) redirect('/login')
-
-  const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
-  if (user?.role !== 'owner') redirect('/pesanan')
-
   const [{ data: userList }, { data: lockSetting }] = await Promise.all([
     supabase.from('users').select('*').order('created_at', { ascending: true }).returns<User[]>(),
     supabase.from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>(),

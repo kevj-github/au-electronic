@@ -125,27 +125,18 @@ async function checkHelperLock(
   return null
 }
 
-// Looks up an item's parent pesanan_id and status in one round-trip.
-// Returns null when the item doesn't exist or the pesanan isn't accessible.
+// Looks up an item's parent pesanan_id and status in a single join query.
 async function getItemPesananStatus(
   supabase: Awaited<ReturnType<typeof createClient>>,
   itemId: string
 ): Promise<{ pesanan_id: string; status: string } | null> {
-  const { data: item } = await supabase
+  const { data } = await supabase
     .from('item_pesanan')
-    .select('pesanan_id')
+    .select('pesanan_id, pesanan:pesanan(status)')
     .eq('id', itemId)
-    .single<{ pesanan_id: string }>()
-  if (!item) return null
-
-  const { data: pesanan } = await supabase
-    .from('pesanan')
-    .select('status')
-    .eq('id', item.pesanan_id)
-    .single<{ status: string }>()
-  if (!pesanan) return null
-
-  return { pesanan_id: item.pesanan_id, status: pesanan.status }
+    .single<{ pesanan_id: string; pesanan: { status: string } | null }>()
+  if (!data?.pesanan) return null
+  return { pesanan_id: data.pesanan_id, status: data.pesanan.status }
 }
 
 // Any authenticated user can tick diambil_oleh_helper — any helper may be the one
@@ -348,13 +339,16 @@ export async function updateAllItemHarga(
     return { error: 'Pesanan tidak dapat diubah.' }
   }
 
-  for (const item of items) {
-    const { error } = await supabase
-      .from('item_pesanan')
-      .update({ harga_satuan: item.harga_satuan, diskon: item.diskon })
-      .eq('id', item.id)
-    if (error) return { error: error.message }
-  }
+  const results = await Promise.all(
+    items.map((item) =>
+      supabase
+        .from('item_pesanan')
+        .update({ harga_satuan: item.harga_satuan, diskon: item.diskon })
+        .eq('id', item.id)
+    )
+  )
+  const failed = results.find((r) => r.error)
+  if (failed?.error) return { error: failed.error.message }
 
   revalidatePath(`/pesanan/${pesananId}`)
   revalidatePath('/pesanan')

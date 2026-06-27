@@ -1,15 +1,11 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/supabase/request-cache'
 import { PelangganForm } from '@/components/pelanggan/PelangganForm'
-import type { User } from '@/lib/types'
 
 export default async function PelangganBaruPage() {
-  const supabase = await createClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) redirect('/login')
-  const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<Pick<User, 'role'>>()
-  if (user?.role !== 'owner') redirect('/pelanggan')
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (user.role !== 'owner') redirect('/pelanggan')
 
   return (
     <div className="space-y-4">
