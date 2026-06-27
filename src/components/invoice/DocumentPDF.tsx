@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import { formatRupiah } from '@/lib/utils'
 import type { InvoiceData } from '@/lib/invoice-data'
 import { format } from 'date-fns'
@@ -6,7 +6,16 @@ import { id as idLocale } from 'date-fns/locale'
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica', color: '#1a1a1a' },
+  watermark: {
+    position: 'absolute',
+    top: 231,
+    left: 142,
+    width: 312,
+    height: 380,
+    opacity: 0.07,
+  },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  logoImage: { width: 200, height: 70 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoCircle: {
     width: 36,
@@ -49,34 +58,46 @@ const styles = StyleSheet.create({
   totalLabel: { width: 100, textAlign: 'right', color: '#6b7280', fontWeight: 'bold' },
   totalValue: { width: 100, textAlign: 'right', fontWeight: 'bold' },
   catatan: { marginTop: 16, color: '#6b7280' },
-  signatureRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 56 },
+  returnNote: { marginTop: 16, fontSize: 9, color: '#6b7280', fontStyle: 'italic' },
+  signatureRow: { flexDirection: 'row', marginTop: 40 },
   signatureBlock: { width: 160, textAlign: 'center' },
   signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 40, marginBottom: 4 },
 })
 
 interface DocumentPDFProps {
   data: InvoiceData
+  logoSrc?: string
+  watermarkSrc?: string
 }
 
-export function DocumentPDF({ data }: DocumentPDFProps) {
+export function DocumentPDF({ data, logoSrc, watermarkSrc }: DocumentPDFProps) {
   const tanggal = format(new Date(data.tanggal), 'd MMMM yyyy', { locale: idLocale })
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {watermarkSrc && (
+          <Image src={watermarkSrc} style={styles.watermark} />
+        )}
+
         <View style={styles.headerRow}>
-          <View style={styles.logoRow}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>AU</Text>
-            </View>
-            <View>
-              <Text style={styles.shopName}>AU Electronic</Text>
-              <Text style={styles.shopSub}>Toko Spare Part Elektronik</Text>
-            </View>
+          <View>
+            {logoSrc ? (
+              <Image src={logoSrc} style={styles.logoImage} />
+            ) : (
+              <View style={styles.logoRow}>
+                <View style={styles.logoCircle}>
+                  <Text style={styles.logoText}>AU</Text>
+                </View>
+                <View>
+                  <Text style={styles.shopName}>AU Electronic</Text>
+                  <Text style={styles.shopSub}>Toko Spare Part Elektronik</Text>
+                </View>
+              </View>
+            )}
           </View>
           <View style={styles.metaRight}>
             <Text>Surabaya, {tanggal}</Text>
-            <Text style={{ fontWeight: 'bold', marginTop: 2 }}>{data.kodePesanan}</Text>
           </View>
         </View>
 
@@ -114,13 +135,13 @@ export function DocumentPDF({ data }: DocumentPDFProps) {
           <Text style={styles.catatan}>Catatan: {data.catatan}</Text>
         )}
 
+        <Text style={styles.returnNote}>
+          * Barang tidak dapat ditukarkan atau dikembalikan kecuali ada perjanjian sebelumnya.
+        </Text>
+
         <View style={styles.signatureRow}>
           <View style={styles.signatureBlock}>
             <Text>Penerima,</Text>
-            <View style={styles.signatureLine} />
-          </View>
-          <View style={styles.signatureBlock}>
-            <Text>Hormat Kami,</Text>
             <View style={styles.signatureLine} />
           </View>
         </View>

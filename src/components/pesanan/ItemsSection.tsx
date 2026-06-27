@@ -241,6 +241,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                   min="1"
                   value={newItem.qty}
                   onChange={(e) => setNewItem((s) => ({ ...s, qty: e.target.value }))}
+                  placeholder="Qty"
                   className="h-8 w-20 text-sm text-right"
                   aria-label="Qty"
                 />
@@ -419,6 +420,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                         min="1"
                         value={newItem.qty}
                         onChange={(e) => setNewItem((s) => ({ ...s, qty: e.target.value }))}
+                        placeholder="Qty"
                         className="h-8 w-20 text-sm text-right"
                         aria-label="Qty"
                       />

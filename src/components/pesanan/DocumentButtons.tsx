@@ -11,6 +11,41 @@ interface DocumentButtonsProps {
   data: InvoiceData
 }
 
+// Loads the logo image and crops off the bottom address lines (bottom ~43% of the image).
+async function loadLogoBase64(): Promise<string | undefined> {
+  try {
+    const img = new window.Image()
+    img.crossOrigin = 'anonymous'
+    await new Promise<void>((res, rej) => {
+      img.onload = () => res()
+      img.onerror = () => rej(new Error('load failed'))
+      img.src = '/au-logo.jpg'
+    })
+    const cropH = Math.floor(img.naturalHeight * 0.57)
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = cropH
+    canvas.getContext('2d')!.drawImage(img, 0, 0)
+    return canvas.toDataURL('image/png')
+  } catch {
+    return undefined
+  }
+}
+
+async function loadWatermarkBase64(): Promise<string | undefined> {
+  try {
+    const resp = await fetch('/au-trademark.jpg')
+    const blob = await resp.blob()
+    return new Promise((res) => {
+      const reader = new FileReader()
+      reader.onload = () => res(reader.result as string)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return undefined
+  }
+}
+
 export function DocumentButtons({ data }: DocumentButtonsProps) {
   const [copying, setCopying] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
@@ -25,11 +60,12 @@ export function DocumentButtons({ data }: DocumentButtonsProps) {
     }
     setPdfLoading(true)
     try {
-      // Resolve the real component here (not via next/dynamic) — @react-pdf/renderer's
-      // pdf() uses its own non-DOM reconciler that doesn't support React.lazy/Suspense,
-      // so a next/dynamic-wrapped component renders as empty/broken output.
-      const { DocumentPDF } = await import('@/components/invoice/DocumentPDF')
-      const blob = await pdf(<DocumentPDF data={data} />).toBlob()
+      const [{ DocumentPDF }, logoSrc, watermarkSrc] = await Promise.all([
+        import('@/components/invoice/DocumentPDF'),
+        loadLogoBase64(),
+        loadWatermarkBase64(),
+      ])
+      const blob = await pdf(<DocumentPDF data={data} logoSrc={logoSrc} watermarkSrc={watermarkSrc} />).toBlob()
       const url = URL.createObjectURL(blob)
       newWindow.location.href = url
     } catch {

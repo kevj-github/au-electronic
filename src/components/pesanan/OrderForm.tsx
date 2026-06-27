@@ -25,19 +25,22 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
   const [namaPelanggan, setNamaPelanggan] = useState('')
   const [catatan, setCatatan] = useState('')
   const [items, setItems] = useState<LineItem[]>([])
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null)
 
   function addItem() {
+    const newId = crypto.randomUUID()
     setItems((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: newId,
         nama_barang: '',
-        qty: 1,
+        qty: 0,
         harga_satuan: 0,
         diskon: 0,
         catatan_item: '',
       },
     ])
+    setLastAddedId(newId)
   }
 
   function updateItem(id: string, changes: Partial<LineItem>) {
@@ -143,6 +146,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
                         onChange={(e) => updateItem(item.id, { nama_barang: e.target.value })}
                         placeholder="Nama barang..."
                         className="h-8 text-sm flex-1"
+                        autoFocus={item.id === lastAddedId}
                       />
                       <Button
                         type="button"
@@ -163,6 +167,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
                           min="1"
                           value={item.qty || ''}
                           onChange={(e) => updateItem(item.id, { qty: parseInt(e.target.value, 10) || 0 })}
+                          placeholder="Qty"
                           className="h-8 w-20 text-sm text-right"
                           aria-label="Qty"
                         />
@@ -216,6 +221,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
                       isOwner={isOwner}
                       onChange={updateItem}
                       onRemove={removeItem}
+                      autoFocus={item.id === lastAddedId}
                     />
                   ))}
                 </tbody>

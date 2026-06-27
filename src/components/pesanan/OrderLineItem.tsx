@@ -19,9 +19,10 @@ interface OrderLineItemProps {
   isOwner: boolean
   onChange: (id: string, changes: Partial<LineItem>) => void
   onRemove: (id: string) => void
+  autoFocus?: boolean
 }
 
-export function OrderLineItem({ item, isOwner, onChange, onRemove }: OrderLineItemProps) {
+export function OrderLineItem({ item, isOwner, onChange, onRemove, autoFocus }: OrderLineItemProps) {
   const subtotal = item.qty * item.harga_satuan - item.diskon
 
   return (
@@ -33,6 +34,7 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove }: OrderLineIt
           placeholder="Nama barang..."
           aria-label="Nama barang"
           className="h-8"
+          autoFocus={autoFocus}
         />
       </td>
       <td className="px-3 py-2 w-24">
@@ -41,6 +43,7 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove }: OrderLineIt
           min="1"
           value={item.qty || ''}
           onChange={(e) => onChange(item.id, { qty: parseInt(e.target.value, 10) || 0 })}
+          placeholder="Qty"
           aria-label={`Qty ${item.nama_barang}`}
           className="h-8 text-right"
         />
