@@ -21,7 +21,7 @@ export function AppShell({ role, nama, pesananLocked, children }: AppShellProps)
       <Sidebar role={role} nama={nama} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar title="AU Electronic" onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 pb-24 sm:pb-6">{children}</main>
       </div>
       <NewOrderFab role={role} pesananLocked={pesananLocked} />
     </div>

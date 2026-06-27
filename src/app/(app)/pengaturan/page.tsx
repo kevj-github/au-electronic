@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+
+export const metadata: Metadata = { title: 'Pengaturan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { AddHelperForm } from '@/components/pengaturan/AddHelperForm'
 import { DeleteHelperButton } from '@/components/pengaturan/DeleteHelperButton'

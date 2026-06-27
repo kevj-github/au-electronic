@@ -228,13 +228,14 @@ export default async function PesananDetailPage({
 
       {/* Price summary for owner on locked orders */}
       {isOwner && statusLocked && (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left px-4 py-2 font-medium">Barang</th>
                 <th className="text-right px-4 py-2 font-medium">Qty</th>
-                <th className="text-right px-4 py-2 font-medium">Harga</th>
+                <th className="text-right px-4 py-2 font-medium">Harga Satuan</th>
+                <th className="text-right px-4 py-2 font-medium">Diskon</th>
                 <th className="text-right px-4 py-2 font-medium">Subtotal</th>
               </tr>
             </thead>
@@ -244,13 +245,16 @@ export default async function PesananDetailPage({
                   <td className="px-4 py-2">{i.nama_barang}</td>
                   <td className="px-4 py-2 text-right">{i.qty}</td>
                   <td className="px-4 py-2 text-right font-mono">{formatRupiah(i.harga_satuan)}</td>
+                  <td className="px-4 py-2 text-right font-mono text-muted-foreground">
+                    {i.diskon > 0 ? `−${formatRupiah(i.diskon)}` : '—'}
+                  </td>
                   <td className="px-4 py-2 text-right font-mono">{formatRupiah(i.subtotal)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="border-t bg-gray-50">
               <tr>
-                <td colSpan={3} className="px-4 py-2 text-right font-medium">Total</td>
+                <td colSpan={4} className="px-4 py-2 text-right font-medium">Total</td>
                 <td className="px-4 py-2 text-right font-mono font-semibold">{formatRupiah(totalPesanan)}</td>
               </tr>
             </tfoot>
@@ -288,8 +292,16 @@ export default async function PesananDetailPage({
           )}
           <div className="border-t pt-2 flex justify-between font-medium">
             <span>Sisa Tagihan</span>
-            <span className={sisaTagihan === 0 ? 'text-green-600 inline-flex items-center gap-1' : 'font-mono'}>
-              {sisaTagihan === 0 ? (
+            <span className={
+              totalPesanan === 0 && pembayaranList.length === 0
+                ? 'text-muted-foreground text-sm font-normal'
+                : sisaTagihan === 0
+                  ? 'text-green-600 inline-flex items-center gap-1'
+                  : 'font-mono'
+            }>
+              {totalPesanan === 0 && pembayaranList.length === 0 ? (
+                'Belum ada harga'
+              ) : sisaTagihan === 0 ? (
                 <>
                   <Check className="size-4" /> Lunas
                 </>

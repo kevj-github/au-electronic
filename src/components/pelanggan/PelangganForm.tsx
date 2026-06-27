@@ -14,14 +14,21 @@ interface PelangganFormProps {
 
 export function PelangganForm({ pelanggan }: PelangganFormProps) {
   const [error, setError] = useState<string | null>(null)
+  const [namaError, setNamaError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    if (!String(fd.get('nama') ?? '').trim()) {
+      setNamaError('Nama pelanggan wajib diisi.')
+      return
+    }
+    setNamaError(null)
     setLoading(true)
     setError(null)
-    const result = await upsertPelanggan(new FormData(e.currentTarget))
+    const result = await upsertPelanggan(fd)
     if (result?.error) {
       setError(result.error)
       setLoading(false)
@@ -33,7 +40,14 @@ export function PelangganForm({ pelanggan }: PelangganFormProps) {
       {pelanggan && <input type="hidden" name="id" value={pelanggan.id} />}
       <div className="space-y-2">
         <Label htmlFor="nama">Nama Pelanggan</Label>
-        <Input id="nama" name="nama" defaultValue={pelanggan?.nama} required />
+        <Input
+          id="nama"
+          name="nama"
+          defaultValue={pelanggan?.nama}
+          aria-invalid={namaError ? true : undefined}
+          onChange={() => namaError && setNamaError(null)}
+        />
+        {namaError && <p className="text-sm text-red-500">{namaError}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="telepon">Nomor Telepon</Label>

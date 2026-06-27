@@ -1,6 +1,9 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+
+export const metadata: Metadata = { title: 'Pelanggan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { PelangganList } from '@/components/pelanggan/PelangganList'
 import { Button } from '@/components/ui/button'

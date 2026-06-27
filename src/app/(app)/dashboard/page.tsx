@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+
+export const metadata: Metadata = { title: 'Dashboard' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { DashboardDateFilter } from '@/components/pesanan/DashboardDateFilter'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'

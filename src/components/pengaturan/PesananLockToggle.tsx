@@ -40,7 +40,7 @@ export function PesananLockToggle({ locked: initialLocked }: PesananLockTogglePr
       </div>
       <Button
         type="button"
-        variant={locked ? 'destructive' : 'outline'}
+        variant={locked ? 'outline' : 'destructive'}
         size="sm"
         onClick={handleToggle}
         disabled={loading}
@@ -48,13 +48,13 @@ export function PesananLockToggle({ locked: initialLocked }: PesananLockTogglePr
       >
         {locked ? (
           <>
-            <Lock className="size-4 mr-1.5" />
-            Terkunci
+            <Unlock className="size-4 mr-1.5" />
+            Buka Kunci
           </>
         ) : (
           <>
-            <Unlock className="size-4 mr-1.5" />
-            Buka Kunci
+            <Lock className="size-4 mr-1.5" />
+            Kunci
           </>
         )}
       </Button>
