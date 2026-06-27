@@ -39,8 +39,8 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove }: OrderLineIt
         <Input
           type="number"
           min="1"
-          value={item.qty}
-          onChange={(e) => onChange(item.id, { qty: Number(e.target.value) })}
+          value={item.qty || ''}
+          onChange={(e) => onChange(item.id, { qty: parseInt(e.target.value, 10) || 0 })}
           aria-label={`Qty ${item.nama_barang}`}
           className="h-8 text-right"
         />
@@ -49,8 +49,8 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove }: OrderLineIt
         <Input
           type="number"
           min="0"
-          value={item.harga_satuan}
-          onChange={(e) => onChange(item.id, { harga_satuan: Number(e.target.value) })}
+          value={item.harga_satuan || ''}
+          onChange={(e) => onChange(item.id, { harga_satuan: parseInt(e.target.value, 10) || 0 })}
           disabled={!isOwner}
           aria-label={`Harga satuan ${item.nama_barang}`}
           className="h-8 text-right font-mono"

@@ -30,11 +30,11 @@ interface ItemsSectionProps {
 
 interface EditState {
   nama_barang: string
-  qty: number
+  qty: string
   catatan_item: string
 }
 
-const emptyAdd: EditState = { nama_barang: '', qty: 1, catatan_item: '' }
+const emptyAdd: EditState = { nama_barang: '', qty: '', catatan_item: '' }
 
 export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSectionProps) {
   const router = useRouter()
@@ -50,7 +50,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
     setEditingId(item.id)
     setEditState({
       nama_barang: item.nama_barang,
-      qty: item.qty,
+      qty: String(item.qty),
       catatan_item: item.catatan_item ?? '',
     })
     setError(null)
@@ -63,11 +63,13 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
 
   async function saveEdit(itemId: string) {
     if (!editState.nama_barang.trim()) return
+    const qty = parseInt(editState.qty, 10)
+    if (!qty || qty < 1) return
     setLoadingId(itemId)
     setError(null)
     const result = await updateItemDetails(itemId, pesananId, {
       nama_barang: editState.nama_barang,
-      qty: editState.qty,
+      qty,
       catatan_item: editState.catatan_item || null,
     })
     setLoadingId(null)
@@ -88,11 +90,13 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
 
   async function saveNewItem() {
     if (!newItem.nama_barang.trim()) return
+    const qty = parseInt(newItem.qty, 10)
+    if (!qty || qty < 1) return
     setLoadingId('new')
     setError(null)
     const result = await addItemToPesanan(pesananId, {
       nama_barang: newItem.nama_barang,
-      qty: newItem.qty,
+      qty,
       catatan_item: newItem.catatan_item || null,
     })
     setLoadingId(null)
@@ -124,7 +128,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                     type="number"
                     min="1"
                     value={editState.qty}
-                    onChange={(e) => setEditState((s) => ({ ...s, qty: Number(e.target.value) }))}
+                    onChange={(e) => setEditState((s) => ({ ...s, qty: e.target.value }))}
                     className="h-8 w-20 text-sm text-right"
                     aria-label="Qty"
                   />
@@ -236,7 +240,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                   type="number"
                   min="1"
                   value={newItem.qty}
-                  onChange={(e) => setNewItem((s) => ({ ...s, qty: Number(e.target.value) }))}
+                  onChange={(e) => setNewItem((s) => ({ ...s, qty: e.target.value }))}
                   className="h-8 w-20 text-sm text-right"
                   aria-label="Qty"
                 />
@@ -300,7 +304,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                           type="number"
                           min="1"
                           value={editState.qty}
-                          onChange={(e) => setEditState((s) => ({ ...s, qty: Number(e.target.value) }))}
+                          onChange={(e) => setEditState((s) => ({ ...s, qty: e.target.value }))}
                           className="h-8 w-20 text-sm text-right"
                           aria-label="Qty"
                         />
@@ -414,7 +418,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                         type="number"
                         min="1"
                         value={newItem.qty}
-                        onChange={(e) => setNewItem((s) => ({ ...s, qty: Number(e.target.value) }))}
+                        onChange={(e) => setNewItem((s) => ({ ...s, qty: e.target.value }))}
                         className="h-8 w-20 text-sm text-right"
                         aria-label="Qty"
                       />

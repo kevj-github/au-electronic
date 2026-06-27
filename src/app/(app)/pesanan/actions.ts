@@ -109,6 +109,22 @@ export async function updateStatusPesanan(pesananId: string, status: StatusPesan
   return {}
 }
 
+// Returns an error if the pesanan_locked setting is on and the user is not an owner.
+async function checkHelperLock(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<{ error: string } | null> {
+  const { data: userRow } = await supabase
+    .from('users').select('role').eq('id', userId).single<{ role: string }>()
+  if (userRow?.role === 'owner') return null
+
+  const { data: lockSetting, error: lockErr } = await supabase
+    .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
+  if (lockErr || !lockSetting) return { error: 'Tidak dapat memverifikasi status kunci pesanan.' }
+  if (lockSetting.value === 'true') return { error: 'Pesanan sedang dikunci oleh pemilik.' }
+  return null
+}
+
 // Looks up an item's parent pesanan_id and status in one round-trip.
 // Returns null when the item doesn't exist or the pesanan isn't accessible.
 async function getItemPesananStatus(
@@ -139,6 +155,9 @@ export async function toggleItemDiambil(itemId: string, value: boolean): Promise
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const lockError = await checkHelperLock(supabase, authUser.id)
+  if (lockError) return lockError
 
   const info = await getItemPesananStatus(supabase, itemId)
   if (!info || info.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
@@ -180,6 +199,8 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
   } else {
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) return { error: 'Tidak terautentikasi.' }
+    const lockError = await checkHelperLock(supabase, authUser.id)
+    if (lockError) return lockError
   }
 
   // App-layer status check — owner bypasses the DB trigger.
@@ -208,6 +229,9 @@ export async function addItemToPesanan(pesananId: string, item: AddItemInput): P
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const lockError = await checkHelperLock(supabase, authUser.id)
+  if (lockError) return lockError
 
   // App-layer status guard: the DB trigger enforces this for non-owners, but the owner
   // bypasses the trigger. Checking here closes that gap for all callers.
@@ -242,6 +266,9 @@ export async function updateItemDetails(
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
+  const lockError = await checkHelperLock(supabase, authUser.id)
+  if (lockError) return lockError
+
   // Look up the item's actual pesanan_id from the DB rather than trusting the
   // client-supplied pesananId, then verify the parent pesanan is still active.
   const { data: existingItem } = await supabase
@@ -268,6 +295,9 @@ export async function deleteItemFromPesanan(itemId: string, pesananId: string): 
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const lockError = await checkHelperLock(supabase, authUser.id)
+  if (lockError) return lockError
 
   // Look up the item's actual pesanan_id from the DB; don't trust client-supplied value.
   const { data: existingItem } = await supabase

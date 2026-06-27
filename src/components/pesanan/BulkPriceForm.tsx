@@ -22,14 +22,17 @@ interface BulkPriceFormProps {
 
 export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
   const router = useRouter()
-  const [prices, setPrices] = useState<Record<string, { harga_satuan: number; diskon: number }>>(
-    Object.fromEntries(items.map((i) => [i.id, { harga_satuan: i.harga_satuan, diskon: i.diskon }]))
+  const [prices, setPrices] = useState<Record<string, { harga_satuan: string; diskon: string }>>(
+    Object.fromEntries(items.map((i) => [i.id, {
+      harga_satuan: i.harga_satuan > 0 ? String(i.harga_satuan) : '',
+      diskon: i.diskon > 0 ? String(i.diskon) : '',
+    }]))
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
-  function setField(id: string, field: 'harga_satuan' | 'diskon', value: number) {
+  function setField(id: string, field: 'harga_satuan' | 'diskon', value: string) {
     setPrices((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
     setSaved(false)
   }
@@ -41,8 +44,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
       pesananId,
       items.map((i) => ({
         id: i.id,
-        harga_satuan: prices[i.id]?.harga_satuan ?? i.harga_satuan,
-        diskon: prices[i.id]?.diskon ?? i.diskon,
+        harga_satuan: parseInt(prices[i.id]?.harga_satuan || '0', 10) || 0,
+        diskon: parseInt(prices[i.id]?.diskon || '0', 10) || 0,
       }))
     )
     setLoading(false)
@@ -56,8 +59,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
 
   const grandTotal = items.reduce((sum, i) => {
     const p = prices[i.id]
-    const h = p?.harga_satuan ?? i.harga_satuan
-    const d = p?.diskon ?? i.diskon
+    const h = parseInt(p?.harga_satuan || '0', 10) || 0
+    const d = parseInt(p?.diskon || '0', 10) || 0
     return sum + i.qty * h - d
   }, 0)
 
@@ -73,8 +76,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
       <div className="sm:hidden divide-y">
         {items.map((item) => {
           const p = prices[item.id]
-          const harga = p?.harga_satuan ?? item.harga_satuan
-          const diskon = p?.diskon ?? item.diskon
+          const harga = parseInt(p?.harga_satuan || '0', 10) || 0
+          const diskon = parseInt(p?.diskon || '0', 10) || 0
           const subtotal = item.qty * harga - diskon
           return (
             <div key={item.id} className="p-3 space-y-2">
@@ -85,8 +88,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
                   <Input
                     type="number"
                     min="0"
-                    value={harga}
-                    onChange={(e) => setField(item.id, 'harga_satuan', Number(e.target.value))}
+                    value={p?.harga_satuan ?? ''}
+                    onChange={(e) => setField(item.id, 'harga_satuan', e.target.value)}
                     className="h-8 text-right font-mono text-sm"
                   />
                 </div>
@@ -95,8 +98,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
                   <Input
                     type="number"
                     min="0"
-                    value={diskon}
-                    onChange={(e) => setField(item.id, 'diskon', Number(e.target.value))}
+                    value={p?.diskon ?? ''}
+                    onChange={(e) => setField(item.id, 'diskon', e.target.value)}
                     className="h-8 text-right font-mono text-sm"
                   />
                 </div>
@@ -124,8 +127,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
           <tbody className="divide-y">
             {items.map((item) => {
               const p = prices[item.id]
-              const harga = p?.harga_satuan ?? item.harga_satuan
-              const diskon = p?.diskon ?? item.diskon
+              const harga = parseInt(p?.harga_satuan || '0', 10) || 0
+              const diskon = parseInt(p?.diskon || '0', 10) || 0
               const subtotal = item.qty * harga - diskon
               return (
                 <tr key={item.id}>
@@ -135,8 +138,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
                     <Input
                       type="number"
                       min="0"
-                      value={harga}
-                      onChange={(e) => setField(item.id, 'harga_satuan', Number(e.target.value))}
+                      value={p?.harga_satuan ?? ''}
+                      onChange={(e) => setField(item.id, 'harga_satuan', e.target.value)}
                       className="h-8 w-36 ml-auto text-right font-mono text-sm"
                       aria-label={`Harga satuan ${item.nama_barang}`}
                     />
@@ -145,8 +148,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
                     <Input
                       type="number"
                       min="0"
-                      value={diskon}
-                      onChange={(e) => setField(item.id, 'diskon', Number(e.target.value))}
+                      value={p?.diskon ?? ''}
+                      onChange={(e) => setField(item.id, 'diskon', e.target.value)}
                       className="h-8 w-28 ml-auto text-right font-mono text-sm"
                       aria-label={`Diskon ${item.nama_barang}`}
                     />

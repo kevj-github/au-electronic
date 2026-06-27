@@ -71,7 +71,12 @@ export default async function PesananDetailPage({
 
   if (!pesanan) notFound()
 
-  const isLocked = pesanan.status !== 'diproses'
+  const { data: lockSetting } = await supabase
+    .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
+  const pesananLocked = lockSetting?.value === 'true'
+
+  const statusLocked = pesanan.status !== 'diproses'
+  const isLocked = statusLocked || (!isOwner && pesananLocked)
   const ownerItems = isOwner ? (pesanan.items as OwnerItem[]) : []
   const pembayaranList = pesanan.pembayaran ?? []
   const totalPesanan = ownerItems.reduce((s, i) => s + i.subtotal, 0)
@@ -186,7 +191,7 @@ export default async function PesananDetailPage({
               <span className="text-muted-foreground">
                 {dicekCount}/{totalItems} dicek pemilik
               </span>
-              {!isLocked && (
+              {!statusLocked && (
                 <ResetChecklistButton
                   pesananId={pesanan.id}
                   target="owner"
@@ -208,7 +213,7 @@ export default async function PesananDetailPage({
       </div>
 
       {/* Bulk price editor — owner only, active orders only */}
-      {isOwner && !isLocked && (
+      {isOwner && !statusLocked && (
         <BulkPriceForm
           pesananId={pesanan.id}
           items={ownerItems.map((i) => ({
@@ -222,7 +227,7 @@ export default async function PesananDetailPage({
       )}
 
       {/* Price summary for owner on locked orders */}
-      {isOwner && isLocked && (
+      {isOwner && statusLocked && (
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
