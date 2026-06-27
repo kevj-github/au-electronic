@@ -65,8 +65,8 @@ export function PelangganForm({ pelanggan }: PelangganFormProps) {
           defaultValue={pelanggan?.tipe ?? 'retail'}
           className="w-full border rounded-md px-3 py-2 text-sm"
         >
-          <option value="retail">Retail (B2C)</option>
-          <option value="grosir">Grosir (B2B)</option>
+          <option value="retail">Retail (B2B)</option>
+          <option value="grosir">Grosir (B2C)</option>
         </select>
       </div>
       {error && <p className="text-sm text-red-500">{error}</p>}
