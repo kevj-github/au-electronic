@@ -39,12 +39,12 @@ export function DocumentButtons({ data }: DocumentButtonsProps) {
     }
     setPdfLoading(true)
     try {
-      const [{ DocumentPDF }, logoSrc, watermarkSrc] = await Promise.all([
+      const [{ DocumentPDF }, crownSrc, watermarkSrc] = await Promise.all([
         import('@/components/invoice/DocumentPDF'),
-        loadImageBase64('/au-logo.png'),
+        loadImageBase64('/au-crown.png'),
         loadImageBase64('/au-trademark.png'),
       ])
-      const blob = await pdf(<DocumentPDF data={data} logoSrc={logoSrc} watermarkSrc={watermarkSrc} />).toBlob()
+      const blob = await pdf(<DocumentPDF data={data} crownSrc={crownSrc} watermarkSrc={watermarkSrc} />).toBlob()
       const url = URL.createObjectURL(blob)
       newWindow.location.href = url
     } catch {

@@ -15,19 +15,11 @@ const styles = StyleSheet.create({
     opacity: 0.07,
   },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  logoImage: { width: 200, height: 48 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logoCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1E40AF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoText: { color: '#ffffff', fontSize: 14, fontWeight: 'bold' },
-  shopName: { fontSize: 16, fontWeight: 'bold' },
-  shopSub: { fontSize: 9, color: '#666' },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  crownImage: { width: 46, height: 68 },
+  logoAU: { fontFamily: 'Times-Bold', fontSize: 36, marginRight: 2 },
+  logoElectronic: { fontFamily: 'Helvetica-Bold', fontSize: 15 },
+  logoSpareParts: { fontFamily: 'Helvetica', fontSize: 11, color: '#444' },
   metaRight: { alignItems: 'flex-end' },
   divider: { borderBottom: '1px solid #e5e7eb', marginVertical: 16 },
   kepadaBlock: { marginBottom: 16 },
@@ -66,11 +58,11 @@ const styles = StyleSheet.create({
 
 interface DocumentPDFProps {
   data: InvoiceData
-  logoSrc?: string
+  crownSrc?: string
   watermarkSrc?: string
 }
 
-export function DocumentPDF({ data, logoSrc, watermarkSrc }: DocumentPDFProps) {
+export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) {
   const tanggal = format(new Date(data.tanggal), 'd MMMM yyyy', { locale: idLocale })
 
   return (
@@ -81,20 +73,13 @@ export function DocumentPDF({ data, logoSrc, watermarkSrc }: DocumentPDFProps) {
         )}
 
         <View style={styles.headerRow}>
-          <View>
-            {logoSrc ? (
-              <Image src={logoSrc} style={styles.logoImage} />
-            ) : (
-              <View style={styles.logoRow}>
-                <View style={styles.logoCircle}>
-                  <Text style={styles.logoText}>AU</Text>
-                </View>
-                <View>
-                  <Text style={styles.shopName}>AU Electronic</Text>
-                  <Text style={styles.shopSub}>Toko Spare Part Elektronik</Text>
-                </View>
-              </View>
-            )}
+          <View style={styles.logoRow}>
+            {crownSrc && <Image src={crownSrc} style={styles.crownImage} />}
+            <Text style={styles.logoAU}>AU</Text>
+            <View>
+              <Text style={styles.logoElectronic}>Electronic</Text>
+              <Text style={styles.logoSpareParts}>spare parts</Text>
+            </View>
           </View>
           <View style={styles.metaRight}>
             <Text>Surabaya, {tanggal}</Text>
