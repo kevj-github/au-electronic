@@ -46,10 +46,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
 
   function startEdit(item: SectionItem) {
     setEditingId(item.id)
-    setEditState({
-      nama_barang: item.nama_barang,
-      qty: String(item.qty),
-    })
+    setEditState({ nama_barang: item.nama_barang, qty: String(item.qty) })
     setError(null)
   }
 
@@ -64,10 +61,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
     if (!qty || qty < 1) return
     setLoadingId(itemId)
     setError(null)
-    const result = await updateItemDetails(itemId, pesananId, {
-      nama_barang: editState.nama_barang,
-      qty,
-    })
+    const result = await updateItemDetails(itemId, pesananId, { nama_barang: editState.nama_barang, qty })
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
     setEditingId(null)
@@ -90,16 +84,16 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
     if (!qty || qty < 1) return
     setLoadingId('new')
     setError(null)
-    const result = await addItemToPesanan(pesananId, {
-      nama_barang: newItem.nama_barang,
-      qty,
-    })
+    const result = await addItemToPesanan(pesananId, { nama_barang: newItem.nama_barang, qty })
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
     setAddingNew(false)
     setNewItem(emptyAdd)
     router.refresh()
   }
+
+  // colSpan for edit/add rows: owner-col? + qty + nama + helper-col + edit-col
+  const totalCols = (isOwner ? 1 : 0) + 3 + (!isLocked ? 1 : 0)
 
   return (
     <div className="space-y-3">
@@ -108,7 +102,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
       {/* Mobile: card list */}
       <div className="space-y-2 sm:hidden">
         {items.map((item) => (
-          <div key={item.id} className="border rounded-lg p-3 space-y-2">
+          <div key={item.id} className="border rounded-lg p-3">
             {editingId === item.id ? (
               <div className="space-y-2">
                 <div className="flex gap-2">
@@ -138,8 +132,35 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                 </div>
               </div>
             ) : (
-              <div className="flex justify-between items-start gap-2">
-                <p className="font-medium text-sm">{item.qty}× {item.nama_barang}</p>
+              <div className="flex items-center gap-2">
+                {/* Owner's checkbox — front, owner only */}
+                {isOwner && (
+                  <ItemChecklistCheckbox
+                    itemId={item.id}
+                    checked={item.dicek_oleh_owner ?? false}
+                    kind="owner"
+                    label="Dicek pemilik"
+                    showLabel={false}
+                    disabled={isLocked}
+                  />
+                )}
+
+                {/* Qty and Nama */}
+                <p className="text-sm font-medium flex-1 min-w-0 truncate">
+                  {item.qty}× {item.nama_barang}
+                </p>
+
+                {/* Helper's checkbox — back */}
+                <ItemChecklistCheckbox
+                  itemId={item.id}
+                  checked={item.diambil_oleh_helper}
+                  kind="helper"
+                  label="Diambil dari etalase"
+                  showLabel={false}
+                  disabled={isLocked}
+                />
+
+                {/* Edit / Delete */}
                 {!isLocked && (
                   <div className="flex gap-1 shrink-0">
                     <Button
@@ -184,26 +205,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                 )}
               </div>
             )}
-            {editingId !== item.id && (
-              <div className="flex flex-col gap-1 border-t pt-2">
-                <ItemChecklistCheckbox
-                  itemId={item.id}
-                  checked={item.diambil_oleh_helper}
-                  kind="helper"
-                  label="Diambil dari etalase"
-                  disabled={isLocked}
-                />
-                {isOwner && (
-                  <ItemChecklistCheckbox
-                    itemId={item.id}
-                    checked={item.dicek_oleh_owner ?? false}
-                    kind="owner"
-                    label="Dicek pemilik"
-                    disabled={isLocked}
-                  />
-                )}
-              </div>
-            )}
           </div>
         ))}
 
@@ -239,12 +240,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
               </div>
             </div>
           ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => setAddingNew(true)}
-            >
+            <Button variant="outline" size="sm" className="w-full" onClick={() => setAddingNew(true)}>
               <Plus className="size-4 mr-1.5" />
               Tambah Barang
             </Button>
@@ -257,50 +253,70 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
+              {isOwner && <th className="w-10 px-3 py-2"></th>}
               <th className="text-right px-4 py-2 font-medium w-16">Qty</th>
               <th className="text-left px-4 py-2 font-medium">Nama Barang</th>
-              {!isLocked && <th className="px-4 py-2 font-medium w-16"></th>}
-              <th className="text-left px-4 py-2 font-medium">Diambil</th>
-              {isOwner && <th className="text-left px-4 py-2 font-medium">Dicek Pemilik</th>}
+              <th className="w-10 px-3 py-2"></th>
+              {!isLocked && <th className="w-16 px-4 py-2"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {items.map((item) => (
               <tr key={item.id}>
                 {editingId === item.id ? (
-                  <>
-                    <td className="px-4 py-2" colSpan={isOwner ? 5 : 4}>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={editState.qty}
-                          onChange={(e) => setEditState((s) => ({ ...s, qty: e.target.value }))}
-                          className="h-8 w-20 text-sm text-right"
-                          aria-label="Qty"
-                          autoFocus
-                        />
-                        <Input
-                          value={editState.nama_barang}
-                          onChange={(e) => setEditState((s) => ({ ...s, nama_barang: e.target.value }))}
-                          className="h-8 text-sm flex-1 min-w-[160px]"
-                          placeholder="Nama barang"
-                        />
-                        <Button size="sm" onClick={() => saveEdit(item.id)} disabled={loadingId === item.id}>
-                          <Check className="size-3.5 mr-1" />Simpan
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={cancelEdit}>
-                          <X className="size-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </>
+                  <td className="px-4 py-2" colSpan={totalCols}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={editState.qty}
+                        onChange={(e) => setEditState((s) => ({ ...s, qty: e.target.value }))}
+                        className="h-8 w-20 text-sm text-right"
+                        aria-label="Qty"
+                        autoFocus
+                      />
+                      <Input
+                        value={editState.nama_barang}
+                        onChange={(e) => setEditState((s) => ({ ...s, nama_barang: e.target.value }))}
+                        className="h-8 text-sm flex-1 min-w-[160px]"
+                        placeholder="Nama barang"
+                      />
+                      <Button size="sm" onClick={() => saveEdit(item.id)} disabled={loadingId === item.id}>
+                        <Check className="size-3.5 mr-1" />Simpan
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                        <X className="size-3.5" />
+                      </Button>
+                    </div>
+                  </td>
                 ) : (
                   <>
-                    <td className="px-4 py-2 text-right align-top">{item.qty}</td>
-                    <td className="px-4 py-2 align-top">{item.nama_barang}</td>
+                    {isOwner && (
+                      <td className="px-3 py-2 text-center align-middle">
+                        <ItemChecklistCheckbox
+                          itemId={item.id}
+                          checked={item.dicek_oleh_owner ?? false}
+                          kind="owner"
+                          label="Dicek pemilik"
+                          showLabel={false}
+                          disabled={isLocked}
+                        />
+                      </td>
+                    )}
+                    <td className="px-4 py-2 text-right align-middle">{item.qty}</td>
+                    <td className="px-4 py-2 align-middle">{item.nama_barang}</td>
+                    <td className="px-3 py-2 text-center align-middle">
+                      <ItemChecklistCheckbox
+                        itemId={item.id}
+                        checked={item.diambil_oleh_helper}
+                        kind="helper"
+                        label="Diambil dari etalase"
+                        showLabel={false}
+                        disabled={isLocked}
+                      />
+                    </td>
                     {!isLocked && (
-                      <td className="px-4 py-2 align-top">
+                      <td className="px-4 py-2 align-middle">
                         <div className="flex gap-1">
                           <button
                             type="button"
@@ -343,26 +359,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                         </div>
                       </td>
                     )}
-                    <td className="px-4 py-2 align-top">
-                      <ItemChecklistCheckbox
-                        itemId={item.id}
-                        checked={item.diambil_oleh_helper}
-                        kind="helper"
-                        label="Diambil"
-                        disabled={isLocked}
-                      />
-                    </td>
-                    {isOwner && (
-                      <td className="px-4 py-2 align-top">
-                        <ItemChecklistCheckbox
-                          itemId={item.id}
-                          checked={item.dicek_oleh_owner ?? false}
-                          kind="owner"
-                          label="Dicek"
-                          disabled={isLocked}
-                        />
-                      </td>
-                    )}
                   </>
                 )}
               </tr>
@@ -372,7 +368,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
             {!isLocked && (
               addingNew ? (
                 <tr>
-                  <td className="px-4 py-2" colSpan={isOwner ? 5 : 4}>
+                  <td className="px-4 py-2" colSpan={totalCols}>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Input
                         type="number"
@@ -401,7 +397,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                 </tr>
               ) : (
                 <tr>
-                  <td colSpan={isOwner ? 5 : 4} className="px-4 py-2">
+                  <td colSpan={totalCols} className="px-4 py-2">
                     <button
                       type="button"
                       onClick={() => setAddingNew(true)}

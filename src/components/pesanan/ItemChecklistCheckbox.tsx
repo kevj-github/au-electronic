@@ -10,6 +10,7 @@ interface ItemChecklistCheckboxProps {
   kind: 'helper' | 'owner'
   label: string
   disabled?: boolean
+  showLabel?: boolean
 }
 
 export function ItemChecklistCheckbox({
@@ -18,6 +19,7 @@ export function ItemChecklistCheckbox({
   kind,
   label,
   disabled = false,
+  showLabel = true,
 }: ItemChecklistCheckboxProps) {
   const [prevChecked, setPrevChecked] = useState(checked)
   const [pending, setPending] = useState<boolean | null>(null)
@@ -55,7 +57,7 @@ export function ItemChecklistCheckbox({
         onCheckedChange={(next) => handleChange(next === true)}
         aria-label={label}
       />
-      <span className="text-sm text-muted-foreground">{label}</span>
+      {showLabel && <span className="text-sm text-muted-foreground">{label}</span>}
     </label>
   )
 }
