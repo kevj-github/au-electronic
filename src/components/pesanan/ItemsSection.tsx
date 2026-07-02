@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Pencil, Trash2, Plus, X, Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
@@ -40,6 +40,12 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
   const [editState, setEditState] = useState<EditState>(emptyAdd)
   const [addingNew, setAddingNew] = useState(false)
   const [newItem, setNewItem] = useState<EditState>(emptyAdd)
+
+  // Refs for mobile keyboard navigation (Enter key: qty → nama → save/add)
+  const newQtyRef = useRef<HTMLInputElement>(null)
+  const newNamaRef = useRef<HTMLInputElement>(null)
+  const editQtyRef = useRef<HTMLInputElement>(null)
+  const editNamaRef = useRef<HTMLInputElement>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -78,7 +84,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
     router.refresh()
   }
 
-  async function saveNewItem() {
+  async function saveNewItem(keepAdding = false) {
     if (!newItem.nama_barang.trim()) return
     const qty = parseInt(newItem.qty, 10)
     if (!qty || qty < 1) return
@@ -87,8 +93,12 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
     const result = await addItemToPesanan(pesananId, { nama_barang: newItem.nama_barang, qty })
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
-    setAddingNew(false)
     setNewItem(emptyAdd)
+    if (!keepAdding) {
+      setAddingNew(false)
+    } else {
+      setTimeout(() => newQtyRef.current?.focus(), 0)
+    }
     router.refresh()
   }
 
@@ -107,19 +117,29 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <Input
+                    ref={editQtyRef}
                     type="number"
                     min="1"
                     value={editState.qty}
                     onChange={(e) => setEditState((s) => ({ ...s, qty: e.target.value }))}
                     className="h-8 w-20 text-sm text-right"
                     aria-label="Qty"
+                    enterKeyHint="next"
                     autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); editNamaRef.current?.focus() }
+                    }}
                   />
                   <Input
+                    ref={editNamaRef}
                     value={editState.nama_barang}
                     onChange={(e) => setEditState((s) => ({ ...s, nama_barang: e.target.value }))}
                     placeholder="Nama barang"
                     className="h-8 text-sm flex-1"
+                    enterKeyHint="done"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); void saveEdit(item.id) }
+                    }}
                   />
                 </div>
                 <div className="flex gap-2">
@@ -214,6 +234,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
             <div className="border rounded-lg p-3 space-y-2">
               <div className="flex gap-2">
                 <Input
+                  ref={newQtyRef}
                   type="number"
                   min="1"
                   value={newItem.qty}
@@ -221,17 +242,26 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                   placeholder="Qty"
                   className="h-8 w-20 text-sm text-right"
                   aria-label="Qty"
+                  enterKeyHint="next"
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); newNamaRef.current?.focus() }
+                  }}
                 />
                 <Input
+                  ref={newNamaRef}
                   value={newItem.nama_barang}
                   onChange={(e) => setNewItem((s) => ({ ...s, nama_barang: e.target.value }))}
                   placeholder="Nama barang"
                   className="h-8 text-sm flex-1"
+                  enterKeyHint="go"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); void saveNewItem(true) }
+                  }}
                 />
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={saveNewItem} disabled={loadingId === 'new' || !newItem.nama_barang.trim()}>
+                <Button size="sm" onClick={() => saveNewItem()} disabled={loadingId === 'new' || !newItem.nama_barang.trim()}>
                   <Check className="size-3.5 mr-1" />Tambah
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewItem(emptyAdd) }}>
@@ -386,7 +416,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                         className="h-8 text-sm flex-1 min-w-[160px]"
                         placeholder="Nama barang baru..."
                       />
-                      <Button size="sm" onClick={saveNewItem} disabled={loadingId === 'new' || !newItem.nama_barang.trim()}>
+                      <Button size="sm" onClick={() => saveNewItem()} disabled={loadingId === 'new' || !newItem.nama_barang.trim()}>
                         <Check className="size-3.5 mr-1" />Tambah
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewItem(emptyAdd) }}>
