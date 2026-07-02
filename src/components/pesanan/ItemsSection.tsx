@@ -16,7 +16,6 @@ interface SectionItem {
   id: string
   nama_barang: string
   qty: number
-  catatan_item: string | null
   diambil_oleh_helper: boolean
   dicek_oleh_owner?: boolean
 }
@@ -31,10 +30,9 @@ interface ItemsSectionProps {
 interface EditState {
   nama_barang: string
   qty: string
-  catatan_item: string
 }
 
-const emptyAdd: EditState = { nama_barang: '', qty: '', catatan_item: '' }
+const emptyAdd: EditState = { nama_barang: '', qty: '' }
 
 export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSectionProps) {
   const router = useRouter()
@@ -51,7 +49,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
     setEditState({
       nama_barang: item.nama_barang,
       qty: String(item.qty),
-      catatan_item: item.catatan_item ?? '',
     })
     setError(null)
   }
@@ -70,7 +67,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
     const result = await updateItemDetails(itemId, pesananId, {
       nama_barang: editState.nama_barang,
       qty,
-      catatan_item: editState.catatan_item || null,
     })
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
@@ -97,7 +93,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
     const result = await addItemToPesanan(pesananId, {
       nama_barang: newItem.nama_barang,
       qty,
-      catatan_item: newItem.catatan_item || null,
     })
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
@@ -116,13 +111,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
           <div key={item.id} className="border rounded-lg p-3 space-y-2">
             {editingId === item.id ? (
               <div className="space-y-2">
-                <Input
-                  value={editState.nama_barang}
-                  onChange={(e) => setEditState((s) => ({ ...s, nama_barang: e.target.value }))}
-                  placeholder="Nama barang"
-                  className="h-8 text-sm"
-                  autoFocus
-                />
                 <div className="flex gap-2">
                   <Input
                     type="number"
@@ -131,11 +119,12 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                     onChange={(e) => setEditState((s) => ({ ...s, qty: e.target.value }))}
                     className="h-8 w-20 text-sm text-right"
                     aria-label="Qty"
+                    autoFocus
                   />
                   <Input
-                    value={editState.catatan_item}
-                    onChange={(e) => setEditState((s) => ({ ...s, catatan_item: e.target.value }))}
-                    placeholder="Catatan (opsional)"
+                    value={editState.nama_barang}
+                    onChange={(e) => setEditState((s) => ({ ...s, nama_barang: e.target.value }))}
+                    placeholder="Nama barang"
                     className="h-8 text-sm flex-1"
                   />
                 </div>
@@ -150,13 +139,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
               </div>
             ) : (
               <div className="flex justify-between items-start gap-2">
-                <div>
-                  <p className="font-medium text-sm">{item.nama_barang}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Qty {item.qty}
-                    {item.catatan_item ? ` · ${item.catatan_item}` : ''}
-                  </p>
-                </div>
+                <p className="font-medium text-sm">{item.qty}× {item.nama_barang}</p>
                 {!isLocked && (
                   <div className="flex gap-1 shrink-0">
                     <Button
@@ -228,13 +211,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
         {!isLocked && (
           addingNew ? (
             <div className="border rounded-lg p-3 space-y-2">
-              <Input
-                value={newItem.nama_barang}
-                onChange={(e) => setNewItem((s) => ({ ...s, nama_barang: e.target.value }))}
-                placeholder="Nama barang"
-                className="h-8 text-sm"
-                autoFocus
-              />
               <div className="flex gap-2">
                 <Input
                   type="number"
@@ -244,11 +220,12 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                   placeholder="Qty"
                   className="h-8 w-20 text-sm text-right"
                   aria-label="Qty"
+                  autoFocus
                 />
                 <Input
-                  value={newItem.catatan_item}
-                  onChange={(e) => setNewItem((s) => ({ ...s, catatan_item: e.target.value }))}
-                  placeholder="Catatan (opsional)"
+                  value={newItem.nama_barang}
+                  onChange={(e) => setNewItem((s) => ({ ...s, nama_barang: e.target.value }))}
+                  placeholder="Nama barang"
                   className="h-8 text-sm flex-1"
                 />
               </div>
@@ -280,8 +257,8 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
+              <th className="text-right px-4 py-2 font-medium w-16">Qty</th>
               <th className="text-left px-4 py-2 font-medium">Nama Barang</th>
-              <th className="text-right px-4 py-2 font-medium">Qty</th>
               {!isLocked && <th className="px-4 py-2 font-medium w-16"></th>}
               <th className="text-left px-4 py-2 font-medium">Diambil</th>
               {isOwner && <th className="text-left px-4 py-2 font-medium">Dicek Pemilik</th>}
@@ -295,25 +272,19 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                     <td className="px-4 py-2" colSpan={isOwner ? 5 : 4}>
                       <div className="flex items-center gap-2 flex-wrap">
                         <Input
-                          value={editState.nama_barang}
-                          onChange={(e) => setEditState((s) => ({ ...s, nama_barang: e.target.value }))}
-                          className="h-8 text-sm flex-1 min-w-[160px]"
-                          autoFocus
-                          placeholder="Nama barang"
-                        />
-                        <Input
                           type="number"
                           min="1"
                           value={editState.qty}
                           onChange={(e) => setEditState((s) => ({ ...s, qty: e.target.value }))}
                           className="h-8 w-20 text-sm text-right"
                           aria-label="Qty"
+                          autoFocus
                         />
                         <Input
-                          value={editState.catatan_item}
-                          onChange={(e) => setEditState((s) => ({ ...s, catatan_item: e.target.value }))}
-                          placeholder="Catatan"
-                          className="h-8 text-sm flex-1 min-w-[100px]"
+                          value={editState.nama_barang}
+                          onChange={(e) => setEditState((s) => ({ ...s, nama_barang: e.target.value }))}
+                          className="h-8 text-sm flex-1 min-w-[160px]"
+                          placeholder="Nama barang"
                         />
                         <Button size="sm" onClick={() => saveEdit(item.id)} disabled={loadingId === item.id}>
                           <Check className="size-3.5 mr-1" />Simpan
@@ -326,13 +297,8 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                   </>
                 ) : (
                   <>
-                    <td className="px-4 py-2 align-top">
-                      <p>{item.nama_barang}</p>
-                      {item.catatan_item && (
-                        <p className="text-xs text-muted-foreground">{item.catatan_item}</p>
-                      )}
-                    </td>
                     <td className="px-4 py-2 text-right align-top">{item.qty}</td>
+                    <td className="px-4 py-2 align-top">{item.nama_barang}</td>
                     {!isLocked && (
                       <td className="px-4 py-2 align-top">
                         <div className="flex gap-1">
@@ -409,13 +375,6 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                   <td className="px-4 py-2" colSpan={isOwner ? 5 : 4}>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Input
-                        value={newItem.nama_barang}
-                        onChange={(e) => setNewItem((s) => ({ ...s, nama_barang: e.target.value }))}
-                        className="h-8 text-sm flex-1 min-w-[160px]"
-                        autoFocus
-                        placeholder="Nama barang baru..."
-                      />
-                      <Input
                         type="number"
                         min="1"
                         value={newItem.qty}
@@ -423,12 +382,13 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                         placeholder="Qty"
                         className="h-8 w-20 text-sm text-right"
                         aria-label="Qty"
+                        autoFocus
                       />
                       <Input
-                        value={newItem.catatan_item}
-                        onChange={(e) => setNewItem((s) => ({ ...s, catatan_item: e.target.value }))}
-                        placeholder="Catatan"
-                        className="h-8 text-sm flex-1 min-w-[100px]"
+                        value={newItem.nama_barang}
+                        onChange={(e) => setNewItem((s) => ({ ...s, nama_barang: e.target.value }))}
+                        className="h-8 text-sm flex-1 min-w-[160px]"
+                        placeholder="Nama barang baru..."
                       />
                       <Button size="sm" onClick={saveNewItem} disabled={loadingId === 'new' || !newItem.nama_barang.trim()}>
                         <Check className="size-3.5 mr-1" />Tambah

@@ -19,7 +19,7 @@ import { id as idLocale } from 'date-fns/locale'
 import type { Pesanan, ItemPesanan, Pembayaran, Pelanggan, StatusPesanan } from '@/lib/types'
 import Link from 'next/link'
 
-type HelperItem = Pick<ItemPesanan, 'id' | 'nama_barang' | 'qty' | 'catatan_item' | 'diambil_oleh_helper'>
+type HelperItem = Pick<ItemPesanan, 'id' | 'nama_barang' | 'qty' | 'diambil_oleh_helper'>
 type OwnerItem = ItemPesanan
 
 type PesananDetail = Omit<Pesanan, 'pelanggan' | 'items' | 'pembayaran'> & {
@@ -56,8 +56,8 @@ export default async function PesananDetailPage({
   // Helpers never get price/payment data fetched into the RSC payload at all —
   // not just hidden in the UI. requireOwner/RLS still back this up server-side.
   const itemsSelect = isOwner
-    ? 'id, nama_barang, qty, harga_satuan, diskon, subtotal, catatan_item, diambil_oleh_helper, dicek_oleh_owner'
-    : 'id, nama_barang, qty, catatan_item, diambil_oleh_helper'
+    ? 'id, nama_barang, qty, harga_satuan, diskon, subtotal, diambil_oleh_helper, dicek_oleh_owner'
+    : 'id, nama_barang, qty, diambil_oleh_helper'
   const pesananSelect = isOwner
     ? `*, pelanggan(*), items:item_pesanan(${itemsSelect}), pembayaran(*)`
     : `*, pelanggan(*), items:item_pesanan(${itemsSelect})`
@@ -114,7 +114,6 @@ export default async function PesananDetailPage({
         id: o.id,
         nama_barang: o.nama_barang,
         qty: o.qty,
-        catatan_item: o.catatan_item,
         diambil_oleh_helper: o.diambil_oleh_helper,
         dicek_oleh_owner: o.dicek_oleh_owner,
       }
@@ -123,7 +122,6 @@ export default async function PesananDetailPage({
       id: item.id,
       nama_barang: item.nama_barang,
       qty: item.qty,
-      catatan_item: item.catatan_item,
       diambil_oleh_helper: item.diambil_oleh_helper,
     }
   })
@@ -231,29 +229,25 @@ export default async function PesananDetailPage({
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
+                <th className="text-right px-4 py-2 font-medium w-16">Qty</th>
                 <th className="text-left px-4 py-2 font-medium">Barang</th>
-                <th className="text-right px-4 py-2 font-medium">Qty</th>
                 <th className="text-right px-4 py-2 font-medium">Harga Satuan</th>
-                <th className="text-right px-4 py-2 font-medium">Diskon</th>
                 <th className="text-right px-4 py-2 font-medium">Subtotal</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {ownerItems.map((i) => (
                 <tr key={i.id}>
-                  <td className="px-4 py-2">{i.nama_barang}</td>
                   <td className="px-4 py-2 text-right">{i.qty}</td>
+                  <td className="px-4 py-2">{i.nama_barang}</td>
                   <td className="px-4 py-2 text-right font-mono">{formatRupiah(i.harga_satuan)}</td>
-                  <td className="px-4 py-2 text-right font-mono text-muted-foreground">
-                    {i.diskon > 0 ? `−${formatRupiah(i.diskon)}` : '—'}
-                  </td>
                   <td className="px-4 py-2 text-right font-mono">{formatRupiah(i.subtotal)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="border-t bg-gray-50">
               <tr>
-                <td colSpan={4} className="px-4 py-2 text-right font-medium">Total</td>
+                <td colSpan={3} className="px-4 py-2 text-right font-medium">Total</td>
                 <td className="px-4 py-2 text-right font-mono font-semibold">{formatRupiah(totalPesanan)}</td>
               </tr>
             </tfoot>

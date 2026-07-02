@@ -37,8 +37,8 @@ const styles = StyleSheet.create({
     borderBottom: '1px solid #f3f4f6',
   },
   colNo: { flex: 0.5 },
-  colNama: { flex: 3.5 },
   colQty: { flex: 1, textAlign: 'right' },
+  colNama: { flex: 3.5 },
   colHarga: { flex: 2, textAlign: 'right' },
   colSubtotal: { flex: 2, textAlign: 'right' },
   totalRow: {
@@ -96,16 +96,16 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
 
         <View style={styles.tableHeader}>
           <Text style={styles.colNo}>No</Text>
-          <Text style={styles.colNama}>Nama Barang</Text>
           <Text style={styles.colQty}>Qty</Text>
+          <Text style={styles.colNama}>Nama Barang</Text>
           <Text style={styles.colHarga}>Harga Satuan</Text>
           <Text style={styles.colSubtotal}>Subtotal</Text>
         </View>
         {data.items.map((item, i) => (
           <View key={i} style={styles.tableRow}>
             <Text style={styles.colNo}>{i + 1}</Text>
-            <Text style={styles.colNama}>{item.namaBarang}</Text>
             <Text style={styles.colQty}>{item.qty}</Text>
+            <Text style={styles.colNama}>{item.namaBarang}</Text>
             <Text style={styles.colHarga}>{formatRupiah(item.hargaSatuan)}</Text>
             <Text style={styles.colSubtotal}>{formatRupiah(item.subtotal)}</Text>
           </View>

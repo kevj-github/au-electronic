@@ -37,7 +37,6 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
         qty: 0,
         harga_satuan: 0,
         diskon: 0,
-        catatan_item: '',
       },
     ])
     setLastAddedId(newId)
@@ -70,7 +69,6 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
         qty: i.qty,
         harga_satuan: i.harga_satuan,
         diskon: i.diskon,
-        catatan_item: i.catatan_item || null,
       })),
     })
 
@@ -142,11 +140,20 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
                   <div key={item.id} className="border rounded-lg p-3 space-y-2">
                     <div className="flex gap-2 items-center">
                       <Input
+                        type="number"
+                        min="1"
+                        value={item.qty || ''}
+                        onChange={(e) => updateItem(item.id, { qty: parseInt(e.target.value, 10) || 0 })}
+                        placeholder="Qty"
+                        className="h-8 w-20 text-sm text-right shrink-0"
+                        aria-label="Qty"
+                        autoFocus={item.id === lastAddedId}
+                      />
+                      <Input
                         value={item.nama_barang}
                         onChange={(e) => updateItem(item.id, { nama_barang: e.target.value })}
                         placeholder="Nama barang..."
                         className="h-8 text-sm flex-1"
-                        autoFocus={item.id === lastAddedId}
                       />
                       <Button
                         type="button"
@@ -160,18 +167,6 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
                       </Button>
                     </div>
                     <div className="flex gap-2 items-start">
-                      <div className="space-y-0.5">
-                        <p className="text-xs text-muted-foreground">Qty</p>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.qty || ''}
-                          onChange={(e) => updateItem(item.id, { qty: parseInt(e.target.value, 10) || 0 })}
-                          placeholder="Qty"
-                          className="h-8 w-20 text-sm text-right"
-                          aria-label="Qty"
-                        />
-                      </div>
                       <div className="space-y-0.5 flex-1">
                         <p className="text-xs text-muted-foreground">Harga Satuan</p>
                         {isOwner ? (
@@ -206,8 +201,8 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
               <table className="w-full text-sm border rounded-lg overflow-hidden min-w-[560px]">
                 <thead className="bg-gray-50 border-b">
                   <tr>
+                    <th className="text-right px-3 py-2 font-medium w-24">Qty</th>
                     <th className="text-left px-3 py-2 font-medium">Nama Barang</th>
-                    <th className="text-right px-3 py-2 font-medium">Qty</th>
                     <th className="text-right px-3 py-2 font-medium">Harga Satuan</th>
                     <th className="text-right px-3 py-2 font-medium">Subtotal</th>
                     <th />

@@ -117,8 +117,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
         <table className="w-full text-sm">
           <thead className="border-b bg-gray-50/50">
             <tr>
+              <th className="text-right px-4 py-2 font-medium text-muted-foreground w-16">Qty</th>
               <th className="text-left px-4 py-2 font-medium text-muted-foreground">Barang</th>
-              <th className="text-right px-4 py-2 font-medium text-muted-foreground">Qty</th>
               <th className="text-right px-4 py-2 font-medium text-muted-foreground">Harga Satuan</th>
               <th className="text-right px-4 py-2 font-medium text-muted-foreground">Diskon</th>
               <th className="text-right px-4 py-2 font-medium text-muted-foreground">Subtotal</th>
@@ -132,8 +132,8 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
               const subtotal = item.qty * harga - diskon
               return (
                 <tr key={item.id}>
-                  <td className="px-4 py-2">{item.nama_barang}</td>
                   <td className="px-4 py-2 text-right text-muted-foreground">{item.qty}</td>
+                  <td className="px-4 py-2">{item.nama_barang}</td>
                   <td className="px-4 py-2">
                     <Input
                       type="number"

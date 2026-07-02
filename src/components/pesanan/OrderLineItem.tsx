@@ -11,7 +11,6 @@ export interface LineItem {
   qty: number
   harga_satuan: number
   diskon: number
-  catatan_item: string
 }
 
 interface OrderLineItemProps {
@@ -27,16 +26,6 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove, autoFocus }: 
 
   return (
     <tr className="border-b">
-      <td className="px-3 py-2">
-        <Input
-          value={item.nama_barang}
-          onChange={(e) => onChange(item.id, { nama_barang: e.target.value })}
-          placeholder="Nama barang..."
-          aria-label="Nama barang"
-          className="h-8"
-          autoFocus={autoFocus}
-        />
-      </td>
       <td className="px-3 py-2 w-24">
         <Input
           type="number"
@@ -46,6 +35,16 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove, autoFocus }: 
           placeholder="Qty"
           aria-label={`Qty ${item.nama_barang}`}
           className="h-8 text-right"
+          autoFocus={autoFocus}
+        />
+      </td>
+      <td className="px-3 py-2">
+        <Input
+          value={item.nama_barang}
+          onChange={(e) => onChange(item.id, { nama_barang: e.target.value })}
+          placeholder="Nama barang..."
+          aria-label="Nama barang"
+          className="h-8"
         />
       </td>
       <td className="px-3 py-2 w-36">

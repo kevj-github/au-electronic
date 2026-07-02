@@ -9,7 +9,7 @@ export function formatWhatsapp(data: InvoiceData): string {
   const itemLines = data.items
     .map(
       (i) =>
-        `• ${i.namaBarang} – ${i.qty}x ${formatRupiah(i.hargaSatuan)} = *${formatRupiah(i.subtotal)}*`
+        `• ${i.qty}x ${i.namaBarang} – ${formatRupiah(i.hargaSatuan)} = *${formatRupiah(i.subtotal)}*`
     )
     .join('\n')
 
@@ -21,7 +21,7 @@ export function formatWhatsapp(data: InvoiceData): string {
   const catatanLine = data.catatan ? `\nCatatan: ${data.catatan}` : ''
 
   return `*AU Electronic*
-${tanggal}
+${tanggal} · ${data.kodePesanan}
 Pelanggan: ${data.namaPelanggan}
 
 ${itemLines}

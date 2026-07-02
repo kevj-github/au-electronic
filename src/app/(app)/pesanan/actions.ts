@@ -14,7 +14,6 @@ export interface CreatePesananInput {
     qty: number
     harga_satuan: number
     diskon: number
-    catatan_item: string | null
   }>
 }
 
@@ -77,7 +76,7 @@ export async function createPesanan(input: CreatePesananInput) {
         qty: item.qty,
         harga_satuan: item.harga_satuan,
         diskon: item.diskon,
-        catatan_item: item.catatan_item,
+        catatan_item: null,
       }))
     )
 
@@ -213,7 +212,6 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
 export interface AddItemInput {
   nama_barang: string
   qty: number
-  catatan_item: string | null
 }
 
 export async function addItemToPesanan(pesananId: string, item: AddItemInput): Promise<{ error?: string }> {
@@ -240,7 +238,7 @@ export async function addItemToPesanan(pesananId: string, item: AddItemInput): P
       qty: item.qty,
       harga_satuan: 0,
       diskon: 0,
-      catatan_item: item.catatan_item,
+      catatan_item: null,
     })
 
   if (error) return { error: error.message }
@@ -251,7 +249,7 @@ export async function addItemToPesanan(pesananId: string, item: AddItemInput): P
 export async function updateItemDetails(
   itemId: string,
   pesananId: string,
-  changes: { nama_barang: string; qty: number; catatan_item: string | null }
+  changes: { nama_barang: string; qty: number }
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -274,7 +272,7 @@ export async function updateItemDetails(
 
   const { error } = await supabase
     .from('item_pesanan')
-    .update({ nama_barang: changes.nama_barang, qty: changes.qty, catatan_item: changes.catatan_item })
+    .update({ nama_barang: changes.nama_barang, qty: changes.qty })
     .eq('id', itemId)
 
   if (error) return { error: error.message }
