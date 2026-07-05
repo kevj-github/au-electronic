@@ -4,8 +4,8 @@ import type { InvoiceData } from '@/lib/invoice-data'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 
-// Estimated fixed header height — must match the actual rendered height of fixedHeader
-const HEADER_PAD = 195
+// Height reserved for the fixed header (paddingTop: 26 + logo row ~72 + divider ~14 + tableHeader ~24)
+const HEADER_PAD = 152
 
 const styles = StyleSheet.create({
   page: {
@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: 30,
+    paddingTop: 26,
     paddingHorizontal: 40,
     backgroundColor: 'white',
   },
@@ -38,26 +38,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  // Crown image + text block sit side by side
   logoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  crownImage: { width: 46, height: 68 },
+  crownImage: { width: 42, height: 62 },
   logoTextBlock: { flexDirection: 'column' },
-  logoAU: { fontFamily: 'Times-Bold', fontSize: 32 },
-  logoElectronic: { fontFamily: 'Helvetica-Bold', fontSize: 14 },
-  logoSpareParts: { fontFamily: 'Helvetica', fontSize: 10, color: '#444' },
-  logoAddress: { fontFamily: 'Helvetica', fontSize: 8, color: '#555', marginTop: 1 },
+  // "AU" and "Electronic / spare parts" sit on the same row
+  logoNameRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  logoAU: { fontFamily: 'Times-Bold', fontSize: 30, lineHeight: 1 },
+  logoElectronicBlock: { flexDirection: 'column', paddingBottom: 1 },
+  logoElectronic: { fontFamily: 'Helvetica-Bold', fontSize: 14, lineHeight: 1 },
+  logoSpareParts: { fontFamily: 'Helvetica', fontSize: 9.5, color: '#444', lineHeight: 1 },
+  logoAddress: { fontFamily: 'Helvetica', fontSize: 7.5, color: '#555', marginTop: 2 },
+  // Right column: date + Kepada Yth
   metaRight: { alignItems: 'flex-end', maxWidth: 200 },
-  metaDate: { marginBottom: 6 },
+  metaDate: { marginBottom: 8 },
   kepadaLabel: { color: '#6b7280', marginBottom: 2 },
   kepadaName: { fontFamily: 'Helvetica-Bold', fontSize: 11 },
   kepadaAlamat: { fontSize: 9, color: '#444' },
-  notaRow: {
-    marginTop: 8,
-    marginBottom: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  notaNo: { fontSize: 10 },
-  divider: { borderBottom: '1px solid #1a1a1a', marginTop: 6, marginBottom: 0 },
+  divider: { borderBottom: '1px solid #1a1a1a', marginTop: 10, marginBottom: 0 },
   tableHeader: {
     flexDirection: 'row',
     paddingVertical: 5,
@@ -93,20 +91,10 @@ const styles = StyleSheet.create({
   perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 9, marginBottom: 3 },
   perhatianText: { fontSize: 8.5, color: '#374151', lineHeight: 1.4 },
   totalArea: { alignItems: 'flex-end', minWidth: 150 },
-  totalLabel: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 13,
-    color: '#111',
-  },
-  totalValue: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 13,
-    color: '#111',
-    marginTop: 2,
-  },
+  totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 13, color: '#111' },
+  totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 13, color: '#111', marginTop: 2 },
   signatureRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     marginTop: 40,
     paddingHorizontal: 20,
   },
@@ -133,13 +121,17 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
         {/* Fixed header — repeats on every page */}
         <View fixed style={styles.fixedHeader}>
           <View style={styles.headerRow}>
-            {/* Left: logo + AU address */}
+            {/* Left: crown + "AU Electronic / spare parts" + address */}
             <View style={styles.logoRow}>
               {crownSrc && <Image src={crownSrc} style={styles.crownImage} />}
               <View style={styles.logoTextBlock}>
-                <Text style={styles.logoAU}>AU</Text>
-                <Text style={styles.logoElectronic}>Electronic</Text>
-                <Text style={styles.logoSpareParts}>spare parts</Text>
+                <View style={styles.logoNameRow}>
+                  <Text style={styles.logoAU}>AU</Text>
+                  <View style={styles.logoElectronicBlock}>
+                    <Text style={styles.logoElectronic}>Electronic</Text>
+                    <Text style={styles.logoSpareParts}>spare parts</Text>
+                  </View>
+                </View>
                 <Text style={styles.logoAddress}>Genteng Electronic Center</Text>
                 <Text style={styles.logoAddress}>Jl. Genteng Besar 43 Lt. 1 No. 109-111 Surabaya</Text>
                 <Text style={styles.logoAddress}>No. HP/No. WA: 081 2351 7994</Text>
@@ -155,18 +147,6 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
                 <Text style={styles.kepadaAlamat}>{data.alamatPelanggan}</Text>
               )}
             </View>
-          </View>
-
-          {/* NOTA No — shows (Lanjutan) on page 2+ */}
-          <View style={styles.notaRow}>
-            <Text
-              style={styles.notaNo}
-              render={({ pageNumber }) =>
-                pageNumber > 1
-                  ? `NOTA No. ${data.kodePesanan}  (Lanjutan)`
-                  : `NOTA No. ${data.kodePesanan}`
-              }
-            />
           </View>
 
           <View style={styles.divider} />
@@ -206,14 +186,10 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
           </View>
         </View>
 
-        {/* Signatures */}
+        {/* Signature */}
         <View style={styles.signatureRow} wrap={false}>
           <View style={styles.signatureBlock}>
             <Text>Penerima,</Text>
-            <View style={styles.signatureLine} />
-          </View>
-          <View style={styles.signatureBlock}>
-            <Text>Hormat Kami,</Text>
             <View style={styles.signatureLine} />
           </View>
         </View>

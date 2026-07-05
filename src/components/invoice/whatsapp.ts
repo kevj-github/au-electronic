@@ -21,7 +21,7 @@ export function formatWhatsapp(data: InvoiceData): string {
   const catatanLine = data.catatan ? `\nCatatan: ${data.catatan}` : ''
 
   return `*AU Electronic*
-${tanggal} · ${data.kodePesanan}
+${tanggal}
 Pelanggan: ${data.namaPelanggan}
 
 ${itemLines}
