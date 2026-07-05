@@ -24,9 +24,17 @@ export default async function PesananPage() {
     ? `*, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`
     : `*, pelanggan(nama), items:item_pesanan(diambil_oleh_helper)`
 
-  const { data: pesananList } = await supabase
-    .from('pesanan')
-    .select(select)
+  let pesananQuery = supabase.from('pesanan').select(select)
+
+  if (!isOwner) {
+    // Helpers only see today's orders (WIB = UTC+7)
+    const nowUtc = new Date()
+    const wibNow = new Date(nowUtc.getTime() + 7 * 60 * 60 * 1000)
+    const todayWib = wibNow.toISOString().slice(0, 10) // YYYY-MM-DD
+    pesananQuery = pesananQuery.gte('created_at', `${todayWib}T00:00:00+07:00`)
+  }
+
+  const { data: pesananList } = await pesananQuery
     .order('created_at', { ascending: false })
     .returns<PesananWithRelations[]>()
 

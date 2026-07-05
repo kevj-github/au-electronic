@@ -68,53 +68,57 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari kode pesanan atau nama pelanggan..."
-            className="pl-9"
-          />
-        </div>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as StatusPesanan | 'semua')}
-          className="border rounded-md px-3 py-2 text-sm"
-        >
-          {statusOptions.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground">Tanggal:</span>
-        <Input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="h-8 w-36 text-sm"
-          aria-label="Dari tanggal"
-        />
-        <span className="text-xs text-muted-foreground">—</span>
-        <Input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="h-8 w-36 text-sm"
-          aria-label="Sampai tanggal"
-        />
-        {(dateFrom || dateTo) && (
-          <button
-            type="button"
-            onClick={() => { setDateFrom(''); setDateTo('') }}
-            className="text-xs text-muted-foreground hover:text-foreground underline"
-          >
-            Reset
-          </button>
-        )}
-      </div>
+      {isOwner && (
+        <>
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari kode pesanan atau nama pelanggan..."
+                className="pl-9"
+              />
+            </div>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as StatusPesanan | 'semua')}
+              className="border rounded-md px-3 py-2 text-sm"
+            >
+              {statusOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">Tanggal:</span>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-8 w-36 text-sm"
+              aria-label="Dari tanggal"
+            />
+            <span className="text-xs text-muted-foreground">—</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-8 w-36 text-sm"
+              aria-label="Sampai tanggal"
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={() => { setDateFrom(''); setDateTo('') }}
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground border rounded-lg p-4">

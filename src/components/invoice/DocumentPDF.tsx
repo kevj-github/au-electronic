@@ -4,8 +4,18 @@ import type { InvoiceData } from '@/lib/invoice-data'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 
+// Estimated fixed header height — must match the actual rendered height of fixedHeader
+const HEADER_PAD = 195
+
 const styles = StyleSheet.create({
-  page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica', color: '#1a1a1a' },
+  page: {
+    paddingTop: HEADER_PAD,
+    paddingHorizontal: 40,
+    paddingBottom: 60,
+    fontSize: 10,
+    fontFamily: 'Helvetica',
+    color: '#1a1a1a',
+  },
   watermark: {
     position: 'absolute',
     top: 212,
@@ -14,46 +24,94 @@ const styles = StyleSheet.create({
     height: 417,
     opacity: 0.07,
   },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 30,
+    paddingHorizontal: 40,
+    backgroundColor: 'white',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  logoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   crownImage: { width: 46, height: 68 },
-  logoAU: { fontFamily: 'Times-Bold', fontSize: 36, marginRight: 2 },
-  logoElectronic: { fontFamily: 'Helvetica-Bold', fontSize: 15 },
-  logoSpareParts: { fontFamily: 'Helvetica', fontSize: 11, color: '#444' },
-  metaRight: { alignItems: 'flex-end' },
-  divider: { borderBottom: '1px solid #e5e7eb', marginVertical: 16 },
-  kepadaBlock: { marginBottom: 16 },
+  logoTextBlock: { flexDirection: 'column' },
+  logoAU: { fontFamily: 'Times-Bold', fontSize: 32 },
+  logoElectronic: { fontFamily: 'Helvetica-Bold', fontSize: 14 },
+  logoSpareParts: { fontFamily: 'Helvetica', fontSize: 10, color: '#444' },
+  logoAddress: { fontFamily: 'Helvetica', fontSize: 8, color: '#555', marginTop: 1 },
+  metaRight: { alignItems: 'flex-end', maxWidth: 200 },
+  metaDate: { marginBottom: 6 },
   kepadaLabel: { color: '#6b7280', marginBottom: 2 },
+  kepadaName: { fontFamily: 'Helvetica-Bold', fontSize: 11 },
+  kepadaAlamat: { fontSize: 9, color: '#444' },
+  notaRow: {
+    marginTop: 8,
+    marginBottom: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  notaNo: { fontSize: 10 },
+  divider: { borderBottom: '1px solid #1a1a1a', marginTop: 6, marginBottom: 0 },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f9fafb',
-    padding: '6 8',
-    borderBottom: '1px solid #e5e7eb',
-    fontWeight: 'bold',
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+    backgroundColor: '#f3f4f6',
+    fontFamily: 'Helvetica-Bold',
+    borderBottom: '1px solid #d1d5db',
   },
   tableRow: {
     flexDirection: 'row',
-    padding: '6 8',
+    paddingVertical: 5,
+    paddingHorizontal: 4,
     borderBottom: '1px solid #f3f4f6',
   },
-  colNo: { flex: 0.5, paddingRight: 8 },
-  colQty: { flex: 1, textAlign: 'right', paddingRight: 12 },
-  colNama: { flex: 3.5, paddingRight: 8 },
-  colHarga: { flex: 2, textAlign: 'right', paddingRight: 12 },
-  colSubtotal: { flex: 2, textAlign: 'right' },
-  totalRow: {
+  colNo: { width: 28, paddingRight: 4 },
+  colQty: { width: 60, textAlign: 'right', paddingRight: 8 },
+  colNama: { flex: 1, paddingRight: 8 },
+  colHarga: { width: 80, textAlign: 'right', paddingRight: 8 },
+  colSubtotal: { width: 80, textAlign: 'right' },
+  bottomSection: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 8,
-    gap: 12,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 12,
+    gap: 16,
   },
-  totalLabel: { width: 100, textAlign: 'right', color: '#6b7280', fontWeight: 'bold' },
-  totalValue: { width: 100, textAlign: 'right', fontWeight: 'bold' },
-  catatan: { marginTop: 16, color: '#6b7280' },
-  returnNote: { marginTop: 16, fontSize: 9, color: '#6b7280', fontStyle: 'italic' },
-  signatureRow: { flexDirection: 'row', marginTop: 40 },
-  signatureBlock: { width: 160, textAlign: 'center' },
-  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 40, marginBottom: 4 },
+  perhatianBox: {
+    flex: 1,
+    border: '1px solid #d1d5db',
+    padding: 8,
+    backgroundColor: '#fef9c3',
+  },
+  perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 9, marginBottom: 3 },
+  perhatianText: { fontSize: 8.5, color: '#374151', lineHeight: 1.4 },
+  totalArea: { alignItems: 'flex-end', minWidth: 150 },
+  totalLabel: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 13,
+    color: '#111',
+  },
+  totalValue: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 13,
+    color: '#111',
+    marginTop: 2,
+  },
+  signatureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 40,
+    paddingHorizontal: 20,
+  },
+  signatureBlock: { width: 150, alignItems: 'center' },
+  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 40, marginBottom: 4, width: '100%' },
 })
 
 interface DocumentPDFProps {
@@ -63,7 +121,7 @@ interface DocumentPDFProps {
 }
 
 export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) {
-  const tanggal = format(new Date(data.tanggal), 'd MMMM yyyy', { locale: idLocale })
+  const tanggal = format(new Date(data.tanggal), 'd MMM yyyy', { locale: idLocale })
 
   return (
     <Document>
@@ -72,37 +130,60 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
           <Image src={watermarkSrc} style={styles.watermark} />
         )}
 
-        <View style={styles.headerRow}>
-          <View style={styles.logoRow}>
-            {crownSrc && <Image src={crownSrc} style={styles.crownImage} />}
-            <Text style={styles.logoAU}>AU</Text>
-            <View>
-              <Text style={styles.logoElectronic}>Electronic</Text>
-              <Text style={styles.logoSpareParts}>spare parts</Text>
+        {/* Fixed header — repeats on every page */}
+        <View fixed style={styles.fixedHeader}>
+          <View style={styles.headerRow}>
+            {/* Left: logo + AU address */}
+            <View style={styles.logoRow}>
+              {crownSrc && <Image src={crownSrc} style={styles.crownImage} />}
+              <View style={styles.logoTextBlock}>
+                <Text style={styles.logoAU}>AU</Text>
+                <Text style={styles.logoElectronic}>Electronic</Text>
+                <Text style={styles.logoSpareParts}>spare parts</Text>
+                <Text style={styles.logoAddress}>Genteng Electronic Center</Text>
+                <Text style={styles.logoAddress}>Jl. Genteng Besar 43 Lt. 1 No. 109-111 Surabaya</Text>
+                <Text style={styles.logoAddress}>No. HP/No. WA: 081 2351 7994</Text>
+              </View>
+            </View>
+
+            {/* Right: date + Kepada Yth */}
+            <View style={styles.metaRight}>
+              <Text style={styles.metaDate}>Surabaya, {tanggal}</Text>
+              <Text style={styles.kepadaLabel}>Kepada Yth:</Text>
+              <Text style={styles.kepadaName}>{data.namaPelanggan}</Text>
+              {data.alamatPelanggan && (
+                <Text style={styles.kepadaAlamat}>{data.alamatPelanggan}</Text>
+              )}
             </View>
           </View>
-          <View style={styles.metaRight}>
-            <Text>Surabaya, {tanggal}</Text>
+
+          {/* NOTA No — shows (Lanjutan) on page 2+ */}
+          <View style={styles.notaRow}>
+            <Text
+              style={styles.notaNo}
+              render={({ pageNumber }) =>
+                pageNumber > 1
+                  ? `NOTA No. ${data.kodePesanan}  (Lanjutan)`
+                  : `NOTA No. ${data.kodePesanan}`
+              }
+            />
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Table column headers */}
+          <View style={styles.tableHeader}>
+            <Text style={styles.colNo}>No</Text>
+            <Text style={styles.colQty}>Qty</Text>
+            <Text style={styles.colNama}>Nama Barang</Text>
+            <Text style={styles.colHarga}>Harga Satuan</Text>
+            <Text style={styles.colSubtotal}>Jumlah</Text>
           </View>
         </View>
 
-        <View style={styles.divider} />
-
-        <View style={styles.kepadaBlock}>
-          <Text style={styles.kepadaLabel}>Kepada Yth:</Text>
-          <Text style={{ fontWeight: 'bold' }}>{data.namaPelanggan}</Text>
-          {data.alamatPelanggan && <Text>{data.alamatPelanggan}</Text>}
-        </View>
-
-        <View style={styles.tableHeader}>
-          <Text style={styles.colNo}>No</Text>
-          <Text style={styles.colQty}>Qty</Text>
-          <Text style={styles.colNama}>Nama Barang</Text>
-          <Text style={styles.colHarga}>Harga Satuan</Text>
-          <Text style={styles.colSubtotal}>Subtotal</Text>
-        </View>
+        {/* Item rows */}
         {data.items.map((item, i) => (
-          <View key={i} style={styles.tableRow}>
+          <View key={i} style={styles.tableRow} wrap={false}>
             <Text style={styles.colNo}>{i + 1}</Text>
             <Text style={styles.colQty}>{item.qty}</Text>
             <Text style={styles.colNama}>{item.namaBarang}</Text>
@@ -111,22 +192,28 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
           </View>
         ))}
 
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{formatRupiah(data.totalPesanan)}</Text>
+        {/* Bottom: Perhatian (left) + Total (right) */}
+        <View style={styles.bottomSection} wrap={false}>
+          <View style={styles.perhatianBox}>
+            <Text style={styles.perhatianTitle}>Perhatian:</Text>
+            <Text style={styles.perhatianText}>
+              Barang yang sudah dibeli, tidak bisa ditukar / dikembalikan, kecuali sesuai perjanjian.
+            </Text>
+          </View>
+          <View style={styles.totalArea}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{formatRupiah(data.totalPesanan)}</Text>
+          </View>
         </View>
 
-        {data.catatan && (
-          <Text style={styles.catatan}>Catatan: {data.catatan}</Text>
-        )}
-
-        <Text style={styles.returnNote}>
-          * Barang tidak dapat ditukarkan atau dikembalikan kecuali ada perjanjian sebelumnya.
-        </Text>
-
-        <View style={styles.signatureRow}>
+        {/* Signatures */}
+        <View style={styles.signatureRow} wrap={false}>
           <View style={styles.signatureBlock}>
             <Text>Penerima,</Text>
+            <View style={styles.signatureLine} />
+          </View>
+          <View style={styles.signatureBlock}>
+            <Text>Hormat Kami,</Text>
             <View style={styles.signatureLine} />
           </View>
         </View>
