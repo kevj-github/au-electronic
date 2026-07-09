@@ -9,9 +9,9 @@ const ITEMS_PER_PAGE = 15
 // A5: 419.53 × 595.28 pt
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 20,
+    paddingTop: 15,
     paddingHorizontal: 28,
-    paddingBottom: 36,
+    paddingBottom: 45,
     fontSize: 9,
     fontFamily: 'Helvetica',
     color: '#1a1a1a',
@@ -43,10 +43,10 @@ const styles = StyleSheet.create({
   kepadaLabel: { color: '#6b7280', marginBottom: 1, fontSize: 8 },
   kepadaName: { fontFamily: 'Helvetica-Bold', fontSize: 10 },
   kepadaAlamat: { fontSize: 8, color: '#444' },
-  divider: { borderBottom: '1px solid #1a1a1a', marginTop: 8, marginBottom: 0 },
+  divider: { borderBottom: '1px solid #1a1a1a', marginTop: 6, marginBottom: 0 },
   tableHeader: {
     flexDirection: 'row',
-    paddingVertical: 3,
+    paddingVertical: 2,
     paddingHorizontal: 3,
     backgroundColor: '#f3f4f6',
     fontFamily: 'Helvetica-Bold',
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 3,
+    paddingVertical: 2,
     paddingHorizontal: 3,
     borderBottom: '1px solid #f3f4f6',
   },
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 8,
     gap: 16,
   },
   perhatianBox: {
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 8, marginBottom: 2 },
   perhatianText: { fontSize: 7.5, color: '#374151', lineHeight: 1.4 },
   signatureBlock: { flex: 1, alignItems: 'center' },
-  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 24, marginBottom: 3, width: '80%' },
+  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 18, marginBottom: 3, width: '80%' },
   totalArea: { alignItems: 'flex-end', minWidth: 110 },
   totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#111' },
   totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#111', marginTop: 2 },
