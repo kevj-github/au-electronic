@@ -18,10 +18,10 @@ const styles = StyleSheet.create({
   },
   watermark: {
     position: 'absolute',
-    top: 105,
-    left: 158,
-    width: 280,
-    height: 210,
+    top: 61,
+    left: 198,
+    width: 200,
+    height: 297,
     opacity: 0.07,
   },
   headerRow: {
@@ -74,33 +74,27 @@ const styles = StyleSheet.create({
   },
   pageSubtotalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: '#374151' },
   pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: '#374151', width: 90, textAlign: 'right' },
-  // Last-page footer: perhatian box (left) + right column with total + signature
+  // Last-page footer: [perhatian] | [signature] | [total]
   bottomSection: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'stretch',
     marginTop: 10,
-    gap: 12,
+    gap: 16,
   },
   perhatianBox: {
-    flex: 1,
+    width: 190,
     border: '1px solid #d1d5db',
     padding: 6,
     backgroundColor: '#fef9c3',
   },
   perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 8, marginBottom: 2 },
   perhatianText: { fontSize: 7.5, color: '#374151', lineHeight: 1.4 },
-  // Right column: total on top, signature at bottom
-  rightColumn: {
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    minWidth: 110,
-  },
-  totalArea: { alignItems: 'flex-end' },
+  signatureBlock: { flex: 1, alignItems: 'center' },
+  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 24, marginBottom: 3, width: '80%' },
+  totalArea: { alignItems: 'flex-end', minWidth: 110 },
   totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#111' },
   totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#111', marginTop: 2 },
-  signatureBlock: { alignItems: 'center', width: 110 },
-  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 24, marginBottom: 3, width: '100%' },
 })
 
 interface DocumentPDFProps {
@@ -205,7 +199,7 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
               <Text style={styles.pageSubtotalValue}>{formatRupiah(pageSubtotal)}</Text>
             </View>
 
-            {/* Last page: perhatian (left) + total & signature (right), all in one row */}
+            {/* Last page: [perhatian] | [signature] | [total] */}
             {isLastPage && (
               <View style={styles.bottomSection} wrap={false}>
                 <View style={styles.perhatianBox}>
@@ -214,15 +208,13 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
                     Barang yang sudah dibeli, tidak bisa ditukar / dikembalikan, kecuali sesuai perjanjian.
                   </Text>
                 </View>
-                <View style={styles.rightColumn}>
-                  <View style={styles.totalArea}>
-                    <Text style={styles.totalLabel}>Total</Text>
-                    <Text style={styles.totalValue}>{formatRupiah(data.totalPesanan)}</Text>
-                  </View>
-                  <View style={styles.signatureBlock}>
-                    <Text>Penerima,</Text>
-                    <View style={styles.signatureLine} />
-                  </View>
+                <View style={styles.signatureBlock}>
+                  <Text>Penerima,</Text>
+                  <View style={styles.signatureLine} />
+                </View>
+                <View style={styles.totalArea}>
+                  <Text style={styles.totalLabel}>Total</Text>
+                  <Text style={styles.totalValue}>{formatRupiah(data.totalPesanan)}</Text>
                 </View>
               </View>
             )}
