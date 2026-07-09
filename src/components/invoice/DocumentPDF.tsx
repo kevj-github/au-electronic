@@ -18,10 +18,10 @@ const styles = StyleSheet.create({
   },
   watermark: {
     position: 'absolute',
-    top: 148,
-    left: 110,
-    width: 200,
-    height: 298,
+    top: 105,
+    left: 158,
+    width: 280,
+    height: 210,
     opacity: 0.07,
   },
   headerRow: {
@@ -58,11 +58,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
     borderBottom: '1px solid #f3f4f6',
   },
-  colNo: { width: 22, paddingRight: 3 },
-  colQty: { width: 36, textAlign: 'right', paddingRight: 6 },
+  colNo: { width: 26, paddingRight: 3 },
+  colQty: { width: 50, textAlign: 'right', paddingRight: 6 },
   colNama: { flex: 1, paddingRight: 6 },
-  colHarga: { width: 72, textAlign: 'right', paddingRight: 6 },
-  colSubtotal: { width: 72, textAlign: 'right' },
+  colHarga: { width: 90, textAlign: 'right', paddingRight: 6 },
+  colSubtotal: { width: 90, textAlign: 'right' },
   pageSubtotalRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pageSubtotalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: '#374151' },
-  pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: '#374151', width: 72, textAlign: 'right' },
+  pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: '#374151', width: 90, textAlign: 'right' },
   // Last-page footer: perhatian box (left) + right column with total + signature
   bottomSection: {
     flexDirection: 'row',
@@ -179,7 +179,7 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
         const pageSubtotal = pageItems.reduce((sum, item) => sum + item.subtotal, 0)
 
         return (
-          <Page key={pageIndex} size="A5" style={styles.page}>
+          <Page key={pageIndex} size="A5" orientation="landscape" style={styles.page}>
             {watermarkSrc && <Image src={watermarkSrc} style={styles.watermark} />}
 
             <PageHeader
