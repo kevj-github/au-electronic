@@ -4,7 +4,7 @@ import type { InvoiceData } from '@/lib/invoice-data'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 
-const ITEMS_PER_PAGE = 10
+const ITEMS_PER_PAGE = 15
 
 // A5: 419.53 × 595.28 pt
 const styles = StyleSheet.create({
