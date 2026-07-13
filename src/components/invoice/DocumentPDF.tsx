@@ -209,8 +209,8 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
                   </Text>
                 </View>
                 <View style={styles.signatureBlock}>
-                  <Text>Penerima,</Text>
                   <View style={styles.signatureLine} />
+                  <Text>Penerima,</Text>
                 </View>
                 <View style={styles.totalArea}>
                   <Text style={styles.totalLabel}>Total</Text>
