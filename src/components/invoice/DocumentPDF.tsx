@@ -10,7 +10,8 @@ const ITEMS_PER_PAGE = 15
 const styles = StyleSheet.create({
   page: {
     paddingTop: 15,
-    paddingHorizontal: 28,
+    paddingLeft: 40,
+    paddingRight: 28,
     paddingBottom: 45,
     fontSize: 9,
     fontFamily: 'Helvetica',
