@@ -5,6 +5,9 @@ import { id as idLocale } from 'date-fns/locale'
 
 export function formatWhatsapp(data: InvoiceData): string {
   const tanggal = format(new Date(data.tanggal), 'd/MM/yyyy', { locale: idLocale })
+  const tanggalPengiriman = data.tanggalPengiriman
+    ? format(new Date(data.tanggalPengiriman), 'd/MM/yyyy', { locale: idLocale })
+    : 'Belum ditentukan'
 
   const itemLines = data.items
     .map(
@@ -21,7 +24,8 @@ export function formatWhatsapp(data: InvoiceData): string {
   const catatanLine = data.catatan ? `\nCatatan: ${data.catatan}` : ''
 
   return `*AU Electronic*
-${tanggal}
+Tgl. Pesanan: ${tanggal}
+Tgl. Pengiriman: ${tanggalPengiriman}
 Pelanggan: ${data.namaPelanggan}
 
 ${itemLines}
