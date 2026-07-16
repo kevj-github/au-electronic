@@ -355,17 +355,23 @@ export async function getInvoiceData(
   pesananId: string
 ): Promise<{ data?: InvoiceData; error?: string }> {
   const supabase = await createClient()
-  const ownerError = await requireOwner(supabase)
+
+  // Run the owner check and the data fetch concurrently to shave a round-trip
+  // off the print/copy path. The query runs under the caller's RLS session; if
+  // they turn out not to be owner we discard the result and return the error, so
+  // price data never leaves the server for a non-owner.
+  const [ownerError, { data: pesanan, error }] = await Promise.all([
+    requireOwner(supabase),
+    supabase
+      .from('pesanan')
+      .select(
+        'kode_pesanan, created_at, tanggal_pengiriman, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan(nama_barang, qty, harga_satuan, subtotal), pembayaran(jumlah)'
+      )
+      .eq('id', pesananId)
+      .single<InvoiceSource>(),
+  ])
+
   if (ownerError) return ownerError
-
-  const { data: pesanan, error } = await supabase
-    .from('pesanan')
-    .select(
-      'kode_pesanan, created_at, tanggal_pengiriman, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan(nama_barang, qty, harga_satuan, subtotal), pembayaran(jumlah)'
-    )
-    .eq('id', pesananId)
-    .single<InvoiceSource>()
-
   if (error) return { error: error.message }
   if (!pesanan) return { error: 'Pesanan tidak ditemukan.' }
 

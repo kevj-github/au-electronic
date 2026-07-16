@@ -13,7 +13,23 @@ interface DocumentButtonsProps {
   data: InvoiceData
 }
 
-async function loadImageBase64(path: string): Promise<string | undefined> {
+// Cache the base64-encoded logo/watermark across clicks — they're static assets,
+// so only the first print pays the fetch+encode cost.
+const imageCache = new Map<string, Promise<string | undefined>>()
+
+function loadImageBase64(path: string): Promise<string | undefined> {
+  const cached = imageCache.get(path)
+  if (cached) return cached
+  const promise = fetchImageBase64(path).then((result) => {
+    // Don't cache a failed load, so a transient error can be retried next click.
+    if (result === undefined) imageCache.delete(path)
+    return result
+  })
+  imageCache.set(path, promise)
+  return promise
+}
+
+async function fetchImageBase64(path: string): Promise<string | undefined> {
   try {
     const resp = await fetch(path)
     const blob = await resp.blob()
