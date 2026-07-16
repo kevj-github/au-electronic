@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
+import { buildInvoiceData, type InvoiceData, type InvoiceSource } from '@/lib/invoice-data'
 import type { StatusPesanan } from '@/lib/types'
 
 export interface CreatePesananInput {
@@ -342,6 +343,33 @@ export async function updateTanggalPengiriman(
   revalidatePath(`/pesanan/${pesananId}`)
   revalidatePath('/pesanan')
   return {}
+}
+
+/**
+ * Fetch the current invoice data straight from the DB. Called at PDF/WhatsApp
+ * generation time so the document always reflects the latest saved state,
+ * independent of any stale render-time props on the client. Owner-only, since
+ * it returns price/payment data.
+ */
+export async function getInvoiceData(
+  pesananId: string
+): Promise<{ data?: InvoiceData; error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  const { data: pesanan, error } = await supabase
+    .from('pesanan')
+    .select(
+      'kode_pesanan, created_at, tanggal_pengiriman, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan(nama_barang, qty, harga_satuan, subtotal), pembayaran(jumlah)'
+    )
+    .eq('id', pesananId)
+    .single<InvoiceSource>()
+
+  if (error) return { error: error.message }
+  if (!pesanan) return { error: 'Pesanan tidak ditemukan.' }
+
+  return { data: buildInvoiceData(pesanan) }
 }
 
 export async function updateAllItemHarga(

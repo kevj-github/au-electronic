@@ -5,9 +5,11 @@ import { pdf } from '@react-pdf/renderer'
 import { Printer, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatWhatsapp } from '@/components/invoice/whatsapp'
+import { getInvoiceData } from '@/app/(app)/pesanan/actions'
 import type { InvoiceData } from '@/lib/invoice-data'
 
 interface DocumentButtonsProps {
+  pesananId: string
   data: InvoiceData
 }
 
@@ -25,10 +27,19 @@ async function loadImageBase64(path: string): Promise<string | undefined> {
   }
 }
 
-export function DocumentButtons({ data }: DocumentButtonsProps) {
+export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
   const [copying, setCopying] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Always pull the latest saved state at generation time so the document never
+  // reflects a stale render-time prop (e.g. a delivery date edited moments ago,
+  // where blurring the date input is itself what triggered this click). Fall
+  // back to the prop if the refetch fails.
+  async function freshData(): Promise<InvoiceData> {
+    const result = await getInvoiceData(pesananId)
+    return result.data ?? data
+  }
 
   async function handlePrint() {
     setError(null)
@@ -39,12 +50,13 @@ export function DocumentButtons({ data }: DocumentButtonsProps) {
     }
     setPdfLoading(true)
     try {
-      const [{ DocumentPDF }, crownSrc, watermarkSrc] = await Promise.all([
+      const [{ DocumentPDF }, crownSrc, watermarkSrc, latest] = await Promise.all([
         import('@/components/invoice/DocumentPDF'),
         loadImageBase64('/au-crown.png'),
         loadImageBase64('/au-trademark.png'),
+        freshData(),
       ])
-      const blob = await pdf(<DocumentPDF data={data} crownSrc={crownSrc} watermarkSrc={watermarkSrc} />).toBlob()
+      const blob = await pdf(<DocumentPDF data={latest} crownSrc={crownSrc} watermarkSrc={watermarkSrc} />).toBlob()
       const url = URL.createObjectURL(blob)
       newWindow.location.href = url
     } catch {
@@ -59,8 +71,20 @@ export function DocumentButtons({ data }: DocumentButtonsProps) {
     setError(null)
     setCopying(true)
     try {
-      const text = formatWhatsapp(data)
-      await navigator.clipboard.writeText(text)
+      // iOS Safari drops the clipboard permission if we `await` a refetch before
+      // writing. Use the ClipboardItem-with-Promise form, which is allowed to
+      // resolve async data while keeping the user-gesture activation. Fall back
+      // to a synchronous prop-based write where ClipboardItem is unavailable.
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        const item = new ClipboardItem({
+          'text/plain': freshData().then(
+            (d) => new Blob([formatWhatsapp(d)], { type: 'text/plain' })
+          ),
+        })
+        await navigator.clipboard.write([item])
+      } else {
+        await navigator.clipboard.writeText(formatWhatsapp(data))
+      }
       setTimeout(() => setCopying(false), 2000)
     } catch {
       setCopying(false)

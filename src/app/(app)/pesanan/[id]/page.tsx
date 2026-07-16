@@ -11,7 +11,7 @@ import { DeletePaymentButton } from '@/components/pesanan/DeletePaymentButton'
 import { ItemsSection } from '@/components/pesanan/ItemsSection'
 import { BulkPriceForm } from '@/components/pesanan/BulkPriceForm'
 import { ResetChecklistButton } from '@/components/pesanan/ResetChecklistButton'
-import type { InvoiceData } from '@/lib/invoice-data'
+import { buildInvoiceData, type InvoiceData } from '@/lib/invoice-data'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Check } from 'lucide-react'
@@ -89,23 +89,16 @@ export default async function PesananDetailPage({
   const totalItems = pesanan.items.length
 
   const invoiceData: InvoiceData | null = isOwner
-    ? {
-        kodePesanan: pesanan.kode_pesanan,
-        tanggal: pesanan.created_at,
-        tanggalPengiriman: pesanan.tanggal_pengiriman ?? undefined,
-        namaPelanggan: pesanan.pelanggan?.nama ?? pesanan.nama_pelanggan ?? '—',
-        alamatPelanggan: pesanan.pelanggan?.alamat ?? undefined,
-        items: ownerItems.map((i) => ({
-          namaBarang: i.nama_barang,
-          qty: i.qty,
-          hargaSatuan: i.harga_satuan,
-          subtotal: i.subtotal,
-        })),
-        totalPesanan,
-        totalDibayar,
-        sisaTagihan,
+    ? buildInvoiceData({
+        kode_pesanan: pesanan.kode_pesanan,
+        created_at: pesanan.created_at,
+        tanggal_pengiriman: pesanan.tanggal_pengiriman,
+        nama_pelanggan: pesanan.nama_pelanggan,
+        pelanggan: pesanan.pelanggan,
+        items: ownerItems,
+        pembayaran: pembayaranList,
         catatan: pesanan.catatan,
-      }
+      })
     : null
 
   // Items passed to client components — no price data for helpers
@@ -159,7 +152,7 @@ export default async function PesananDetailPage({
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {isOwner && invoiceData && <DocumentButtons data={invoiceData} />}
+          {isOwner && invoiceData && <DocumentButtons pesananId={pesanan.id} data={invoiceData} />}
           {isOwner && (
             <StatusTransitionButtons
               pesananId={pesanan.id}
