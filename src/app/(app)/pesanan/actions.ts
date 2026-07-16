@@ -149,10 +149,12 @@ export async function toggleItemDiambil(itemId: string, value: boolean): Promise
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const lockError = await checkHelperLock(supabase, authUser.id)
+  // Lock check and item-status lookup are independent — run them concurrently.
+  const [lockError, info] = await Promise.all([
+    checkHelperLock(supabase, authUser.id),
+    getItemPesananStatus(supabase, itemId),
+  ])
   if (lockError) return lockError
-
-  const info = await getItemPesananStatus(supabase, itemId)
   if (!info || info.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
 
   const { error } = await supabase
@@ -167,10 +169,13 @@ export async function toggleItemDiambil(itemId: string, value: boolean): Promise
 
 export async function toggleItemDicekOwner(itemId: string, value: boolean): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const ownerError = await requireOwner(supabase)
-  if (ownerError) return ownerError
 
-  const info = await getItemPesananStatus(supabase, itemId)
+  // Owner check and item-status lookup are independent — run them concurrently.
+  const [ownerError, info] = await Promise.all([
+    requireOwner(supabase),
+    getItemPesananStatus(supabase, itemId),
+  ])
+  if (ownerError) return ownerError
   if (!info || info.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
 
   const { error } = await supabase
@@ -383,12 +388,15 @@ export async function updateAllItemHarga(
   items: Array<{ id: string; harga_satuan: number; diskon: number }>
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const ownerError = await requireOwner(supabase)
-  if (ownerError) return ownerError
 
-  // Verify the pesanan is still active even for owner (owner bypasses the DB trigger).
-  const { data: pesanan } = await supabase
-    .from('pesanan').select('status').eq('id', pesananId).single<{ status: string }>()
+  // Owner check and the active-status check are independent — run concurrently.
+  // (Owner bypasses the DB trigger, so we still verify status at the app layer.)
+  const [ownerError, { data: pesanan }] = await Promise.all([
+    requireOwner(supabase),
+    supabase
+      .from('pesanan').select('status').eq('id', pesananId).single<{ status: string }>(),
+  ])
+  if (ownerError) return ownerError
   if (!pesanan || pesanan.status !== 'diproses') {
     return { error: 'Pesanan tidak dapat diubah.' }
   }
