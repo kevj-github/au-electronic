@@ -24,6 +24,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
   const [pelangganId, setPelangganId] = useState<string>('')
   const [namaPelanggan, setNamaPelanggan] = useState('')
   const [catatan, setCatatan] = useState('')
+  const [tanggalPengiriman, setTanggalPengiriman] = useState('')
   const [items, setItems] = useState<LineItem[]>([])
   const [lastAddedId, setLastAddedId] = useState<string | null>(null)
 
@@ -64,6 +65,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
       pelanggan_id: pelangganId || null,
       nama_pelanggan: !pelangganId ? namaPelanggan || null : null,
       catatan: catatan || null,
+      tanggal_pengiriman: isOwner ? tanggalPengiriman || null : null,
       items: items.map((i) => ({
         nama_barang: i.nama_barang,
         qty: i.qty,
@@ -253,6 +255,20 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           placeholder="Catatan tambahan..."
         />
       </div>
+
+      {/* Tanggal Pengiriman — owner only */}
+      {isOwner && (
+        <div className="space-y-2">
+          <Label htmlFor="tanggal-pengiriman">Tanggal Pengiriman (opsional)</Label>
+          <Input
+            id="tanggal-pengiriman"
+            type="date"
+            value={tanggalPengiriman}
+            onChange={(e) => setTanggalPengiriman(e.target.value)}
+            className="w-48"
+          />
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 

@@ -8,6 +8,7 @@ export interface InvoiceItem {
 export interface InvoiceData {
   kodePesanan: string
   tanggal: string              // ISO date string
+  tanggalPengiriman?: string   // ISO date string, null if not yet set
   namaPelanggan: string
   alamatPelanggan?: string
   items: InvoiceItem[]

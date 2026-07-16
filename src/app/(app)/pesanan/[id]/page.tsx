@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
+import { TanggalPengirimanEditor } from '@/components/pesanan/TanggalPengirimanEditor'
 import { StatusBadge } from '@/components/pesanan/StatusBadge'
 import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionButtons'
 import { DocumentButtons } from '@/components/pesanan/DocumentButtons'
@@ -91,6 +92,7 @@ export default async function PesananDetailPage({
     ? {
         kodePesanan: pesanan.kode_pesanan,
         tanggal: pesanan.created_at,
+        tanggalPengiriman: pesanan.tanggal_pengiriman ?? undefined,
         namaPelanggan: pesanan.pelanggan?.nama ?? pesanan.nama_pelanggan ?? '—',
         alamatPelanggan: pesanan.pelanggan?.alamat ?? undefined,
         items: ownerItems.map((i) => ({
@@ -140,6 +142,21 @@ export default async function PesananDetailPage({
           <p className="text-sm text-muted-foreground mt-1">
             {format(new Date(pesanan.created_at), 'd MMMM yyyy', { locale: idLocale })}
           </p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="text-xs text-muted-foreground">Tgl. Pengiriman:</span>
+            {isOwner ? (
+              <TanggalPengirimanEditor
+                pesananId={pesanan.id}
+                initialValue={pesanan.tanggal_pengiriman}
+              />
+            ) : (
+              <span className="text-sm">
+                {pesanan.tanggal_pengiriman
+                  ? format(new Date(pesanan.tanggal_pengiriman), 'd MMMM yyyy', { locale: idLocale })
+                  : <span className="text-muted-foreground italic">Belum ditentukan</span>}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex gap-2 flex-wrap">
           {isOwner && invoiceData && <DocumentButtons data={invoiceData} />}

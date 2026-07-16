@@ -7,12 +7,18 @@ import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 export const metadata: Metadata = { title: 'Pesanan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
+import { HelperPesananFilter } from '@/components/pesanan/HelperPesananFilter'
 import { Button } from '@/components/ui/button'
 
-export default async function PesananPage() {
-  const [user, pesananLocked] = await Promise.all([
+export default async function PesananPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>
+}) {
+  const [user, pesananLocked, { from, to }] = await Promise.all([
     getCurrentUser(),
     getPesananLocked(),
+    searchParams,
   ])
   if (!user) redirect('/login')
 
@@ -27,11 +33,10 @@ export default async function PesananPage() {
   let pesananQuery = supabase.from('pesanan').select(select)
 
   if (!isOwner) {
-    // Helpers only see today's orders (WIB = UTC+7)
-    const nowUtc = new Date()
-    const wibNow = new Date(nowUtc.getTime() + 7 * 60 * 60 * 1000)
-    const todayWib = wibNow.toISOString().slice(0, 10) // YYYY-MM-DD
-    pesananQuery = pesananQuery.gte('created_at', `${todayWib}T00:00:00+07:00`)
+    // Helpers always see only Diproses orders; optionally filtered by date range.
+    pesananQuery = pesananQuery.eq('status', 'diproses')
+    if (from) pesananQuery = pesananQuery.gte('created_at', `${from}T00:00:00+07:00`)
+    if (to) pesananQuery = pesananQuery.lte('created_at', `${to}T23:59:59+07:00`)
   }
 
   const { data: pesananList } = await pesananQuery
@@ -54,6 +59,7 @@ export default async function PesananPage() {
           </Link>
         )}
       </div>
+      {!isOwner && <HelperPesananFilter />}
       <OrderList pesananList={pesananList ?? []} isOwner={isOwner} />
     </div>
   )

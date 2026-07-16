@@ -12,7 +12,7 @@ interface NewOrderFabProps {
 
 export function NewOrderFab({ role, pesananLocked }: NewOrderFabProps) {
   const pathname = usePathname()
-  if (pathname === '/pesanan/baru') return null
+  if (pathname === '/pesanan/baru' || pathname === '/pesanan') return null
 
   const isLockedForHelper = role === 'helper' && pesananLocked
 

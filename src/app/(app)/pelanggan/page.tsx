@@ -19,6 +19,7 @@ export default async function PelangganPage() {
     supabase.from('pelanggan').select('*').order('nama').returns<Pelanggan[]>(),
   ])
   if (!user) redirect('/login')
+  if (user.role !== 'owner') redirect('/pesanan')
 
   const isOwner = user.role === 'owner'
 

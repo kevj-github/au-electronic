@@ -105,11 +105,13 @@ interface DocumentPDFProps {
 
 function PageHeader({
   tanggal,
+  tanggalPengiriman,
   namaPelanggan,
   alamatPelanggan,
   crownSrc,
 }: {
   tanggal: string
+  tanggalPengiriman?: string
   namaPelanggan: string
   alamatPelanggan?: string
   crownSrc?: string
@@ -134,7 +136,10 @@ function PageHeader({
         </View>
 
         <View style={styles.metaRight}>
-          <Text style={styles.metaDate}>Surabaya, {tanggal}</Text>
+          <Text style={styles.metaDate}>Tgl. Pesanan: {tanggal}</Text>
+          <Text style={styles.metaDate}>
+            Tgl. Pengiriman: {tanggalPengiriman ?? 'Belum ditentukan'}
+          </Text>
           <Text style={styles.kepadaLabel}>Kepada Yth:</Text>
           <Text style={styles.kepadaName}>{namaPelanggan}</Text>
           {alamatPelanggan && (
@@ -158,6 +163,9 @@ function PageHeader({
 
 export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) {
   const tanggal = format(new Date(data.tanggal), 'd MMM yyyy', { locale: idLocale })
+  const tanggalPengiriman = data.tanggalPengiriman
+    ? format(new Date(data.tanggalPengiriman), 'd MMM yyyy', { locale: idLocale })
+    : undefined
 
   const chunks: typeof data.items[] = []
   for (let i = 0; i < data.items.length; i += ITEMS_PER_PAGE) {
@@ -178,6 +186,7 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
 
             <PageHeader
               tanggal={tanggal}
+              tanggalPengiriman={tanggalPengiriman}
               namaPelanggan={data.namaPelanggan}
               alamatPelanggan={data.alamatPelanggan}
               crownSrc={crownSrc}

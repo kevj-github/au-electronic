@@ -15,7 +15,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/pesanan', label: 'Pesanan', icon: ClipboardList, roles: ['owner', 'helper'] },
-  { href: '/pelanggan', label: 'Pelanggan', icon: Users, roles: ['owner', 'helper'] },
+  { href: '/pelanggan', label: 'Pelanggan', icon: Users, roles: ['owner'] },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['owner'] },
   { href: '/pengaturan', label: 'Pengaturan', icon: Settings, roles: ['owner'] },
 ]

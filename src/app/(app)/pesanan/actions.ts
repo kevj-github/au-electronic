@@ -9,6 +9,7 @@ export interface CreatePesananInput {
   pelanggan_id: string | null
   nama_pelanggan: string | null
   catatan: string | null
+  tanggal_pengiriman?: string | null
   items: Array<{
     nama_barang: string
     qty: number
@@ -57,6 +58,7 @@ export async function createPesanan(input: CreatePesananInput) {
       pelanggan_id: input.pelanggan_id,
       nama_pelanggan: input.nama_pelanggan,
       catatan: input.catatan,
+      tanggal_pengiriman: input.tanggal_pengiriman ?? null,
       dibuat_oleh: authUser.id,
       status: 'diproses',
     })
@@ -318,6 +320,26 @@ export async function deletePesanan(pesananId: string): Promise<{ error?: string
   const { error } = await supabase.from('pesanan').delete().eq('id', pesananId)
   if (error) return { error: error.message }
 
+  revalidatePath('/pesanan')
+  return {}
+}
+
+export async function updateTanggalPengiriman(
+  pesananId: string,
+  value: string | null
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  const { error } = await supabase
+    .from('pesanan')
+    .update({ tanggal_pengiriman: value })
+    .eq('id', pesananId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pesanan/${pesananId}`)
   revalidatePath('/pesanan')
   return {}
 }
