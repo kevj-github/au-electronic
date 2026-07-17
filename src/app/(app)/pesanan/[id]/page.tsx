@@ -75,6 +75,13 @@ export default async function PesananDetailPage({
 
   if (!pesanan) notFound()
 
+  // Without an explicit order, Postgres row order is not guaranteed to stay
+  // put across queries — an UPDATE (e.g. toggling a checklist) can shift a
+  // row's physical position, making items appear to reorder in the list on
+  // every checkbox tick. Sort by id for a stable order that only changes
+  // when items are actually added/removed.
+  pesanan.items = [...pesanan.items].sort((a, b) => a.id.localeCompare(b.id))
+
   const statusLocked = pesanan.status !== 'diproses'
   const isLocked = statusLocked || (!isOwner && pesananLocked)
   const ownerItems = isOwner ? (pesanan.items as OwnerItem[]) : []

@@ -153,21 +153,23 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-start gap-2">
                 {/* Owner's checkbox — front, owner only */}
                 {isOwner && (
-                  <ItemChecklistCheckbox
-                    itemId={item.id}
-                    checked={item.dicek_oleh_owner ?? false}
-                    kind="owner"
-                    label="Dicek pemilik"
-                    showLabel={false}
-                    disabled={isLocked}
-                  />
+                  <div className="pt-0.5">
+                    <ItemChecklistCheckbox
+                      itemId={item.id}
+                      checked={item.dicek_oleh_owner ?? false}
+                      kind="owner"
+                      label="Dicek pemilik"
+                      showLabel={false}
+                      disabled={isLocked}
+                    />
+                  </div>
                 )}
 
                 {/* Qty and Nama */}
-                <p className="text-sm font-medium flex-1 min-w-0 truncate">
+                <p className="text-sm font-medium flex-1 min-w-0 break-words pt-0.5">
                   {item.qty}× {item.nama_barang}
                 </p>
 
