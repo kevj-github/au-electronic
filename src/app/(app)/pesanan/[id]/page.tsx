@@ -20,7 +20,7 @@ import { id as idLocale } from 'date-fns/locale'
 import type { Pesanan, ItemPesanan, Pembayaran, Pelanggan, StatusPesanan } from '@/lib/types'
 import Link from 'next/link'
 
-type HelperItem = Pick<ItemPesanan, 'id' | 'nama_barang' | 'qty' | 'diambil_oleh_helper'>
+type HelperItem = Pick<ItemPesanan, 'id' | 'nama_barang' | 'qty' | 'diambil_oleh_helper' | 'jumlah_diambil'>
 type OwnerItem = ItemPesanan
 
 type PesananDetail = Omit<Pesanan, 'pelanggan' | 'items' | 'pembayaran'> & {
@@ -57,8 +57,8 @@ export default async function PesananDetailPage({
   // Helpers never get price/payment data fetched into the RSC payload at all —
   // not just hidden in the UI. requireOwner/RLS still back this up server-side.
   const itemsSelect = isOwner
-    ? 'id, nama_barang, qty, harga_satuan, diskon, subtotal, diambil_oleh_helper, dicek_oleh_owner'
-    : 'id, nama_barang, qty, diambil_oleh_helper'
+    ? 'id, nama_barang, qty, harga_satuan, subtotal, diambil_oleh_helper, dicek_oleh_owner, jumlah_diambil'
+    : 'id, nama_barang, qty, diambil_oleh_helper, jumlah_diambil'
   const pesananSelect = isOwner
     ? `*, pelanggan(*), items:item_pesanan(${itemsSelect}), pembayaran(*)`
     : `*, pelanggan(*), items:item_pesanan(${itemsSelect})`
@@ -109,7 +109,7 @@ export default async function PesananDetailPage({
         id: o.id,
         nama_barang: o.nama_barang,
         qty: o.qty,
-        diambil_oleh_helper: o.diambil_oleh_helper,
+        jumlah_diambil: o.jumlah_diambil,
         dicek_oleh_owner: o.dicek_oleh_owner,
       }
     }
@@ -117,7 +117,7 @@ export default async function PesananDetailPage({
       id: item.id,
       nama_barang: item.nama_barang,
       qty: item.qty,
-      diambil_oleh_helper: item.diambil_oleh_helper,
+      jumlah_diambil: item.jumlah_diambil,
     }
   })
 
@@ -228,7 +228,6 @@ export default async function PesananDetailPage({
             nama_barang: i.nama_barang,
             qty: i.qty,
             harga_satuan: i.harga_satuan,
-            diskon: i.diskon,
           }))}
         />
       )}

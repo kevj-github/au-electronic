@@ -15,7 +15,6 @@ export interface CreatePesananInput {
     nama_barang: string
     qty: number
     harga_satuan: number
-    diskon: number
   }>
 }
 
@@ -68,7 +67,7 @@ export async function createPesanan(input: CreatePesananInput) {
 
   if (pesananError) return { error: pesananError.message }
 
-  // Non-owners get harga_satuan/diskon forced to 0 by the guard_item_pesanan_write
+  // Non-owners get harga_satuan forced to 0 by the guard_item_pesanan_write
   // trigger regardless of what's sent here — the owner fills in the real price later.
   const { error: itemsError } = await supabase
     .from('item_pesanan')
@@ -78,7 +77,6 @@ export async function createPesanan(input: CreatePesananInput) {
         nama_barang: item.nama_barang,
         qty: item.qty,
         harga_satuan: item.harga_satuan,
-        diskon: item.diskon,
         catatan_item: null,
       }))
     )
@@ -127,23 +125,25 @@ async function checkHelperLock(
   return null
 }
 
-// Looks up an item's parent pesanan_id and status in a single join query.
+// Looks up an item's parent pesanan_id, qty, and pesanan status in a single join query.
 async function getItemPesananStatus(
   supabase: Awaited<ReturnType<typeof createClient>>,
   itemId: string
-): Promise<{ pesanan_id: string; status: string } | null> {
+): Promise<{ pesanan_id: string; qty: number; status: string } | null> {
   const { data } = await supabase
     .from('item_pesanan')
-    .select('pesanan_id, pesanan:pesanan(status)')
+    .select('pesanan_id, qty, pesanan:pesanan(status)')
     .eq('id', itemId)
-    .single<{ pesanan_id: string; pesanan: { status: string } | null }>()
+    .single<{ pesanan_id: string; qty: number; pesanan: { status: string } | null }>()
   if (!data?.pesanan) return null
-  return { pesanan_id: data.pesanan_id, status: data.pesanan.status }
+  return { pesanan_id: data.pesanan_id, qty: data.qty, status: data.pesanan.status }
 }
 
-// Any authenticated user can tick diambil_oleh_helper — any helper may be the one
-// fetching items from the etalase. guard_item_pesanan_write is the DB-level gatekeeper;
-// the status check here closes the owner bypass gap at the app layer.
+// Any authenticated user can set jumlah_diambil — any helper may be the one
+// fetching items from the etalase. guard_item_pesanan_write is the DB-level gatekeeper
+// (it also clamps jumlah_diambil to qty); the status check here closes the owner
+// bypass gap at the app layer. diambil_oleh_helper is a generated column derived
+// from jumlah_diambil, so checking the box is just "set jumlah_diambil to qty".
 export async function toggleItemDiambil(itemId: string, value: boolean): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -159,7 +159,33 @@ export async function toggleItemDiambil(itemId: string, value: boolean): Promise
 
   const { error } = await supabase
     .from('item_pesanan')
-    .update({ diambil_oleh_helper: value })
+    .update({ jumlah_diambil: value ? info.qty : 0 })
+    .eq('id', itemId)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/pesanan/${info.pesanan_id}`)
+  return {}
+}
+
+// Sets the partial quantity taken from the etalase. Clamped to [0, qty] here (using
+// the DB-fetched qty, never a client-supplied one) as well as by the DB trigger.
+export async function setItemJumlahDiambil(itemId: string, jumlah: number): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  const [lockError, info] = await Promise.all([
+    checkHelperLock(supabase, authUser.id),
+    getItemPesananStatus(supabase, itemId),
+  ])
+  if (lockError) return lockError
+  if (!info || info.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
+
+  const clamped = Math.max(0, Math.min(Math.trunc(jumlah), info.qty))
+
+  const { error } = await supabase
+    .from('item_pesanan')
+    .update({ jumlah_diambil: clamped })
     .eq('id', itemId)
 
   if (error) return { error: error.message }
@@ -206,10 +232,12 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
     .from('pesanan').select('status').eq('id', pesananId).single<{ status: string }>()
   if (!pesanan || pesanan.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
 
-  const column = target === 'owner' ? 'dicek_oleh_owner' : 'diambil_oleh_helper'
+  // diambil_oleh_helper is a generated column derived from jumlah_diambil,
+  // so resetting the helper checklist means zeroing jumlah_diambil instead.
+  const update = target === 'owner' ? { dicek_oleh_owner: false } : { jumlah_diambil: 0 }
   const { error } = await supabase
     .from('item_pesanan')
-    .update({ [column]: false })
+    .update(update)
     .eq('pesanan_id', pesananId)
 
   if (error) return { error: error.message }
@@ -245,7 +273,6 @@ export async function addItemToPesanan(pesananId: string, item: AddItemInput): P
       nama_barang: item.nama_barang,
       qty: item.qty,
       harga_satuan: 0,
-      diskon: 0,
       catatan_item: null,
     })
 
@@ -385,7 +412,7 @@ export async function getInvoiceData(
 
 export async function updateAllItemHarga(
   pesananId: string,
-  items: Array<{ id: string; harga_satuan: number; diskon: number }>
+  items: Array<{ id: string; harga_satuan: number }>
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
 
@@ -405,7 +432,7 @@ export async function updateAllItemHarga(
     items.map((item) =>
       supabase
         .from('item_pesanan')
-        .update({ harga_satuan: item.harga_satuan, diskon: item.diskon })
+        .update({ harga_satuan: item.harga_satuan })
         .eq('id', item.id)
     )
   )

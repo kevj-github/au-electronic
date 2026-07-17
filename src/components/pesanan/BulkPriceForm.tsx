@@ -12,7 +12,6 @@ interface PriceRow {
   nama_barang: string
   qty: number
   harga_satuan: number
-  diskon: number
 }
 
 interface BulkPriceFormProps {
@@ -22,17 +21,16 @@ interface BulkPriceFormProps {
 
 export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
   const router = useRouter()
-  const [prices, setPrices] = useState<Record<string, { harga_satuan: string; diskon: string }>>(
+  const [prices, setPrices] = useState<Record<string, { harga_satuan: string }>>(
     Object.fromEntries(items.map((i) => [i.id, {
       harga_satuan: i.harga_satuan > 0 ? String(i.harga_satuan) : '',
-      diskon: i.diskon > 0 ? String(i.diskon) : '',
     }]))
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
-  function setField(id: string, field: 'harga_satuan' | 'diskon', value: string) {
+  function setField(id: string, field: 'harga_satuan', value: string) {
     setPrices((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
     setSaved(false)
   }
@@ -45,7 +43,6 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
       items.map((i) => ({
         id: i.id,
         harga_satuan: parseInt(prices[i.id]?.harga_satuan || '0', 10) || 0,
-        diskon: parseInt(prices[i.id]?.diskon || '0', 10) || 0,
       }))
     )
     setLoading(false)
@@ -60,8 +57,7 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
   const grandTotal = items.reduce((sum, i) => {
     const p = prices[i.id]
     const h = parseInt(p?.harga_satuan || '0', 10) || 0
-    const d = parseInt(p?.diskon || '0', 10) || 0
-    return sum + i.qty * h - d
+    return sum + i.qty * h
   }, 0)
 
   if (items.length === 0) return null
@@ -77,32 +73,19 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
         {items.map((item) => {
           const p = prices[item.id]
           const harga = parseInt(p?.harga_satuan || '0', 10) || 0
-          const diskon = parseInt(p?.diskon || '0', 10) || 0
-          const subtotal = item.qty * harga - diskon
+          const subtotal = item.qty * harga
           return (
             <div key={item.id} className="p-3 space-y-2">
               <p className="text-sm font-medium">{item.nama_barang} <span className="text-muted-foreground font-normal">× {item.qty}</span></p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Harga Satuan</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={p?.harga_satuan ?? ''}
-                    onChange={(e) => setField(item.id, 'harga_satuan', e.target.value)}
-                    className="h-8 text-right font-mono text-sm"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Diskon</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={p?.diskon ?? ''}
-                    onChange={(e) => setField(item.id, 'diskon', e.target.value)}
-                    className="h-8 text-right font-mono text-sm"
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Harga Satuan</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={p?.harga_satuan ?? ''}
+                  onChange={(e) => setField(item.id, 'harga_satuan', e.target.value)}
+                  className="h-8 text-right font-mono text-sm"
+                />
               </div>
               <p className="text-xs text-right text-muted-foreground">
                 Subtotal: <span className="font-mono font-medium text-foreground">{formatRupiah(subtotal)}</span>
@@ -120,7 +103,6 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
               <th className="text-right px-4 py-2 font-medium text-muted-foreground w-16">Qty</th>
               <th className="text-left px-4 py-2 font-medium text-muted-foreground">Barang</th>
               <th className="text-right px-4 py-2 font-medium text-muted-foreground">Harga Satuan</th>
-              <th className="text-right px-4 py-2 font-medium text-muted-foreground">Diskon</th>
               <th className="text-right px-4 py-2 font-medium text-muted-foreground">Subtotal</th>
             </tr>
           </thead>
@@ -128,8 +110,7 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
             {items.map((item) => {
               const p = prices[item.id]
               const harga = parseInt(p?.harga_satuan || '0', 10) || 0
-              const diskon = parseInt(p?.diskon || '0', 10) || 0
-              const subtotal = item.qty * harga - diskon
+              const subtotal = item.qty * harga
               return (
                 <tr key={item.id}>
                   <td className="px-4 py-2 text-right text-muted-foreground">{item.qty}</td>
@@ -144,16 +125,6 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
                       aria-label={`Harga satuan ${item.nama_barang}`}
                     />
                   </td>
-                  <td className="px-4 py-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      value={p?.diskon ?? ''}
-                      onChange={(e) => setField(item.id, 'diskon', e.target.value)}
-                      className="h-8 w-28 ml-auto text-right font-mono text-sm"
-                      aria-label={`Diskon ${item.nama_barang}`}
-                    />
-                  </td>
                   <td className="px-4 py-2 text-right font-mono">{formatRupiah(subtotal)}</td>
                 </tr>
               )
@@ -161,7 +132,7 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
           </tbody>
           <tfoot className="border-t bg-gray-50">
             <tr>
-              <td colSpan={4} className="px-4 py-2 text-right font-medium">Total</td>
+              <td colSpan={3} className="px-4 py-2 text-right font-medium">Total</td>
               <td className="px-4 py-2 text-right font-mono font-semibold">{formatRupiah(grandTotal)}</td>
             </tr>
           </tfoot>

@@ -13,11 +13,10 @@ export function formatRupiah(amount: number): string {
 export interface LineItemInput {
   qty: number
   harga_satuan: number
-  diskon: number
 }
 
 export function calcOrderTotal(items: LineItemInput[]): number {
-  return items.reduce((sum, item) => sum + item.qty * item.harga_satuan - item.diskon, 0)
+  return items.reduce((sum, item) => sum + item.qty * item.harga_satuan, 0)
 }
 
 export function hitungSaldo(

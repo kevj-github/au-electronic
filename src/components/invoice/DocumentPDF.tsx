@@ -208,25 +208,27 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
               <Text style={styles.pageSubtotalValue}>{formatRupiah(pageSubtotal)}</Text>
             </View>
 
-            {/* Last page: [perhatian] | [signature] | [total] */}
-            {isLastPage && (
-              <View style={styles.bottomSection} wrap={false}>
-                <View style={styles.perhatianBox}>
-                  <Text style={styles.perhatianTitle}>Perhatian:</Text>
-                  <Text style={styles.perhatianText}>
-                    Barang yang sudah dibeli, tidak bisa ditukar / dikembalikan, kecuali sesuai perjanjian.
-                  </Text>
-                </View>
-                <View style={styles.signatureBlock}>
-                  <View style={styles.signatureLine} />
-                  <Text>Penerima,</Text>
-                </View>
-                <View style={styles.totalArea}>
-                  <Text style={styles.totalLabel}>Total</Text>
-                  <Text style={styles.totalValue}>{formatRupiah(data.totalPesanan)}</Text>
-                </View>
+            {/* [perhatian] on every page; [signature] | [total] on the last page only */}
+            <View style={styles.bottomSection} wrap={false}>
+              <View style={styles.perhatianBox}>
+                <Text style={styles.perhatianTitle}>Perhatian:</Text>
+                <Text style={styles.perhatianText}>
+                  Barang yang sudah dibeli, tidak bisa ditukar / dikembalikan, kecuali sesuai perjanjian.
+                </Text>
               </View>
-            )}
+              {isLastPage && (
+                <>
+                  <View style={styles.signatureBlock}>
+                    <View style={styles.signatureLine} />
+                    <Text>Penerima,</Text>
+                  </View>
+                  <View style={styles.totalArea}>
+                    <Text style={styles.totalLabel}>Total</Text>
+                    <Text style={styles.totalValue}>{formatRupiah(data.totalPesanan)}</Text>
+                  </View>
+                </>
+              )}
+            </View>
           </Page>
         )
       })}

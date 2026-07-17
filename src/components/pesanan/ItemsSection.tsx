@@ -9,6 +9,7 @@ import {
   deleteItemFromPesanan,
 } from '@/app/(app)/pesanan/actions'
 import { ItemChecklistCheckbox } from './ItemChecklistCheckbox'
+import { HelperItemChecklist } from './HelperItemChecklist'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -16,7 +17,7 @@ interface SectionItem {
   id: string
   nama_barang: string
   qty: number
-  diambil_oleh_helper: boolean
+  jumlah_diambil: number
   dicek_oleh_owner?: boolean
 }
 
@@ -170,13 +171,11 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                   {item.qty}× {item.nama_barang}
                 </p>
 
-                {/* Helper's checkbox — back */}
-                <ItemChecklistCheckbox
+                {/* Helper's checklist — back */}
+                <HelperItemChecklist
                   itemId={item.id}
-                  checked={item.diambil_oleh_helper}
-                  kind="helper"
-                  label="Diambil dari etalase"
-                  showLabel={false}
+                  qty={item.qty}
+                  jumlahDiambil={item.jumlah_diambil}
                   disabled={isLocked}
                 />
 
@@ -286,7 +285,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
               {isOwner && <th className="w-10 px-3 py-2"></th>}
               <th className="text-right px-4 py-2 font-medium w-16">Qty</th>
               <th className="text-left px-4 py-2 font-medium">Nama Barang</th>
-              <th className="w-10 px-3 py-2"></th>
+              <th className="w-28 px-3 py-2"></th>
               {!isLocked && <th className="w-16 px-4 py-2"></th>}
             </tr>
           </thead>
@@ -336,12 +335,10 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                     <td className="px-4 py-2 text-right align-middle">{item.qty}</td>
                     <td className="px-4 py-2 align-middle">{item.nama_barang}</td>
                     <td className="px-3 py-2 text-center align-middle">
-                      <ItemChecklistCheckbox
+                      <HelperItemChecklist
                         itemId={item.id}
-                        checked={item.diambil_oleh_helper}
-                        kind="helper"
-                        label="Diambil dari etalase"
-                        showLabel={false}
+                        qty={item.qty}
+                        jumlahDiambil={item.jumlah_diambil}
                         disabled={isLocked}
                       />
                     </td>

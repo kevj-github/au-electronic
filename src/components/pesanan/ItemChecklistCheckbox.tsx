@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
-import { toggleItemDiambil, toggleItemDicekOwner } from '@/app/(app)/pesanan/actions'
+import { toggleItemDicekOwner } from '@/app/(app)/pesanan/actions'
 
 interface ItemChecklistCheckboxProps {
   itemId: string
   checked: boolean
-  kind: 'helper' | 'owner'
+  kind: 'owner'
   label: string
   disabled?: boolean
   showLabel?: boolean
@@ -16,7 +16,6 @@ interface ItemChecklistCheckboxProps {
 export function ItemChecklistCheckbox({
   itemId,
   checked,
-  kind,
   label,
   disabled = false,
   showLabel = true,
@@ -40,9 +39,7 @@ export function ItemChecklistCheckbox({
   async function handleChange(next: boolean) {
     setPending(next)
     setLoading(true)
-    const result = kind === 'owner'
-      ? await toggleItemDicekOwner(itemId, next)
-      : await toggleItemDiambil(itemId, next)
+    const result = await toggleItemDicekOwner(itemId, next)
     if (result?.error) {
       setPending(null)
     }

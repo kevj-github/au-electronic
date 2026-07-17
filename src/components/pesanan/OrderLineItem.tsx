@@ -10,7 +10,6 @@ export interface LineItem {
   nama_barang: string
   qty: number
   harga_satuan: number
-  diskon: number
 }
 
 interface OrderLineItemProps {
@@ -22,7 +21,7 @@ interface OrderLineItemProps {
 }
 
 export function OrderLineItem({ item, isOwner, onChange, onRemove, autoFocus }: OrderLineItemProps) {
-  const subtotal = item.qty * item.harga_satuan - item.diskon
+  const subtotal = item.qty * item.harga_satuan
 
   return (
     <tr className="border-b">

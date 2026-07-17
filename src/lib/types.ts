@@ -50,9 +50,9 @@ export interface ItemPesanan {
   nama_barang: string
   qty: number
   harga_satuan: number
-  diskon: number
   subtotal: number
   catatan_item: string | null
+  jumlah_diambil: number
   diambil_oleh_helper: boolean
   dicek_oleh_owner: boolean
 }

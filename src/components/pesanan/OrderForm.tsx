@@ -37,7 +37,6 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
         nama_barang: '',
         qty: 0,
         harga_satuan: 0,
-        diskon: 0,
       },
     ])
     setLastAddedId(newId)
@@ -52,7 +51,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
   }
 
   const grandTotal = items.reduce(
-    (sum, i) => sum + i.qty * i.harga_satuan - i.diskon,
+    (sum, i) => sum + i.qty * i.harga_satuan,
     0
   )
 
@@ -70,7 +69,6 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
         nama_barang: i.nama_barang,
         qty: i.qty,
         harga_satuan: i.harga_satuan,
-        diskon: i.diskon,
       })),
     })
 
@@ -137,7 +135,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
             {/* Mobile: card layout */}
             <div className="sm:hidden space-y-2">
               {items.map((item) => {
-                const subtotal = item.qty * item.harga_satuan - item.diskon
+                const subtotal = item.qty * item.harga_satuan
                 return (
                   <div key={item.id} className="border rounded-lg p-3 space-y-2">
                     <div className="flex gap-2 items-center">
