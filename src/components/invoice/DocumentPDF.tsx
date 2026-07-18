@@ -1,18 +1,22 @@
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
-import { formatRupiah } from '@/lib/utils'
+import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
+import { formatNumberID } from '@/lib/utils'
 import type { InvoiceData } from '@/lib/invoice-data'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 
-const ITEMS_PER_PAGE = 15
+// Wrap long words (item names, column headers) at word boundaries instead of
+// hyphenating mid-word (e.g. avoid "SATU-AN").
+Font.registerHyphenationCallback((word) => [word])
+
+const ITEMS_PER_PAGE = 8
 
 // A5 landscape: 595.28 × 419.53 pt
 const styles = StyleSheet.create({
   page: {
     paddingTop: 15,
     paddingHorizontal: 48,
-    paddingBottom: 45,
-    fontSize: 9,
+    paddingBottom: 40,
+    fontSize: 11,
     fontFamily: 'Helvetica',
     color: '#1a1a1a',
   },
@@ -30,19 +34,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   logoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  crownImage: { width: 34, height: 50 },
+  crownImage: { width: 38, height: 56 },
   logoTextBlock: { flexDirection: 'column' },
   logoNameRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
-  logoAU: { fontFamily: 'Times-Bold', fontSize: 24, lineHeight: 1 },
+  logoAU: { fontFamily: 'Times-Bold', fontSize: 28, lineHeight: 1 },
   logoElectronicBlock: { flexDirection: 'column', paddingBottom: 1 },
-  logoElectronic: { fontFamily: 'Helvetica-Bold', fontSize: 11, lineHeight: 1 },
-  logoSpareParts: { fontFamily: 'Helvetica', fontSize: 8, color: '#444', lineHeight: 1 },
-  logoAddress: { fontFamily: 'Helvetica', fontSize: 7, color: '#555', marginTop: 2 },
+  logoElectronic: { fontFamily: 'Helvetica-Bold', fontSize: 13, lineHeight: 1 },
+  logoSpareParts: { fontFamily: 'Helvetica', fontSize: 9, color: '#444', lineHeight: 1 },
+  logoAddress: { fontFamily: 'Helvetica', fontSize: 9, color: '#555', marginTop: 2 },
   metaRight: { alignItems: 'flex-end', maxWidth: 160 },
-  metaDate: { marginBottom: 6, fontSize: 9 },
-  kepadaLabel: { color: '#6b7280', marginBottom: 1, fontSize: 8 },
-  kepadaName: { fontFamily: 'Helvetica-Bold', fontSize: 10 },
-  kepadaAlamat: { fontSize: 8, color: '#444' },
+  metaDate: { marginBottom: 6, fontSize: 11 },
+  kepadaLabel: { color: '#6b7280', marginBottom: 1, fontSize: 10 },
+  kepadaName: { fontFamily: 'Helvetica-Bold', fontSize: 12 },
+  kepadaAlamat: { fontSize: 10, color: '#444', fontFamily: 'Helvetica-Bold' },
   divider: { borderBottom: '1px solid #1a1a1a', marginTop: 6, marginBottom: 0 },
   tableHeader: {
     flexDirection: 'row',
@@ -54,47 +58,47 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 2,
+    paddingVertical: 1.5,
     paddingHorizontal: 3,
     borderBottom: '1px solid #f3f4f6',
   },
-  colNo: { width: 26, paddingRight: 3 },
-  colQty: { width: 50, textAlign: 'right', paddingRight: 6 },
+  colNo: { width: 24, paddingRight: 3 },
+  colQty: { width: 44, textAlign: 'right', paddingRight: 6 },
   colNama: { flex: 1, paddingRight: 6 },
-  colHarga: { width: 90, textAlign: 'right', paddingRight: 6 },
-  colSubtotal: { width: 90, textAlign: 'right' },
+  colHarga: { width: 92, textAlign: 'right', paddingRight: 6 },
+  colSubtotal: { width: 92, textAlign: 'right' },
   pageSubtotalRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    marginTop: 4,
-    paddingTop: 4,
+    marginTop: 3,
+    paddingTop: 3,
     borderTop: '1px solid #d1d5db',
     gap: 8,
   },
-  pageSubtotalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: '#374151' },
-  pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 9, color: '#374151', width: 90, textAlign: 'right' },
+  pageSubtotalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#374151' },
+  pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#374151', width: 92, textAlign: 'right' },
   // Last-page footer: [perhatian] | [signature] | [total]
   bottomSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: 5,
     gap: 16,
   },
   perhatianBox: {
-    width: 190,
+    width: 210,
     border: '1px solid #d1d5db',
-    padding: 6,
+    padding: 5,
     backgroundColor: '#fef9c3',
   },
-  perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 8, marginBottom: 2 },
-  perhatianText: { fontSize: 7.5, color: '#374151', lineHeight: 1.4 },
+  perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 10, marginBottom: 2 },
+  perhatianText: { fontSize: 9.5, color: '#374151', lineHeight: 1.3 },
   signatureBlock: { flex: 1, alignItems: 'center' },
-  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 18, marginBottom: 3, width: '80%' },
+  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 12, marginBottom: 3, width: '80%' },
   totalArea: { alignItems: 'flex-end', minWidth: 110 },
-  totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#111' },
-  totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 12, color: '#111', marginTop: 2 },
+  totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 15, color: '#111' },
+  totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 15, color: '#111', marginTop: 2 },
 })
 
 interface DocumentPDFProps {
@@ -151,11 +155,11 @@ function PageHeader({
       <View style={styles.divider} />
 
       <View style={styles.tableHeader}>
-        <Text style={styles.colNo}>No</Text>
-        <Text style={styles.colQty}>Qty</Text>
-        <Text style={styles.colNama}>Nama Barang</Text>
-        <Text style={styles.colHarga}>Harga Satuan</Text>
-        <Text style={styles.colSubtotal}>Jumlah</Text>
+        <Text style={styles.colNo}>NO</Text>
+        <Text style={styles.colQty}>QTY</Text>
+        <Text style={styles.colNama}>NAMA BARANG</Text>
+        <Text style={styles.colHarga}>HARGA SATUAN (Rp)</Text>
+        <Text style={styles.colSubtotal}>JUMLAH (Rp)</Text>
       </View>
     </>
   )
@@ -196,19 +200,19 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
               <View key={i} style={styles.tableRow}>
                 <Text style={styles.colNo}>{startIndex + i + 1}</Text>
                 <Text style={styles.colQty}>{item.qty}</Text>
-                <Text style={styles.colNama}>{item.namaBarang}</Text>
-                <Text style={styles.colHarga}>{formatRupiah(item.hargaSatuan)}</Text>
-                <Text style={styles.colSubtotal}>{formatRupiah(item.subtotal)}</Text>
+                <Text style={styles.colNama}>{item.namaBarang.toUpperCase()}</Text>
+                <Text style={styles.colHarga}>{formatNumberID(item.hargaSatuan)}</Text>
+                <Text style={styles.colSubtotal}>{formatNumberID(item.subtotal)}</Text>
               </View>
             ))}
 
             {/* Per-page subtotal */}
             <View style={styles.pageSubtotalRow}>
-              <Text style={styles.pageSubtotalLabel}>Subtotal</Text>
-              <Text style={styles.pageSubtotalValue}>{formatRupiah(pageSubtotal)}</Text>
+              <Text style={styles.pageSubtotalLabel}>SUBTOTAL</Text>
+              <Text style={styles.pageSubtotalValue}>{formatNumberID(pageSubtotal)}</Text>
             </View>
 
-            {/* [perhatian] on every page; [signature] | [total] on the last page only */}
+            {/* [perhatian] + [signature] on every page; [total] on the last page only */}
             <View style={styles.bottomSection} wrap={false}>
               <View style={styles.perhatianBox}>
                 <Text style={styles.perhatianTitle}>Perhatian:</Text>
@@ -216,17 +220,15 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
                   Barang yang sudah dibeli, tidak bisa ditukar / dikembalikan, kecuali sesuai perjanjian.
                 </Text>
               </View>
+              <View style={styles.signatureBlock}>
+                <View style={styles.signatureLine} />
+                <Text>Penerima,</Text>
+              </View>
               {isLastPage && (
-                <>
-                  <View style={styles.signatureBlock}>
-                    <View style={styles.signatureLine} />
-                    <Text>Penerima,</Text>
-                  </View>
-                  <View style={styles.totalArea}>
-                    <Text style={styles.totalLabel}>Total</Text>
-                    <Text style={styles.totalValue}>{formatRupiah(data.totalPesanan)}</Text>
-                  </View>
-                </>
+                <View style={styles.totalArea}>
+                  <Text style={styles.totalLabel}>TOTAL</Text>
+                  <Text style={styles.totalValue}>{formatNumberID(data.totalPesanan)}</Text>
+                </View>
               )}
             </View>
           </Page>

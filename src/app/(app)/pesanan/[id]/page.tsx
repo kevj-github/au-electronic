@@ -59,9 +59,11 @@ export default async function PesananDetailPage({
   const itemsSelect = isOwner
     ? 'id, nama_barang, qty, harga_satuan, subtotal, diambil_oleh_helper, dicek_oleh_owner, jumlah_diambil'
     : 'id, nama_barang, qty, diambil_oleh_helper, jumlah_diambil'
+  // Helpers only ever display pelanggan.nama; don't even fetch telepon/alamat
+  // for them (defense-in-depth — same rule as the price columns above).
   const pesananSelect = isOwner
     ? `*, pelanggan(*), items:item_pesanan(${itemsSelect}), pembayaran(*)`
-    : `*, pelanggan(*), items:item_pesanan(${itemsSelect})`
+    : `*, pelanggan(nama), items:item_pesanan(${itemsSelect})`
 
   // Fetch pesanan and lock setting in parallel.
   const [{ data: pesanan }, pesananLocked] = await Promise.all([
@@ -135,21 +137,15 @@ export default async function PesananDetailPage({
           <p className="text-sm text-muted-foreground mt-1">
             {format(new Date(pesanan.created_at), 'd MMMM yyyy', { locale: idLocale })}
           </p>
-          <div className="flex items-center gap-2 mt-1.5">
-            <span className="text-xs text-muted-foreground">Tgl. Pengiriman:</span>
-            {isOwner ? (
+          {isOwner && (
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-xs text-muted-foreground">Tgl. Pengiriman:</span>
               <TanggalPengirimanEditor
                 pesananId={pesanan.id}
                 initialValue={pesanan.tanggal_pengiriman}
               />
-            ) : (
-              <span className="text-sm">
-                {pesanan.tanggal_pengiriman
-                  ? format(new Date(pesanan.tanggal_pengiriman), 'd MMMM yyyy', { locale: idLocale })
-                  : <span className="text-muted-foreground italic">Belum ditentukan</span>}
-              </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           {isOwner && invoiceData && <DocumentButtons pesananId={pesanan.id} data={invoiceData} />}
@@ -169,7 +165,7 @@ export default async function PesananDetailPage({
         <p className="font-medium">
           {pesanan.pelanggan?.nama ?? pesanan.nama_pelanggan ?? '—'}
         </p>
-        {pesanan.pelanggan?.telepon && (
+        {isOwner && pesanan.pelanggan?.telepon && (
           <p className="text-sm text-muted-foreground">{pesanan.pelanggan.telepon}</p>
         )}
       </div>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { updateAllItemHarga } from '@/app/(app)/pesanan/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { formatRupiah } from '@/lib/utils'
+import { formatRupiah, formatThousandsInput, parseThousandsInput } from '@/lib/utils'
 
 interface PriceRow {
   id: string
@@ -31,7 +31,7 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
   const [saved, setSaved] = useState(false)
 
   function setField(id: string, field: 'harga_satuan', value: string) {
-    setPrices((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
+    setPrices((prev) => ({ ...prev, [id]: { ...prev[id], [field]: parseThousandsInput(value) } }))
     setSaved(false)
   }
 
@@ -80,9 +80,9 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Harga Satuan</label>
                 <Input
-                  type="number"
-                  min="0"
-                  value={p?.harga_satuan ?? ''}
+                  type="text"
+                  inputMode="numeric"
+                  value={formatThousandsInput(p?.harga_satuan ?? '')}
                   onChange={(e) => setField(item.id, 'harga_satuan', e.target.value)}
                   className="h-8 text-right font-mono text-sm"
                 />
@@ -117,9 +117,9 @@ export function BulkPriceForm({ pesananId, items }: BulkPriceFormProps) {
                   <td className="px-4 py-2">{item.nama_barang}</td>
                   <td className="px-4 py-2">
                     <Input
-                      type="number"
-                      min="0"
-                      value={p?.harga_satuan ?? ''}
+                      type="text"
+                      inputMode="numeric"
+                      value={formatThousandsInput(p?.harga_satuan ?? '')}
                       onChange={(e) => setField(item.id, 'harga_satuan', e.target.value)}
                       className="h-8 w-36 ml-auto text-right font-mono text-sm"
                       aria-label={`Harga satuan ${item.nama_barang}`}

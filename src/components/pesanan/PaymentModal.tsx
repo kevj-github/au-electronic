@@ -5,6 +5,7 @@ import { createPembayaran } from '@/app/(app)/pesanan/[id]/payment-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { formatThousandsInput, parseThousandsInput } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [jumlahRaw, setJumlahRaw] = useState(String(sisaTagihan > 0 ? sisaTagihan : ''))
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -51,12 +53,13 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
             <Label htmlFor="jumlah">Jumlah (Rp)</Label>
             <Input
               id="jumlah"
-              name="jumlah"
-              type="number"
-              min="1"
-              defaultValue={sisaTagihan}
+              type="text"
+              inputMode="numeric"
+              value={formatThousandsInput(jumlahRaw)}
+              onChange={(e) => setJumlahRaw(parseThousandsInput(e.target.value))}
               required
             />
+            <input type="hidden" name="jumlah" value={jumlahRaw} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="metode">Metode Pembayaran</Label>
