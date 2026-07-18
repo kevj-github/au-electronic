@@ -43,6 +43,12 @@ export default async function PesananPage({
     .order('created_at', { ascending: false })
     .returns<PesananWithRelations[]>()
 
+  // Helpers must never receive tanggal_pengiriman in the RSC payload sent to
+  // the browser, even though the UI hides it — same pattern as price data.
+  const visiblePesananList = isOwner
+    ? (pesananList ?? [])
+    : (pesananList ?? []).map((p) => ({ ...p, tanggal_pengiriman: null }))
+
   return (
     <div className="space-y-4">
       <RealtimeRefresh table="pesanan" />
@@ -60,7 +66,7 @@ export default async function PesananPage({
         )}
       </div>
       {!isOwner && <HelperPesananFilter />}
-      <OrderList pesananList={pesananList ?? []} isOwner={isOwner} />
+      <OrderList pesananList={visiblePesananList} isOwner={isOwner} />
     </div>
   )
 }
