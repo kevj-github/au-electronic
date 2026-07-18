@@ -17,10 +17,11 @@ const mockData: InvoiceData = {
 }
 
 describe('formatWhatsapp', () => {
-  it('includes shop name and order code', () => {
+  it('includes shop name but not the order code', () => {
     const text = formatWhatsapp(mockData)
     expect(text).toContain('*AU Electronic*')
-    expect(text).toContain('AU.2026.06.00042')
+    // The WhatsApp message intentionally omits the order code.
+    expect(text).not.toContain('AU.2026.06.00042')
   })
 
   it('includes all line items', () => {
