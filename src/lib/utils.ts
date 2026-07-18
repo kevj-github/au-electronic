@@ -34,3 +34,20 @@ export function hitungSaldo(
   }
   return { totalPesanan, totalDibayar, sisaTagihan, statusPembayaran }
 }
+
+/** Dot-grouped Indonesian number, no currency prefix (e.g. 1000000 -> "1.000.000"). */
+export function formatNumberID(amount: number): string {
+  return amount.toLocaleString('id-ID')
+}
+
+/** Strip everything but digits (e.g. "Rp 1.000a" -> "1000", "" -> ""). */
+export function parseThousandsInput(display: string): string {
+  return display.replace(/\D/g, '')
+}
+
+/** Format raw user input as dot-grouped digits for display (e.g. "1000000" -> "1.000.000"). */
+export function formatThousandsInput(raw: string): string {
+  const digits = parseThousandsInput(raw)
+  if (digits === '') return ''
+  return Number(digits).toLocaleString('id-ID')
+}
