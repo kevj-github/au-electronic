@@ -8,15 +8,15 @@ import { id as idLocale } from 'date-fns/locale'
 // hyphenating mid-word (e.g. avoid "SATU-AN").
 Font.registerHyphenationCallback((word) => [word])
 
-const ITEMS_PER_PAGE = 8
+const ITEMS_PER_PAGE = 10
 
 // A5 landscape: 595.28 × 419.53 pt
 const styles = StyleSheet.create({
   page: {
     paddingTop: 15,
     paddingHorizontal: 48,
-    paddingBottom: 40,
-    fontSize: 11,
+    paddingBottom: 18,
+    fontSize: 10,
     fontFamily: 'Helvetica',
     color: '#1a1a1a',
   },
@@ -37,16 +37,16 @@ const styles = StyleSheet.create({
   crownImage: { width: 38, height: 56 },
   logoTextBlock: { flexDirection: 'column' },
   logoNameRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
-  logoAU: { fontFamily: 'Times-Bold', fontSize: 28, lineHeight: 1 },
+  logoAU: { fontFamily: 'Times-Bold', fontSize: 27, lineHeight: 1 },
   logoElectronicBlock: { flexDirection: 'column', paddingBottom: 1 },
-  logoElectronic: { fontFamily: 'Helvetica-Bold', fontSize: 13, lineHeight: 1 },
-  logoSpareParts: { fontFamily: 'Helvetica', fontSize: 9, color: '#444', lineHeight: 1 },
-  logoAddress: { fontFamily: 'Helvetica', fontSize: 9, color: '#555', marginTop: 2 },
+  logoElectronic: { fontFamily: 'Helvetica-Bold', fontSize: 12, lineHeight: 1 },
+  logoSpareParts: { fontFamily: 'Helvetica', fontSize: 8, color: '#444', lineHeight: 1 },
+  logoAddress: { fontFamily: 'Helvetica', fontSize: 8, color: '#555', marginTop: 2 },
   metaRight: { alignItems: 'flex-end', maxWidth: 160 },
-  metaDate: { marginBottom: 6, fontSize: 11 },
-  kepadaLabel: { color: '#6b7280', marginBottom: 1, fontSize: 10 },
-  kepadaName: { fontFamily: 'Helvetica-Bold', fontSize: 12 },
-  kepadaAlamat: { fontSize: 10, color: '#444', fontFamily: 'Helvetica-Bold' },
+  metaDate: { marginBottom: 6, fontSize: 10 },
+  kepadaLabel: { color: '#6b7280', marginBottom: 1, fontSize: 9 },
+  kepadaName: { fontFamily: 'Helvetica-Bold', fontSize: 11 },
+  kepadaAlamat: { fontSize: 9, color: '#444', fontFamily: 'Helvetica-Bold' },
   divider: { borderBottom: '1px solid #1a1a1a', marginTop: 6, marginBottom: 0 },
   tableHeader: {
     flexDirection: 'row',
@@ -76,14 +76,14 @@ const styles = StyleSheet.create({
     borderTop: '1px solid #d1d5db',
     gap: 8,
   },
-  pageSubtotalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#374151' },
-  pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#374151', width: 92, textAlign: 'right' },
+  pageSubtotalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#374151' },
+  pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#374151', width: 92, textAlign: 'right' },
   // Last-page footer: [perhatian] | [signature] | [total]
   bottomSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 5,
+    marginTop: 3,
     gap: 16,
   },
   perhatianBox: {
@@ -92,13 +92,13 @@ const styles = StyleSheet.create({
     padding: 5,
     backgroundColor: '#fef9c3',
   },
-  perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 10, marginBottom: 2 },
-  perhatianText: { fontSize: 9.5, color: '#374151', lineHeight: 1.3 },
+  perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 9, marginBottom: 2 },
+  perhatianText: { fontSize: 8.5, color: '#374151', lineHeight: 1.3 },
   signatureBlock: { flex: 1, alignItems: 'center' },
-  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 12, marginBottom: 3, width: '80%' },
+  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 24, marginBottom: 3, width: '80%' },
   totalArea: { alignItems: 'flex-end', minWidth: 110 },
-  totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 15, color: '#111' },
-  totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 15, color: '#111', marginTop: 2 },
+  totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 14, color: '#111' },
+  totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 14, color: '#111', marginTop: 2 },
 })
 
 interface DocumentPDFProps {
