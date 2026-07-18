@@ -163,7 +163,7 @@ export default async function PesananDetailPage({
         <p className="font-medium">
           {pesanan.pelanggan?.nama ?? pesanan.nama_pelanggan ?? '—'}
         </p>
-        {pesanan.pelanggan?.telepon && (
+        {isOwner && pesanan.pelanggan?.telepon && (
           <p className="text-sm text-muted-foreground">{pesanan.pelanggan.telepon}</p>
         )}
       </div>
