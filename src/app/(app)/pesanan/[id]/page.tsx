@@ -59,9 +59,11 @@ export default async function PesananDetailPage({
   const itemsSelect = isOwner
     ? 'id, nama_barang, qty, harga_satuan, subtotal, diambil_oleh_helper, dicek_oleh_owner, jumlah_diambil'
     : 'id, nama_barang, qty, diambil_oleh_helper, jumlah_diambil'
+  // Helpers only ever display pelanggan.nama; don't even fetch telepon/alamat
+  // for them (defense-in-depth — same rule as the price columns above).
   const pesananSelect = isOwner
     ? `*, pelanggan(*), items:item_pesanan(${itemsSelect}), pembayaran(*)`
-    : `*, pelanggan(*), items:item_pesanan(${itemsSelect})`
+    : `*, pelanggan(nama), items:item_pesanan(${itemsSelect})`
 
   // Fetch pesanan and lock setting in parallel.
   const [{ data: pesanan }, pesananLocked] = await Promise.all([
