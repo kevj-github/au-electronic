@@ -1,10 +1,14 @@
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
 import { formatNumberID } from '@/lib/utils'
 import type { InvoiceData } from '@/lib/invoice-data'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 
-const ITEMS_PER_PAGE = 12
+// Wrap long words (item names, column headers) at word boundaries instead of
+// hyphenating mid-word (e.g. avoid "SATU-AN").
+Font.registerHyphenationCallback((word) => [word])
+
+const ITEMS_PER_PAGE = 8
 
 // A5 landscape: 595.28 × 419.53 pt
 const styles = StyleSheet.create({
@@ -58,40 +62,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
     borderBottom: '1px solid #f3f4f6',
   },
-  colNo: { width: 26, paddingRight: 3 },
-  colQty: { width: 56, textAlign: 'right', paddingRight: 6 },
+  colNo: { width: 24, paddingRight: 3 },
+  colQty: { width: 44, textAlign: 'right', paddingRight: 6 },
   colNama: { flex: 1, paddingRight: 6 },
-  colHarga: { width: 104, textAlign: 'right', paddingRight: 6 },
-  colSubtotal: { width: 104, textAlign: 'right' },
+  colHarga: { width: 92, textAlign: 'right', paddingRight: 6 },
+  colSubtotal: { width: 92, textAlign: 'right' },
   pageSubtotalRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    marginTop: 4,
-    paddingTop: 4,
+    marginTop: 3,
+    paddingTop: 3,
     borderTop: '1px solid #d1d5db',
     gap: 8,
   },
   pageSubtotalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#374151' },
-  pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#374151', width: 104, textAlign: 'right' },
+  pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 11, color: '#374151', width: 92, textAlign: 'right' },
   // Last-page footer: [perhatian] | [signature] | [total]
   bottomSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: 5,
     gap: 16,
   },
   perhatianBox: {
-    width: 190,
+    width: 210,
     border: '1px solid #d1d5db',
-    padding: 6,
+    padding: 5,
     backgroundColor: '#fef9c3',
   },
   perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 10, marginBottom: 2 },
-  perhatianText: { fontSize: 9.5, color: '#374151', lineHeight: 1.4 },
+  perhatianText: { fontSize: 9.5, color: '#374151', lineHeight: 1.3 },
   signatureBlock: { flex: 1, alignItems: 'center' },
-  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 18, marginBottom: 3, width: '80%' },
+  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 12, marginBottom: 3, width: '80%' },
   totalArea: { alignItems: 'flex-end', minWidth: 110 },
   totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 15, color: '#111' },
   totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 15, color: '#111', marginTop: 2 },
