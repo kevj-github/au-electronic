@@ -161,12 +161,14 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      <span className="font-medium">Pengiriman:</span>{' '}
-                      {p.tanggal_pengiriman
-                        ? format(new Date(p.tanggal_pengiriman), 'd MMM yyyy', { locale: idLocale })
-                        : 'Belum ditentukan'}
-                    </p>
+                    {isOwner && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <span className="font-medium">Pengiriman:</span>{' '}
+                        {p.tanggal_pengiriman
+                          ? format(new Date(p.tanggal_pengiriman), 'd MMM yyyy', { locale: idLocale })
+                          : 'Belum ditentukan'}
+                      </p>
+                    )}
                   </Link>
                   {isOwner && <DeletePesananButton pesananId={p.id} />}
                 </div>
@@ -182,7 +184,7 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                   <th className="text-left px-4 py-3 font-medium">Kode</th>
                   <th className="text-left px-4 py-3 font-medium">Pelanggan</th>
                   <th className="text-left px-4 py-3 font-medium">Tgl. Pesanan</th>
-                  <th className="text-left px-4 py-3 font-medium">Tgl. Pengiriman</th>
+                  {isOwner && <th className="text-left px-4 py-3 font-medium">Tgl. Pengiriman</th>}
                   {isOwner ? (
                     <>
                       <th className="text-right px-4 py-3 font-medium">Total</th>
@@ -218,11 +220,13 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                       <td className="px-4 py-3 text-muted-foreground">
                         {format(new Date(p.created_at), 'd MMM yyyy', { locale: idLocale })}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {p.tanggal_pengiriman
-                          ? format(new Date(p.tanggal_pengiriman), 'd MMM yyyy', { locale: idLocale })
-                          : <span className="text-xs italic">Belum ditentukan</span>}
-                      </td>
+                      {isOwner && (
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {p.tanggal_pengiriman
+                            ? format(new Date(p.tanggal_pengiriman), 'd MMM yyyy', { locale: idLocale })
+                            : <span className="text-xs italic">Belum ditentukan</span>}
+                        </td>
+                      )}
                       {isOwner ? (
                         <>
                           <td className="px-4 py-3 text-right font-mono">

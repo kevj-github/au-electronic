@@ -135,21 +135,15 @@ export default async function PesananDetailPage({
           <p className="text-sm text-muted-foreground mt-1">
             {format(new Date(pesanan.created_at), 'd MMMM yyyy', { locale: idLocale })}
           </p>
-          <div className="flex items-center gap-2 mt-1.5">
-            <span className="text-xs text-muted-foreground">Tgl. Pengiriman:</span>
-            {isOwner ? (
+          {isOwner && (
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-xs text-muted-foreground">Tgl. Pengiriman:</span>
               <TanggalPengirimanEditor
                 pesananId={pesanan.id}
                 initialValue={pesanan.tanggal_pengiriman}
               />
-            ) : (
-              <span className="text-sm">
-                {pesanan.tanggal_pengiriman
-                  ? format(new Date(pesanan.tanggal_pengiriman), 'd MMMM yyyy', { locale: idLocale })
-                  : <span className="text-muted-foreground italic">Belum ditentukan</span>}
-              </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           {isOwner && invoiceData && <DocumentButtons pesananId={pesanan.id} data={invoiceData} />}
