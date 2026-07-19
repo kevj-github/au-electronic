@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { pdf } from '@react-pdf/renderer'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
-import { Printer, Copy, Check } from 'lucide-react'
+import { Printer, Copy, Check, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatWhatsapp } from '@/components/invoice/whatsapp'
 import { getInvoiceData } from '@/app/(app)/pesanan/actions'
@@ -73,6 +73,19 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
     return result.data ?? data
   }
 
+  // Render the latest data to a PDF blob and return its object URL + filename.
+  // Shared by the download (Cetak) and preview flows.
+  async function generatePdfUrl(): Promise<{ url: string; filename: string }> {
+    const [{ DocumentPDF }, crownSrc, watermarkSrc, latest] = await Promise.all([
+      import('@/components/invoice/DocumentPDF'),
+      loadImageBase64('/au-crown.png'),
+      loadImageBase64('/au-trademark.png'),
+      freshData(),
+    ])
+    const blob = await pdf(<DocumentPDF data={latest} crownSrc={crownSrc} watermarkSrc={watermarkSrc} />).toBlob()
+    return { url: URL.createObjectURL(blob), filename: buildFilename(latest) }
+  }
+
   async function handlePrint() {
     setError(null)
     // Desktop previews the PDF inline (and reads the name from embedded metadata),
@@ -87,18 +100,11 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
     }
     setPdfLoading(true)
     try {
-      const [{ DocumentPDF }, crownSrc, watermarkSrc, latest] = await Promise.all([
-        import('@/components/invoice/DocumentPDF'),
-        loadImageBase64('/au-crown.png'),
-        loadImageBase64('/au-trademark.png'),
-        freshData(),
-      ])
-      const blob = await pdf(<DocumentPDF data={latest} crownSrc={crownSrc} watermarkSrc={watermarkSrc} />).toBlob()
-      const url = URL.createObjectURL(blob)
+      const { url, filename } = await generatePdfUrl()
       if (isMobile) {
         const a = document.createElement('a')
         a.href = url
-        a.download = buildFilename(latest)
+        a.download = filename
         document.body.appendChild(a)
         a.click()
         a.remove()
@@ -109,6 +115,28 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
       }
     } catch {
       newWindow?.close()
+      setError('Gagal membuat PDF.')
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
+  // Mobile-only: open the PDF inline in a new tab instead of downloading it,
+  // so the user can view it before saving. Keeps the popup-blocker-safe pattern
+  // (open the tab synchronously, navigate once the blob is ready).
+  async function handlePreview() {
+    setError(null)
+    const newWindow = window.open('', '_blank')
+    if (!newWindow) {
+      setError('Popup diblokir. Izinkan popup untuk situs ini.')
+      return
+    }
+    setPdfLoading(true)
+    try {
+      const { url } = await generatePdfUrl()
+      newWindow.location.href = url
+    } catch {
+      newWindow.close()
       setError('Gagal membuat PDF.')
     } finally {
       setPdfLoading(false)
@@ -142,10 +170,21 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
 
   return (
     <div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfLoading}>
           <Printer className="size-4" />
           {pdfLoading ? 'Memuat...' : 'Cetak PDF'}
+        </Button>
+        {/* Mobile only: preview inline instead of downloading (Cetak downloads on mobile). */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePreview}
+          disabled={pdfLoading}
+          className="sm:hidden"
+        >
+          <Eye className="size-4" />
+          Preview
         </Button>
         <Button variant="outline" size="sm" onClick={handleCopyWhatsapp}>
           {copying ? <Check className="size-4" /> : <Copy className="size-4" />}
