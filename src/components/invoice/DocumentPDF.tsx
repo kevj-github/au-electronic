@@ -8,7 +8,7 @@ import { id as idLocale } from 'date-fns/locale'
 // hyphenating mid-word (e.g. avoid "SATU-AN").
 Font.registerHyphenationCallback((word) => [word])
 
-const ITEMS_PER_PAGE = 13
+const ITEMS_PER_PAGE = 12
 
 // Paper: 9.5 × 5.5 inches landscape → 684 × 396 pt (72 pt/inch)
 const PAGE_SIZE = { width: 684, height: 396 }
