@@ -54,6 +54,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
     backgroundColor: '#f3f4f6',
     fontFamily: 'Helvetica-Bold',
+    fontSize: 8,
     borderBottom: '1px solid #d1d5db',
   },
   tableRow: {
@@ -65,7 +66,7 @@ const styles = StyleSheet.create({
   colNo: { width: 24, paddingRight: 3 },
   colQty: { width: 44, textAlign: 'right', paddingRight: 6 },
   colNama: { flex: 1, paddingRight: 6 },
-  colHarga: { width: 92, textAlign: 'right', paddingRight: 6 },
+  colHarga: { width: 100, textAlign: 'right', paddingRight: 6 },
   colSubtotal: { width: 92, textAlign: 'right' },
   pageSubtotalRow: {
     flexDirection: 'row',
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 2,
+    marginTop: 18,
     gap: 16,
   },
   perhatianBox: {
