@@ -8,9 +8,10 @@ import { id as idLocale } from 'date-fns/locale'
 // hyphenating mid-word (e.g. avoid "SATU-AN").
 Font.registerHyphenationCallback((word) => [word])
 
-const ITEMS_PER_PAGE = 12
+const ITEMS_PER_PAGE = 10
 
-// A5 landscape: 595.28 × 419.53 pt
+// Paper: 9.5 × 5.5 inches landscape → 684 × 396 pt (72 pt/inch)
+const PAGE_SIZE = { width: 684, height: 396 }
 const styles = StyleSheet.create({
   page: {
     paddingTop: 15,
@@ -23,7 +24,7 @@ const styles = StyleSheet.create({
   watermark: {
     position: 'absolute',
     top: 61,
-    left: 198,
+    left: 242,
     width: 200,
     height: 297,
     opacity: 0.07,
@@ -59,8 +60,9 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 1,
+    paddingVertical: 1.2,
     paddingHorizontal: 3,
+    fontSize: 10.5,
     borderBottom: '1px solid #f3f4f6',
   },
   colNo: { width: 24, paddingRight: 3 },
@@ -68,6 +70,7 @@ const styles = StyleSheet.create({
   colNama: { flex: 1, paddingRight: 6 },
   colHarga: { width: 100, textAlign: 'right', paddingRight: 6 },
   colSubtotal: { width: 92, textAlign: 'right' },
+  colCheck: { width: 70, textAlign: 'center', paddingLeft: 6 },
   pageSubtotalRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -75,9 +78,8 @@ const styles = StyleSheet.create({
     marginTop: 3,
     paddingTop: 3,
     borderTop: '1px solid #d1d5db',
-    gap: 8,
   },
-  pageSubtotalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#374151' },
+  pageSubtotalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#374151', marginRight: 8 },
   pageSubtotalValue: { fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#374151', width: 92, textAlign: 'right' },
   // Last-page footer: [perhatian] | [signature] | [total]
   bottomSection: {
@@ -161,6 +163,7 @@ function PageHeader({
         <Text style={styles.colNama}>NAMA BARANG</Text>
         <Text style={styles.colHarga}>HARGA SATUAN (Rp)</Text>
         <Text style={styles.colSubtotal}>JUMLAH (Rp)</Text>
+        <Text style={styles.colCheck}>CHECK BARANG</Text>
       </View>
     </>
   )
@@ -186,7 +189,7 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
         const pageSubtotal = pageItems.reduce((sum, item) => sum + item.subtotal, 0)
 
         return (
-          <Page key={pageIndex} size="A5" orientation="landscape" style={styles.page}>
+          <Page key={pageIndex} size={PAGE_SIZE} style={styles.page}>
             {watermarkSrc && <Image src={watermarkSrc} style={styles.watermark} />}
 
             <PageHeader
@@ -204,6 +207,7 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
                 <Text style={styles.colNama}>{item.namaBarang.toUpperCase()}</Text>
                 <Text style={styles.colHarga}>{formatNumberID(item.hargaSatuan)}</Text>
                 <Text style={styles.colSubtotal}>{formatNumberID(item.subtotal)}</Text>
+                <Text style={styles.colCheck} />
               </View>
             ))}
 
@@ -211,6 +215,7 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
             <View style={styles.pageSubtotalRow}>
               <Text style={styles.pageSubtotalLabel}>SUBTOTAL</Text>
               <Text style={styles.pageSubtotalValue}>{formatNumberID(pageSubtotal)}</Text>
+              <View style={styles.colCheck} />
             </View>
 
             {/* [perhatian] + [signature] on every page; [total] on the last page only */}
