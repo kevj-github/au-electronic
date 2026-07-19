@@ -143,6 +143,9 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                       <StatusBadge status={p.status} />
                     </div>
                     <p className="text-sm mt-1">{p.pelanggan?.nama ?? p.nama_pelanggan ?? '—'}</p>
+                    {isOwner && p.pelanggan?.alamat && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{p.pelanggan.alamat}</p>
+                    )}
                     <div className="flex justify-between items-center mt-2 text-sm">
                       <span className="text-muted-foreground">
                         {format(new Date(p.created_at), 'd MMM yyyy', { locale: idLocale })}
@@ -215,7 +218,10 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        {p.pelanggan?.nama ?? p.nama_pelanggan ?? '—'}
+                        <span>{p.pelanggan?.nama ?? p.nama_pelanggan ?? '—'}</span>
+                        {isOwner && p.pelanggan?.alamat && (
+                          <span className="block text-xs text-muted-foreground">{p.pelanggan.alamat}</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {format(new Date(p.created_at), 'd MMM yyyy', { locale: idLocale })}

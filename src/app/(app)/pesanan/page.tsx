@@ -21,7 +21,7 @@ export default async function PesananPage() {
 
   const supabase = await createClient()
   const select = isOwner
-    ? `*, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`
+    ? `*, pelanggan(nama, alamat), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`
     : `*, pelanggan(nama), items:item_pesanan(diambil_oleh_helper)`
 
   let pesananQuery = supabase.from('pesanan').select(select)

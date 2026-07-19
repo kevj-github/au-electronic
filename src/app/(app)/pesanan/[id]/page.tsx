@@ -175,6 +175,9 @@ export default async function PesananDetailPage({
         {isOwner && pesanan.pelanggan?.telepon && (
           <p className="text-sm text-muted-foreground">{pesanan.pelanggan.telepon}</p>
         )}
+        {isOwner && pesanan.pelanggan?.alamat && (
+          <p className="text-sm text-muted-foreground">{pesanan.pelanggan.alamat}</p>
+        )}
       </div>
 
       {/* Line items */}
