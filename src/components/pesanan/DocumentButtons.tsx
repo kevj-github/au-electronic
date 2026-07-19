@@ -2,11 +2,27 @@
 
 import { useState } from 'react'
 import { pdf } from '@react-pdf/renderer'
+import { format } from 'date-fns'
+import { id as idLocale } from 'date-fns/locale'
 import { Printer, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatWhatsapp } from '@/components/invoice/whatsapp'
 import { getInvoiceData } from '@/app/(app)/pesanan/actions'
 import type { InvoiceData } from '@/lib/invoice-data'
+
+// Build the download filename: "Nama - Alamat - Tgl Pesanan.pdf", with empty
+// fields skipped and filesystem-illegal characters (/ \ ? % * : | " < >)
+// replaced by "-". Mobile browsers name the saved file from this, since they
+// download the blob instead of reading the PDF's embedded title metadata.
+function buildFilename(data: InvoiceData): string {
+  const tanggal = format(new Date(data.tanggal), 'd MMM yyyy', { locale: idLocale })
+  const base = [data.namaPelanggan, data.alamatPelanggan, tanggal]
+    .filter(Boolean)
+    .join(' - ')
+    .replace(/[/\\?%*:|"<>]/g, '-')
+    .trim()
+  return `${base || 'invoice'}.pdf`
+}
 
 interface DocumentButtonsProps {
   pesananId: string
@@ -59,8 +75,13 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
 
   async function handlePrint() {
     setError(null)
-    const newWindow = window.open('', '_blank')
-    if (!newWindow) {
+    // Desktop previews the PDF inline (and reads the name from embedded metadata),
+    // so open a tab synchronously to stay popup-blocker-safe. Mobile browsers
+    // download the blob instead of previewing, and name the file from the blob
+    // URL's random UUID — so there we trigger a named <a download> instead.
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    const newWindow = isMobile ? null : window.open('', '_blank')
+    if (!isMobile && !newWindow) {
       setError('Popup diblokir. Izinkan popup untuk situs ini.')
       return
     }
@@ -74,9 +95,20 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
       ])
       const blob = await pdf(<DocumentPDF data={latest} crownSrc={crownSrc} watermarkSrc={watermarkSrc} />).toBlob()
       const url = URL.createObjectURL(blob)
-      newWindow.location.href = url
+      if (isMobile) {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = buildFilename(latest)
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        // Give the browser time to start the download before releasing the blob.
+        setTimeout(() => URL.revokeObjectURL(url), 10000)
+      } else {
+        newWindow!.location.href = url
+      }
     } catch {
-      newWindow.close()
+      newWindow?.close()
       setError('Gagal membuat PDF.')
     } finally {
       setPdfLoading(false)
