@@ -181,8 +181,12 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
   }
   if (chunks.length === 0) chunks.push([])
 
+  const documentTitle = [data.namaPelanggan, data.alamatPelanggan, tanggal]
+    .filter(Boolean)
+    .join(' - ')
+
   return (
-    <Document>
+    <Document title={documentTitle}>
       {chunks.map((pageItems, pageIndex) => {
         const isLastPage = pageIndex === chunks.length - 1
         const startIndex = pageIndex * ITEMS_PER_PAGE
