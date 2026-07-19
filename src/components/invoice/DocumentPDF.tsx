@@ -8,14 +8,14 @@ import { id as idLocale } from 'date-fns/locale'
 // hyphenating mid-word (e.g. avoid "SATU-AN").
 Font.registerHyphenationCallback((word) => [word])
 
-const ITEMS_PER_PAGE = 10
+const ITEMS_PER_PAGE = 12
 
 // A5 landscape: 595.28 × 419.53 pt
 const styles = StyleSheet.create({
   page: {
     paddingTop: 15,
     paddingHorizontal: 48,
-    paddingBottom: 18,
+    paddingBottom: 8,
     fontSize: 10,
     fontFamily: 'Helvetica',
     color: '#1a1a1a',
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 1.5,
+    paddingVertical: 1,
     paddingHorizontal: 3,
     borderBottom: '1px solid #f3f4f6',
   },
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 3,
+    marginTop: 2,
     gap: 16,
   },
   perhatianBox: {
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 9, marginBottom: 2 },
   perhatianText: { fontSize: 8.5, color: '#374151', lineHeight: 1.3 },
   signatureBlock: { flex: 1, alignItems: 'center' },
-  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 24, marginBottom: 3, width: '80%' },
+  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 32, marginBottom: 3, width: '80%' },
   totalArea: { alignItems: 'flex-end', minWidth: 110 },
   totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 14, color: '#111' },
   totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 14, color: '#111', marginTop: 2 },
