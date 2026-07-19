@@ -100,7 +100,9 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
               <option value="">— Pilih pelanggan —</option>
               {pelangganList.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.nama} ({p.tipe === 'grosir' ? 'Grosir' : 'Retail'})
+                  {p.nama}
+                  {p.alamat ? ` — ${p.alamat}` : ''} (
+                  {p.tipe === 'grosir' ? 'Grosir' : 'Retail'})
                 </option>
               ))}
             </select>
