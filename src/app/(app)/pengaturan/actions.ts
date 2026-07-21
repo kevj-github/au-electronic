@@ -125,3 +125,32 @@ export async function setPesananLocked(locked: boolean): Promise<{ error?: strin
   revalidatePath('/pengaturan')
   return {}
 }
+
+export async function updateEpsonPrinterName(name: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  const { error } = await supabase
+    .from('settings')
+    .update({ value: name })
+    .eq('key', 'epson_printer_name')
+
+  if (error) return { error: error.message }
+  revalidatePath('/pengaturan')
+  return {}
+}
+
+export async function getEpsonPrinterName(): Promise<{ name: string; error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return { name: '', error: ownerError.error }
+
+  const { data } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'epson_printer_name')
+    .single<{ value: string }>()
+
+  return { name: data?.value ?? '' }
+}
