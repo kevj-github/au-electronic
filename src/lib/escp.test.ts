@@ -72,8 +72,8 @@ describe('buildEscP', () => {
   it('paginates at 12 items with a form-feed per page and TOTAL only on the last', () => {
     const out = buildEscP(manyItems)
     const formFeeds = (out.match(/\x0C/g) ?? []).length
-    expect(formFeeds).toBe(2)                         // two pages -> two FFs
-    expect((out.match(/TOTAL/g) ?? []).length).toBe(1) // TOTAL once, last page
+    expect(formFeeds).toBe(2)                           // two pages -> two FFs
+    expect((out.match(/\bTOTAL\b/g) ?? []).length).toBe(1) // TOTAL once, last page
   })
 
   it('ends with a form-feed so the next receipt aligns to the next form', () => {
@@ -88,5 +88,19 @@ describe('buildEscP', () => {
     })
     // Remainder past 34 chars appears on its own line.
     expect(out).toContain(longName.slice(34))
+  })
+
+  it('prints a per-page SUBTOTAL line', () => {
+    const out = buildEscP(base)
+    expect(out).toContain('SUBTOTAL :')
+    expect(out).toContain('1.325.000') // single-page subtotal == order total here
+  })
+
+  it('clamps a long customer address to 79 columns', () => {
+    const out = buildEscP({ ...base, alamatPelanggan: 'X'.repeat(120) })
+    const visible = out.replace(/\x1B[@EFP]/g, '').replace(/\x1B\x43\x21/g, '')
+    for (const line of visible.split('\n')) {
+      expect(line.replace(/\x0C/g, '').length).toBeLessThanOrEqual(79)
+    }
   })
 })

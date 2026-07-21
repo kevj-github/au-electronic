@@ -83,7 +83,11 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
       const gap = Math.max(1, WIDTH - l.length - r.length)
       const line = l + ' '.repeat(gap) + r
       // Bold only the shop-name portion of the first line (blur mitigation).
-      return i === 0 ? BOLD_ON + shopName + BOLD_OFF + line.slice(shopName.length) : line
+      if (i === 0) {
+        return BOLD_ON + shopName + BOLD_OFF + line.slice(shopName.length)
+      }
+      // Clamp non-bold lines to WIDTH to avoid tractor-hole strip.
+      return line.slice(0, WIDTH)
     })
     .join(LF)
 }
@@ -130,6 +134,7 @@ export function buildEscP(data: InvoiceData): string {
   chunks.forEach((pageItems, pageIndex) => {
     const isLast = pageIndex === chunks.length - 1
     const startIndex = pageIndex * ITEMS_PER_PAGE
+    const pageSubtotal = pageItems.reduce((s, it) => s + it.subtotal, 0)
 
     const parts = [
       headerBlock(data, tanggal, tanggalPengiriman),
@@ -137,6 +142,7 @@ export function buildEscP(data: InvoiceData): string {
       row('NO', 'QTY', 'NAMA BARANG', 'HARGA(Rp)', 'JUMLAH(Rp)', 'CHECK'),
       '-'.repeat(WIDTH),
       ...pageItems.map((item, i) => itemLines(item, startIndex + i)),
+      padStart(`SUBTOTAL : ${formatNumberID(pageSubtotal)}`, WIDTH),
       footerBlock(data, isLast),
     ]
     out += parts.join(LF) + FF
