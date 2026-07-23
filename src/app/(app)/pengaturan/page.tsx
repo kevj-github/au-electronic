@@ -8,6 +8,7 @@ import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { AddHelperForm } from '@/components/pengaturan/AddHelperForm'
 import { DeleteHelperButton } from '@/components/pengaturan/DeleteHelperButton'
 import { PesananLockToggle } from '@/components/pengaturan/PesananLockToggle'
+import { EpsonPrinterSetting } from '@/components/pengaturan/EpsonPrinterSetting'
 import { ClearAllButton } from '@/components/pengaturan/ClearAllButton'
 import { clearAllPesanan, clearAllPelanggan } from '@/app/(app)/pengaturan/actions'
 import type { User } from '@/lib/types'
@@ -18,11 +19,13 @@ export default async function PengaturanPage() {
   if (user.role !== 'owner') redirect('/pesanan')
 
   const supabase = await createClient()
-  const [{ data: userList }, { data: lockSetting }] = await Promise.all([
+  const [{ data: userList }, { data: lockSetting }, { data: epsonSetting }] = await Promise.all([
     supabase.from('users').select('*').order('created_at', { ascending: true }).returns<User[]>(),
     supabase.from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>(),
+    supabase.from('settings').select('value').eq('key', 'epson_printer_name').single<{ value: string }>(),
   ])
   const pesananLocked = lockSetting?.value === 'true'
+  const epsonPrinterName = epsonSetting?.value ?? ''
 
   return (
     <div className="space-y-6">
@@ -55,6 +58,11 @@ export default async function PengaturanPage() {
       <div className="border rounded-lg p-4 space-y-3">
         <h3 className="font-medium">Kontrol Pesanan</h3>
         <PesananLockToggle locked={pesananLocked} />
+      </div>
+
+      <div className="border rounded-lg p-4 space-y-3">
+        <h3 className="font-medium">Printer</h3>
+        <EpsonPrinterSetting name={epsonPrinterName} />
       </div>
 
       <div className="border rounded-lg p-4 space-y-4">
