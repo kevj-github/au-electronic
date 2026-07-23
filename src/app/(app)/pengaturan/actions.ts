@@ -131,12 +131,19 @@ export async function updateEpsonPrinterName(name: string): Promise<{ error?: st
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
 
-  const { error } = await supabase
+  // `.update().eq()` matching zero rows is not an error, so a missing settings
+  // row would report success while saving nothing. Ask for the affected rows back
+  // and fail closed when there are none (see the fail-closed settings convention).
+  const { data, error } = await supabase
     .from('settings')
     .update({ value: name })
     .eq('key', 'epson_printer_name')
+    .select('key')
 
   if (error) return { error: error.message }
+  if (!data || data.length === 0) {
+    return { error: 'Pengaturan printer Epson belum tersedia di database. Hubungi admin.' }
+  }
   revalidatePath('/pengaturan')
   return {}
 }
