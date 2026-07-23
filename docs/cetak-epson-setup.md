@@ -16,10 +16,15 @@ printer) — berbeda dari "Cetak PDF" yang berbasis gambar.
 
 ## Verifikasi di hardware (checklist)
 
-- [ ] Struk pendek (≤12 item): teks tajam, tidak buram, tanpa dither/abu-abu.
+- [ ] Struk pendek (1 halaman): teks tajam, tidak buram, tanpa dither/abu-abu.
 - [ ] Kolom kanan (Tgl. Pesanan / Tgl. Pengiriman) tidak terpotong.
-- [ ] Angka rapi rata kanan di kolom HARGA & JUMLAH.
-- [ ] Struk panjang (>12 item): halaman ke-2 mulai tepat di atas form berikutnya
+- [ ] Nama & alamat pelanggan tercetak penuh (baris sendiri di bawah "Kepada Yth:"),
+      tidak terpotong seperti di PDF.
+- [ ] Angka rapi rata kanan di kolom HARGA & JUMLAH; baris SUBTOTAL dan TOTAL
+      berakhir tepat di ujung kolom JUMLAH.
+- [ ] Item dengan nama panjang (>34 karakter, jadi 2 baris): halaman tetap muat
+      dalam satu form — tidak ada isi yang melewati perforasi.
+- [ ] Struk panjang (>1 halaman): halaman ke-2 mulai tepat di atas form berikutnya
       (form-feed benar); TOTAL hanya muncul di halaman terakhir.
 - [ ] Setelah cetak, kertas berhenti di awal form berikutnya (siap struk baru).
 - [ ] Pengaturan → Printer (input nama, tombol "Deteksi Printer", dan "Simpan")
@@ -28,6 +33,20 @@ printer) — berbeda dari "Cetak PDF" yang berbasis gambar.
 
 ## Penyetelan bila perlu (di kode)
 
-- Baris per halaman: `ITEMS_PER_PAGE` di `src/lib/escp.ts`.
-- Panjang halaman: konstanta `PAGE_LENGTH_33` (ESC C n) di `src/lib/escp.ts`.
-- Lebar kolom: konstanta `COL` di `src/lib/escp.ts`.
+Semua di `src/lib/escp.ts`:
+
+- **Panjang halaman: `LINES_PER_PAGE` (default 33).** Satu konstanta ini yang
+  dipakai untuk perintah `ESC C n` *sekaligus* untuk anggaran baris per halaman —
+  ubah di satu tempat kalau ukuran form berubah.
+- **Jumlah item per halaman tidak diatur manual.** Halaman dipecah berdasarkan
+  *anggaran baris*, bukan hitungan item, karena nama barang yang panjang memakai
+  baris tambahan. Rumusnya:
+  `anggaran item = LINES_PER_PAGE − baris header (5, atau 6 bila ada alamat)
+  − 3 (garis + judul kolom) − 1 (SUBTOTAL) − 8 (footer)`, dikurangi 2 lagi di
+  halaman terakhir (baris kosong + TOTAL). Jadi 16/14 baris item tanpa alamat,
+  15/13 dengan alamat. Konstanta `TABLE_HEAD_LINES`, `SUBTOTAL_LINES`,
+  `FOOTER_LINES`, dan `TOTAL_LINES` yang memegang angka-angka itu.
+- **Lebar kolom: konstanta `COL`** — totalnya harus tetap 79 kolom
+  (3 + 5 + 34 + 13 + 13 + 6 + 5 pemisah = 79). Angka yang lebih lebar dari
+  kolomnya dicetak dengan penanda `#` di depan (digit paling kanan dipertahankan),
+  jadi nilai terpotong langsung terlihat salah.
