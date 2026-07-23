@@ -8,6 +8,7 @@ import { Printer, Copy, Check, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatWhatsapp } from '@/components/invoice/whatsapp'
 import { getInvoiceData } from '@/app/(app)/pesanan/actions'
+import { getEpsonPrinterName } from '@/app/(app)/pengaturan/actions'
 import type { InvoiceData } from '@/lib/invoice-data'
 
 // Build the download filename: "Nama - Alamat - Tgl Pesanan.pdf", with empty
@@ -62,6 +63,7 @@ async function fetchImageBase64(path: string): Promise<string | undefined> {
 export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
   const [copying, setCopying] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [epsonLoading, setEpsonLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Always pull the latest saved state at generation time so the document never
@@ -143,6 +145,46 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
     }
   }
 
+  // Print a crisp ESC/P text receipt to the Epson LX-310 via QZ Tray. Separate
+  // from the PDF flow: reads the saved printer name, builds raw ESC/P, and sends
+  // it RAW so the printer uses its built-in font (no driver rasterization).
+  async function handleEpsonPrint() {
+    setError(null)
+    setEpsonLoading(true)
+    try {
+      const { name, error: printerNameError } = await getEpsonPrinterName()
+      if (printerNameError) {
+        setError(`Gagal membaca nama printer Epson: ${printerNameError}`)
+        return
+      }
+      if (!name) {
+        setError('Atur nama printer Epson di Pengaturan terlebih dahulu.')
+        return
+      }
+      const [{ buildEscP }, { connectQz }, latest] = await Promise.all([
+        import('@/lib/escp'),
+        import('@/lib/qz'),
+        freshData(),
+      ])
+      const escp = buildEscP(latest)
+
+      let qz
+      try {
+        qz = await connectQz()
+      } catch {
+        setError('QZ Tray tidak berjalan. Jalankan QZ Tray di PC.')
+        return
+      }
+
+      const config = qz.configs.create(name)
+      await qz.print(config, [{ type: 'raw', format: 'command', flavor: 'plain', data: escp }])
+    } catch {
+      setError('Gagal mencetak ke Epson.')
+    } finally {
+      setEpsonLoading(false)
+    }
+  }
+
   async function handleCopyWhatsapp() {
     setError(null)
     setCopying(true)
@@ -174,6 +216,10 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
         <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfLoading}>
           <Printer className="size-4" />
           {pdfLoading ? 'Memuat...' : 'Cetak PDF'}
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleEpsonPrint} disabled={epsonLoading}>
+          <Printer className="size-4" />
+          {epsonLoading ? 'Mencetak...' : 'Cetak Epson'}
         </Button>
         {/* Mobile only: preview inline instead of downloading (Cetak downloads on mobile). */}
         <Button
