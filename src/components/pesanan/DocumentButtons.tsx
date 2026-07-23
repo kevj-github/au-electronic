@@ -25,6 +25,13 @@ function buildFilename(data: InvoiceData): string {
   return `${base || 'invoice'}.pdf`
 }
 
+/** Readable text for whatever QZ Tray threw (it rejects with plain strings too). */
+function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message
+  if (typeof e === 'string') return e
+  return 'penyebab tidak diketahui'
+}
+
 interface DocumentButtonsProps {
   pesananId: string
   data: InvoiceData
@@ -171,15 +178,19 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
       let qz
       try {
         qz = await connectQz()
-      } catch {
-        setError('QZ Tray tidak berjalan. Jalankan QZ Tray di PC.')
+      } catch (e) {
+        console.error('Cetak Epson: gagal terhubung ke QZ Tray', e)
+        setError(`QZ Tray tidak berjalan. Jalankan QZ Tray di PC. (${errorMessage(e)})`)
         return
       }
 
       const config = qz.configs.create(name)
       await qz.print(config, [{ type: 'raw', format: 'command', flavor: 'plain', data: escp }])
-    } catch {
-      setError('Gagal mencetak ke Epson.')
+    } catch (e) {
+      // Surface the underlying cause — a printer-name mismatch is the most common
+      // QZ failure and the message names the printer QZ could not find.
+      console.error('Cetak Epson: gagal mencetak', e)
+      setError(`Gagal mencetak ke Epson: ${errorMessage(e)}`)
     } finally {
       setEpsonLoading(false)
     }

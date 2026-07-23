@@ -77,6 +77,8 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
               variant={p === name ? 'default' : 'outline'}
               size="sm"
               onClick={() => setName(p)}
+              title={p}
+              className="max-w-full truncate"
             >
               <Printer className="size-4 mr-1.5" />
               {p}
