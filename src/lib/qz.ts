@@ -18,9 +18,28 @@ export function getQz(): Promise<any> {
   return qzPromise
 }
 
+// In-flight `connect()` call, shared by concurrent callers. `isActive()` is also
+// true while the socket is still CONNECTING, so a second caller that only checked
+// it would skip `connect()` and print against a socket that isn't open yet
+// (reachable by clicking "Deteksi Printer" then "Cetak Epson" quickly). Cleared
+// once the attempt settles so a later disconnect can be reconnected.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let connectPromise: Promise<any> | null = null
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function connectQz(): Promise<any> {
   const qz = await getQz()
-  if (!qz.websocket.isActive()) await qz.websocket.connect()
+  if (connectPromise) {
+    await connectPromise
+    return qz
+  }
+  if (qz.websocket.isActive()) return qz
+
+  connectPromise = Promise.resolve(qz.websocket.connect())
+  try {
+    await connectPromise
+  } finally {
+    connectPromise = null
+  }
   return qz
 }
