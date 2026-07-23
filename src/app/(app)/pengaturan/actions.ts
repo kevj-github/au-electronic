@@ -146,11 +146,13 @@ export async function getEpsonPrinterName(): Promise<{ name: string; error?: str
   const ownerError = await requireOwner(supabase)
   if (ownerError) return { name: '', error: ownerError.error }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('settings')
     .select('value')
     .eq('key', 'epson_printer_name')
     .single<{ value: string }>()
+
+  if (error) return { name: '', error: error.message }
 
   return { name: data?.value ?? '' }
 }
