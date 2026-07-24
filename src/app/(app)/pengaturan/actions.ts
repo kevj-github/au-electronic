@@ -125,3 +125,41 @@ export async function setPesananLocked(locked: boolean): Promise<{ error?: strin
   revalidatePath('/pengaturan')
   return {}
 }
+
+export async function updateEpsonPrinterName(name: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  // `.update().eq()` matching zero rows is not an error, so a missing settings
+  // row would report success while saving nothing. Ask for the affected rows back
+  // and fail closed when there are none (see the fail-closed settings convention).
+  const { data, error } = await supabase
+    .from('settings')
+    .update({ value: name })
+    .eq('key', 'epson_printer_name')
+    .select('key')
+
+  if (error) return { error: error.message }
+  if (!data || data.length === 0) {
+    return { error: 'Pengaturan printer Epson belum tersedia di database. Hubungi admin.' }
+  }
+  revalidatePath('/pengaturan')
+  return {}
+}
+
+export async function getEpsonPrinterName(): Promise<{ name: string; error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return { name: '', error: ownerError.error }
+
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'epson_printer_name')
+    .single<{ value: string }>()
+
+  if (error) return { name: '', error: error.message }
+
+  return { name: data?.value ?? '' }
+}

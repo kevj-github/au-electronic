@@ -45,3 +45,8 @@ supabase/.temp/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local QA screenshots and test-user scaffolding (not part of the app)
+qa-*.png
+owner-*.png
+create_test_users.mjs
