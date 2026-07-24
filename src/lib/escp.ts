@@ -115,9 +115,10 @@ function itemLines(item: InvoiceData['items'][number], index: number): string {
 const KEPADA_LABEL = 'Kepada Yth: '
 
 /**
- * Shop block on the left, order dates on the right, then the customer on one
- * line as "name - address" (clamped to WIDTH; a very long name+address pair is
- * truncated at the right edge rather than wrapped).
+ * Shop block on the left, order dates on the right, then the customer on its
+ * own line below the header: "Kepada Yth: name - address" starts in the same
+ * column as "Tgl. Pengiriman:" above it, then flows across the full width so a
+ * long name+address wraps onto continuation lines rather than being truncated.
  */
 function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: string): string {
   const shopName = 'AU ELECTRONIC  spare parts'
@@ -127,7 +128,8 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
     'Jl. Genteng Besar 43 Lt. 1 No. 109-111 Surabaya',
     'No. HP/WA: 081 2351 7994',
   ]
-  const right = [`Tgl. Pesanan: ${tanggal}`, `Tgl. Pengiriman: ${tanggalPengiriman}`, '', '']
+  const pengirimanLine = `Tgl. Pengiriman: ${tanggalPengiriman}`
+  const right = [`Tgl. Pesanan: ${tanggal}`, pengirimanLine, '', '']
   const lines = left.map((l, i) => {
     const r = right[i]
     const gap = Math.max(1, WIDTH - l.length - r.length)
@@ -140,15 +142,16 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
     return line
   })
 
-  // "Kepada Yth: name - address" rides on the No. HP/WA row (the last left line),
-  // mirroring the PDF's top-right customer block. If the pair overflows 79
-  // columns the remainder wraps onto continuation lines below, so a long
-  // name+address is never truncated.
+  // "Kepada Yth: name - address" on its own line(s) beneath the header, its
+  // first character aligned under the "Tgl." of the "Tgl. Pengiriman:" line
+  // (right-aligned to WIDTH, so its start column tracks the date length). The
+  // block then flows full-width: overflow wraps to the left margin below, so a
+  // long name+address is never truncated.
   const kepada = data.alamatPelanggan
     ? `${data.namaPelanggan} - ${data.alamatPelanggan}`
     : data.namaPelanggan
-  const hpLine = lines.pop()! // the "No. HP/WA: ..." row, always present
-  const combined = hpLine + '  ' + KEPADA_LABEL + kepada
+  const anchorCol = Math.max(0, WIDTH - pengirimanLine.length)
+  const combined = ' '.repeat(anchorCol) + KEPADA_LABEL + kepada
   for (let i = 0; i < combined.length; i += WIDTH) lines.push(combined.slice(i, i + WIDTH))
 
   return lines.join(LF)
@@ -232,11 +235,10 @@ function paginate(items: InvoiceData['items'], bodyBudget: number, lastBudget: n
  * between forms and at the end so each receipt lands on a fresh form's top edge.
  *
  * Page arithmetic (all in printed lines, budget = LINES_PER_PAGE = 33):
- *   header (5, or 6 with a customer address)
+ *   header (5; +1 or more when a customer address wraps the Kepada line)
  * + table head (3) + item lines (variable) + SUBTOTAL (1) + footer (8)
- * + TOTAL (2, last page only)
- * so the item budget is 33 - header - 12, minus 2 more on the last page
- * (16 / 14 lines without an address, 15 / 13 with one).
+ * + TOTAL (2, last page only). headerLines is measured from the built header
+ * below, so a wrapped Kepada line shrinks the item budget automatically.
  */
 export function buildEscP(input: InvoiceData): string {
   // Fold to printer-safe ASCII first, so every length below is the printed one.

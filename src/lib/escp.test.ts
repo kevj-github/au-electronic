@@ -205,25 +205,32 @@ describe('buildEscP', () => {
   it('prints a long customer name in full', () => {
     const longName = 'Bapak Muhammad Abdurrahman Wijaya Kusuma'
     const out = buildEscP({ ...base, namaPelanggan: longName })
-    expect(out).toContain(`Kepada Yth: ${longName}`)
+    // The Kepada line wraps full-width; joining the wrapped lines reconstructs
+    // the full name so nothing is truncated.
+    const joined = visible(out).replace(/\n/g, '')
+    expect(joined).toContain(`Kepada Yth: ${longName}`)
   })
 
   it('prints the customer address dash-joined after the name', () => {
     const alamat = 'Jl. Raya Darmo Permai Selatan No. 88 Blok C, Surabaya'
     const out = buildEscP({ ...base, namaPelanggan: 'Budi', alamatPelanggan: alamat })
-    // The kepada now shares the No. HP/WA row and wraps onto a continuation line
+    // The kepada sits on its own line(s) below the header and wraps full-width
     // when long; joining the wrapped lines reconstructs the full name+address so
     // nothing is truncated.
     const joined = visible(out).replace(/\n/g, '')
     expect(joined).toContain(`Kepada Yth: Budi - ${alamat}`)
   })
 
-  it('rides "Kepada Yth" on the same row as the No. HP/WA line', () => {
+  it('puts "Kepada Yth" on its own line, aligned under Tgl. Pengiriman', () => {
     const out = buildEscP({ ...base, namaPelanggan: 'Budi', alamatPelanggan: undefined })
-    const hpLine = visible(out)
-      .split('\n')
-      .find((l) => l.includes('No. HP/WA'))!
-    expect(hpLine).toContain('Kepada Yth: Budi')
+    const printed = visible(out).split('\n')
+    const kepadaLine = printed.find((l) => l.includes('Kepada Yth:'))!
+    const pengirimanLine = printed.find((l) => l.includes('Tgl. Pengiriman:'))!
+    // Not riding the No. HP/WA row any more.
+    const hpLine = printed.find((l) => l.includes('No. HP/WA'))!
+    expect(hpLine).not.toContain('Kepada Yth:')
+    // "Kepada Yth:" begins in the same column as "Tgl. Pengiriman:" above it.
+    expect(kepadaLine.indexOf('Kepada Yth:')).toBe(pengirimanLine.indexOf('Tgl. Pengiriman:'))
   })
 
   it('does not print an address line when there is no address', () => {
