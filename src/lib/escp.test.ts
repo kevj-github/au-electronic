@@ -208,10 +208,10 @@ describe('buildEscP', () => {
     expect(out).toContain(`Kepada Yth: ${longName}`)
   })
 
-  it('prints the customer address in full on its own line', () => {
+  it('prints the customer address dash-joined after the name', () => {
     const alamat = 'Jl. Raya Darmo Permai Selatan No. 88 Blok C, Surabaya'
-    const out = buildEscP({ ...base, alamatPelanggan: alamat })
-    expect(out).toContain(alamat)
+    const out = buildEscP({ ...base, namaPelanggan: 'Budi', alamatPelanggan: alamat })
+    expect(out).toContain(`Kepada Yth: Budi - ${alamat}`)
   })
 
   it('does not print an address line when there is no address', () => {

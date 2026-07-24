@@ -31,8 +31,8 @@ const AMOUNT_END = COL.no + 1 + COL.qty + 1 + COL.nama + 1 + COL.harga + 1 + COL
 // Fixed line costs per page, used by the pagination budget below.
 const TABLE_HEAD_LINES = 3 // '=' rule + column header row + '-' rule
 const SUBTOTAL_LINES = 2 // blank + per-page SUBTOTAL row
-const FOOTER_LINES = 13 // blank + Perhatian (3) + 3 blank + Penerima, + 4 blank + rule
-const TOTAL_LINES = 2 // blank + TOTAL row, last page only
+const FOOTER_LINES = 11 // blank + Perhatian (3) + 3 blank + Penerima,(+TOTAL) + 2 blank + rule
+const TOTAL_LINES = 0 // TOTAL shares the Penerima row on the last page — no extra line
 
 // The LX-310's built-in character set is ASCII; anything outside it prints as
 // garbage. Fold the few non-ASCII characters that realistically reach us (the
@@ -115,9 +115,9 @@ function itemLines(item: InvoiceData['items'][number], index: number): string {
 const KEPADA_LABEL = 'Kepada Yth: '
 
 /**
- * Shop block on the left, order dates on the right, then the customer on its
- * own full-width lines below (mirrors DocumentPDF, which never truncates the
- * customer name or address).
+ * Shop block on the left, order dates on the right, then the customer on one
+ * line as "name - address" (clamped to WIDTH; a very long name+address pair is
+ * truncated at the right edge rather than wrapped).
  */
 function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: string): string {
   const shopName = 'AU ELECTRONIC  spare parts'
@@ -140,14 +140,20 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
     return line
   })
 
-  lines.push((KEPADA_LABEL + data.namaPelanggan).slice(0, WIDTH))
-  if (data.alamatPelanggan) {
-    lines.push((' '.repeat(KEPADA_LABEL.length) + data.alamatPelanggan).slice(0, WIDTH))
-  }
+  const kepada = data.alamatPelanggan
+    ? `${data.namaPelanggan} - ${data.alamatPelanggan}`
+    : data.namaPelanggan
+  lines.push((KEPADA_LABEL + kepada).slice(0, WIDTH))
   return lines.join(LF)
 }
 
 function footerBlock(data: InvoiceData, isLastPage: boolean): string {
+  // On the last page the grand TOTAL rides on the right of the "Penerima," row.
+  let penerima = 'Penerima,'
+  if (isLastPage) {
+    const totalText = `TOTAL : ${formatNumberID(data.totalPesanan)}`
+    penerima += padStart(totalText, AMOUNT_END).slice(penerima.length)
+  }
   const lines = [
     '',
     'Perhatian:',
@@ -156,17 +162,11 @@ function footerBlock(data: InvoiceData, isLastPage: boolean): string {
     '',
     '',
     '',
-    'Penerima,',
-    '',
-    '',
+    penerima,
     '',
     '',
     '_______________________',
   ]
-  if (isLastPage) {
-    const totalText = `TOTAL : ${formatNumberID(data.totalPesanan)}`
-    lines.push('', padStart(totalText, AMOUNT_END))
-  }
   return lines.join(LF)
 }
 
