@@ -32,12 +32,16 @@ type PesananDetail = Omit<Pesanan, 'pelanggan' | 'items' | 'pembayaran'> & {
 
 const statusTransitions: Record<StatusPesanan, StatusPesanan[]> = {
   diproses: ['selesai', 'dibatalkan'],
-  selesai: [],
+  // Owner can reopen a completed order back to "diproses" (e.g. to edit items).
+  selesai: ['diproses'],
   dibatalkan: [],
 }
 
+// These label the status-transition buttons, so each is phrased as the action
+// that will happen. "diproses" is only ever a transition target when reopening
+// a completed order, so it reads "Buka Kembali" rather than the status name.
 const statusLabel: Record<StatusPesanan, string> = {
-  diproses: 'Diproses',
+  diproses: 'Buka Kembali',
   selesai: 'Selesai',
   dibatalkan: 'Batalkan',
 }
