@@ -31,7 +31,7 @@ const AMOUNT_END = COL.no + 1 + COL.qty + 1 + COL.nama + 1 + COL.harga + 1 + COL
 // Fixed line costs per page, used by the pagination budget below.
 const TABLE_HEAD_LINES = 3 // '=' rule + column header row + '-' rule
 const SUBTOTAL_LINES = 2 // blank + per-page SUBTOTAL row
-const FOOTER_LINES = 11 // blank + Perhatian (3) + 3 blank + Penerima,(+TOTAL) + 2 blank + rule
+const FOOTER_LINES = 12 // blank + Perhatian (3) + 3 blank + Penerima,(+TOTAL) + 2 blank + rule + trailing blank
 const TOTAL_LINES = 0 // TOTAL shares the Penerima row on the last page — no extra line
 
 // The LX-310's built-in character set is ASCII; anything outside it prints as
@@ -166,6 +166,10 @@ function footerBlock(data: InvoiceData, isLastPage: boolean): string {
     '',
     '',
     '_______________________',
+    // Trailing blank so the signature rule is line-feed-terminated before the
+    // page's form-feed. The LX-310 double-strikes a line ended by FF instead of
+    // LF, which printed the rule as two lines. Do not remove.
+    '',
   ]
   return lines.join(LF)
 }
