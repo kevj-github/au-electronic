@@ -38,7 +38,14 @@ export interface InvoiceSource {
  * so both produce byte-identical documents.
  */
 export function buildInvoiceData(pesanan: InvoiceSource): InvoiceData {
-  const items = pesanan.items ?? []
+  // Order items alphabetically by name (ascending), with the untouched input
+  // as the tiebreaker for duplicate names. Sorting here means every consumer of
+  // InvoiceData — the PDF, the Epson/ESC-P receipt, and the click-time refetch
+  // in the getInvoiceData action — shares one consistent order, matching the
+  // website item list in [id]/page.tsx.
+  const items = [...(pesanan.items ?? [])].sort((a, b) =>
+    a.nama_barang.localeCompare(b.nama_barang, 'id', { sensitivity: 'base' }),
+  )
   const pembayaran = pesanan.pembayaran ?? []
   const totalPesanan = items.reduce((s, i) => s + i.subtotal, 0)
   const totalDibayar = pembayaran.reduce((s, p) => s + p.jumlah, 0)

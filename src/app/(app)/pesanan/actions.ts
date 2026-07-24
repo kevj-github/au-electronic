@@ -432,36 +432,38 @@ export async function getInvoiceData(
   return { data: buildInvoiceData(pesanan) }
 }
 
-export async function updateAllItemHarga(
+// Per-item price save, fired on blur when the owner edits harga satuan inline in
+// the item list. Owner-only; re-derives the real pesanan_id from the item ID
+// rather than trusting the client-supplied one, and verifies the pesanan is
+// still active (owner bypasses the DB write-guard trigger). subtotal is a
+// generated column, so updating harga_satuan recomputes it automatically.
+export async function updateItemHarga(
+  itemId: string,
   pesananId: string,
-  items: Array<{ id: string; harga_satuan: number }>
+  harga_satuan: number
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
 
-  // Owner check and the active-status check are independent — run concurrently.
-  // (Owner bypasses the DB trigger, so we still verify status at the app layer.)
-  const [ownerError, { data: pesanan }] = await Promise.all([
-    requireOwner(supabase),
-    supabase
-      .from('pesanan').select('status').eq('id', pesananId).single<{ status: string }>(),
-  ])
+  const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
+
+  const { data: existingItem } = await supabase
+    .from('item_pesanan').select('pesanan_id').eq('id', itemId).single<{ pesanan_id: string }>()
+  if (!existingItem) return { error: 'Item tidak ditemukan.' }
+
+  const { data: pesanan } = await supabase
+    .from('pesanan').select('status').eq('id', existingItem.pesanan_id).single<{ status: string }>()
   if (!pesanan || pesanan.status !== 'diproses') {
     return { error: 'Pesanan tidak dapat diubah.' }
   }
 
-  const results = await Promise.all(
-    items.map((item) =>
-      supabase
-        .from('item_pesanan')
-        .update({ harga_satuan: item.harga_satuan })
-        .eq('id', item.id)
-    )
-  )
-  const failed = results.find((r) => r.error)
-  if (failed?.error) return { error: failed.error.message }
+  const { error } = await supabase
+    .from('item_pesanan')
+    .update({ harga_satuan })
+    .eq('id', itemId)
 
-  revalidatePath(`/pesanan/${pesananId}`)
+  if (error) return { error: error.message }
+  revalidatePath(`/pesanan/${existingItem.pesanan_id}`)
   revalidatePath('/pesanan')
   return {}
 }

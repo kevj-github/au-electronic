@@ -10,7 +10,6 @@ import { DocumentButtons } from '@/components/pesanan/DocumentButtons'
 import { PaymentModal } from '@/components/pesanan/PaymentModal'
 import { DeletePaymentButton } from '@/components/pesanan/DeletePaymentButton'
 import { ItemsSection } from '@/components/pesanan/ItemsSection'
-import { BulkPriceForm } from '@/components/pesanan/BulkPriceForm'
 import { ResetChecklistButton } from '@/components/pesanan/ResetChecklistButton'
 import { buildInvoiceData, type InvoiceData } from '@/lib/invoice-data'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
@@ -85,9 +84,15 @@ export default async function PesananDetailPage({
   // Without an explicit order, Postgres row order is not guaranteed to stay
   // put across queries — an UPDATE (e.g. toggling a checklist) can shift a
   // row's physical position, making items appear to reorder in the list on
-  // every checkbox tick. Sort by id for a stable order that only changes
-  // when items are actually added/removed.
-  pesanan.items = [...pesanan.items].sort((a, b) => a.id.localeCompare(b.id))
+  // every checkbox tick. Sort alphabetically by item name (ascending) for a
+  // predictable order; fall back to id as a tiebreaker so duplicate names stay
+  // stable and only reorder when items are actually added/removed. This mirrors
+  // the ordering used in the PDF/Epson documents (see buildInvoiceData).
+  pesanan.items = [...pesanan.items].sort(
+    (a, b) =>
+      a.nama_barang.localeCompare(b.nama_barang, 'id', { sensitivity: 'base' }) ||
+      a.id.localeCompare(b.id),
+  )
 
   const statusLocked = pesanan.status !== 'diproses'
   const isLocked = statusLocked || (!isOwner && pesananLocked)
@@ -126,6 +131,8 @@ export default async function PesananDetailPage({
         qty: o.qty,
         jumlah_diambil: o.jumlah_diambil,
         dicek_oleh_owner: o.dicek_oleh_owner,
+        harga_satuan: o.harga_satuan,
+        subtotal: o.subtotal,
       }
     }
     return {
@@ -237,53 +244,9 @@ export default async function PesananDetailPage({
           items={sectionItems}
           isOwner={isOwner}
           isLocked={isLocked}
+          priceEditable={isOwner && !statusLocked}
         />
       </div>
-
-      {/* Bulk price editor — owner only, active orders only */}
-      {isOwner && !statusLocked && (
-        <BulkPriceForm
-          pesananId={pesanan.id}
-          items={ownerItems.map((i) => ({
-            id: i.id,
-            nama_barang: i.nama_barang,
-            qty: i.qty,
-            harga_satuan: i.harga_satuan,
-          }))}
-        />
-      )}
-
-      {/* Price summary for owner on locked orders */}
-      {isOwner && statusLocked && (
-        <div className="border rounded-lg overflow-hidden overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-right px-4 py-2 font-medium w-16">Qty</th>
-                <th className="text-left px-4 py-2 font-medium">Barang</th>
-                <th className="text-right px-4 py-2 font-medium">Harga Satuan</th>
-                <th className="text-right px-4 py-2 font-medium">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {ownerItems.map((i) => (
-                <tr key={i.id}>
-                  <td className="px-4 py-2 text-right">{i.qty}</td>
-                  <td className="px-4 py-2">{i.nama_barang}</td>
-                  <td className="px-4 py-2 text-right font-mono">{formatRupiah(i.harga_satuan)}</td>
-                  <td className="px-4 py-2 text-right font-mono">{formatRupiah(i.subtotal)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t bg-gray-50">
-              <tr>
-                <td colSpan={3} className="px-4 py-2 text-right font-medium">Total</td>
-                <td className="px-4 py-2 text-right font-mono font-semibold">{formatRupiah(totalPesanan)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
 
       {/* Payment recording — owner only */}
       {isOwner && (

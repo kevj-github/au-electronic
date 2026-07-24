@@ -7,11 +7,13 @@ import {
   addItemToPesanan,
   updateItemDetails,
   deleteItemFromPesanan,
+  updateItemHarga,
 } from '@/app/(app)/pesanan/actions'
 import { ItemChecklistCheckbox } from './ItemChecklistCheckbox'
 import { HelperItemChecklist } from './HelperItemChecklist'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { formatRupiah, formatThousandsInput, parseThousandsInput } from '@/lib/utils'
 
 interface SectionItem {
   id: string
@@ -19,6 +21,9 @@ interface SectionItem {
   qty: number
   jumlah_diambil: number
   dicek_oleh_owner?: boolean
+  // Price fields are only present for owners (helpers never receive them).
+  harga_satuan?: number
+  subtotal?: number
 }
 
 interface ItemsSectionProps {
@@ -26,6 +31,8 @@ interface ItemsSectionProps {
   items: SectionItem[]
   isOwner: boolean
   isLocked: boolean
+  // Owner can edit prices inline; false on locked orders (read-only display).
+  priceEditable: boolean
 }
 
 interface EditState {
@@ -35,12 +42,23 @@ interface EditState {
 
 const emptyAdd: EditState = { nama_barang: '', qty: '' }
 
-export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSectionProps) {
+export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditable }: ItemsSectionProps) {
   const router = useRouter()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editState, setEditState] = useState<EditState>(emptyAdd)
   const [addingNew, setAddingNew] = useState(false)
   const [newItem, setNewItem] = useState<EditState>(emptyAdd)
+
+  // Raw (digits-only) harga satuan per item, keyed by id. Missing keys fall back
+  // to the server value (see rawPrice) so newly added rows work without a re-init.
+  const [prices, setPrices] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      items
+        .filter((i) => i.harga_satuan !== undefined)
+        .map((i) => [i.id, i.harga_satuan && i.harga_satuan > 0 ? String(i.harga_satuan) : ''])
+    )
+  )
+  const [savingPriceId, setSavingPriceId] = useState<string | null>(null)
 
   // Refs for mobile keyboard navigation (Enter key: qty → nama → save/add)
   const newQtyRef = useRef<HTMLInputElement>(null)
@@ -50,6 +68,35 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  function rawPrice(item: SectionItem): string {
+    return prices[item.id] ?? (item.harga_satuan && item.harga_satuan > 0 ? String(item.harga_satuan) : '')
+  }
+  function numPrice(item: SectionItem): number {
+    return parseInt(rawPrice(item) || '0', 10) || 0
+  }
+  function subtotalOf(item: SectionItem): number {
+    return item.qty * numPrice(item)
+  }
+  const grandTotal = items.reduce((sum, i) => sum + subtotalOf(i), 0)
+
+  function setPrice(id: string, value: string) {
+    setPrices((prev) => ({ ...prev, [id]: parseThousandsInput(value) }))
+    setError(null)
+  }
+
+  // Save on blur, but only when the value actually changed from the saved one —
+  // avoids a redundant round-trip every time the field loses focus.
+  async function savePrice(item: SectionItem) {
+    const value = numPrice(item)
+    if (value === (item.harga_satuan ?? 0)) return
+    setSavingPriceId(item.id)
+    setError(null)
+    const result = await updateItemHarga(item.id, pesananId, value)
+    setSavingPriceId(null)
+    if (result?.error) { setError(result.error); return }
+    router.refresh()
+  }
 
   function startEdit(item: SectionItem) {
     setEditingId(item.id)
@@ -103,8 +150,9 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
     router.refresh()
   }
 
-  // colSpan for edit/add rows: owner-col? + qty + nama + helper-col + edit-col
-  const totalCols = (isOwner ? 1 : 0) + 3 + (!isLocked ? 1 : 0)
+  // colSpan for edit/add rows. Owner adds 3 extra cols (checkbox + harga + subtotal);
+  // base 3 = qty + nama + helper; edit column only when unlocked.
+  const totalCols = (isOwner ? 3 : 0) + 3 + (!isLocked ? 1 : 0)
 
   return (
     <div className="space-y-3">
@@ -153,81 +201,118 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                 </div>
               </div>
             ) : (
-              <div className="flex items-start gap-2">
-                {/* Owner's checkbox — front, owner only */}
-                {isOwner && (
-                  <div className="pt-0.5">
-                    <ItemChecklistCheckbox
-                      itemId={item.id}
-                      checked={item.dicek_oleh_owner ?? false}
-                      kind="owner"
-                      label="Dicek pemilik"
-                      showLabel={false}
-                      disabled={isLocked}
-                    />
-                  </div>
-                )}
+              <>
+                <div className="flex items-start gap-2">
+                  {/* Owner's checkbox — front, owner only */}
+                  {isOwner && (
+                    <div className="pt-0.5">
+                      <ItemChecklistCheckbox
+                        itemId={item.id}
+                        checked={item.dicek_oleh_owner ?? false}
+                        kind="owner"
+                        label="Dicek pemilik"
+                        showLabel={false}
+                        disabled={isLocked}
+                      />
+                    </div>
+                  )}
 
-                {/* Qty and Nama */}
-                <p className="text-sm font-medium flex-1 min-w-0 break-words pt-0.5">
-                  {item.qty}× {item.nama_barang}
-                </p>
+                  {/* Qty and Nama */}
+                  <p className="text-sm font-medium flex-1 min-w-0 break-words pt-0.5">
+                    {item.qty}× {item.nama_barang}
+                  </p>
 
-                {/* Helper's checklist — back */}
-                <HelperItemChecklist
-                  itemId={item.id}
-                  qty={item.qty}
-                  jumlahDiambil={item.jumlah_diambil}
-                  disabled={isLocked}
-                />
+                  {/* Helper's checklist — back */}
+                  <HelperItemChecklist
+                    itemId={item.id}
+                    qty={item.qty}
+                    jumlahDiambil={item.jumlah_diambil}
+                    disabled={isLocked}
+                  />
 
-                {/* Edit / Delete */}
-                {!isLocked && (
-                  <div className="flex gap-1 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0"
-                      onClick={() => startEdit(item)}
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    {deletingId === item.id ? (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => confirmDelete(item.id)}
-                          disabled={loadingId === item.id}
-                        >
-                          Hapus
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 w-7 p-0"
-                          onClick={() => setDeletingId(null)}
-                        >
-                          <X className="size-3.5" />
-                        </Button>
-                      </div>
-                    ) : (
+                  {/* Edit / Delete */}
+                  {!isLocked && (
+                    <div className="flex gap-1 shrink-0">
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
-                        onClick={() => setDeletingId(item.id)}
+                        className="h-7 w-7 p-0"
+                        onClick={() => startEdit(item)}
                       >
-                        <Trash2 className="size-3.5" />
+                        <Pencil className="size-3.5" />
                       </Button>
-                    )}
+                      {deletingId === item.id ? (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => confirmDelete(item.id)}
+                            disabled={loadingId === item.id}
+                          >
+                            Hapus
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            onClick={() => setDeletingId(null)}
+                          >
+                            <X className="size-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                          onClick={() => setDeletingId(item.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Price + subtotal — owner only */}
+                {isOwner && (
+                  <div className="mt-2 pt-2 border-t space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">Harga Satuan</span>
+                      {priceEditable ? (
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={formatThousandsInput(rawPrice(item))}
+                          onChange={(e) => setPrice(item.id, e.target.value)}
+                          onBlur={() => savePrice(item)}
+                          disabled={savingPriceId === item.id}
+                          className="h-8 w-32 text-right font-mono text-sm"
+                          aria-label={`Harga satuan ${item.nama_barang}`}
+                        />
+                      ) : (
+                        <span className="font-mono text-sm">{formatRupiah(numPrice(item))}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">Subtotal</span>
+                      <span className="font-mono text-sm font-medium">{formatRupiah(subtotalOf(item))}</span>
+                    </div>
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         ))}
+
+        {/* Order total — owner only */}
+        {isOwner && items.length > 0 && (
+          <div className="flex items-center justify-between px-3 py-2 border rounded-lg bg-gray-50">
+            <span className="text-sm font-medium">Total</span>
+            <span className="font-mono text-sm font-semibold">{formatRupiah(grandTotal)}</span>
+          </div>
+        )}
 
         {/* Add item form — mobile */}
         {!isLocked && (
@@ -287,6 +372,8 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
               {isOwner && <th className="w-10 px-3 py-2"></th>}
               <th className="text-right px-4 py-2 font-medium w-16">Qty</th>
               <th className="text-left px-4 py-2 font-medium">Nama Barang</th>
+              {isOwner && <th className="text-right px-4 py-2 font-medium">Harga Satuan</th>}
+              {isOwner && <th className="text-right px-4 py-2 font-medium">Subtotal</th>}
               <th className="w-28 px-3 py-2"></th>
               {!isLocked && <th className="w-16 px-4 py-2"></th>}
             </tr>
@@ -336,6 +423,27 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
                     )}
                     <td className="px-4 py-2 text-right align-middle">{item.qty}</td>
                     <td className="px-4 py-2 align-middle">{item.nama_barang}</td>
+                    {isOwner && (
+                      <td className="px-4 py-2 text-right align-middle">
+                        {priceEditable ? (
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            value={formatThousandsInput(rawPrice(item))}
+                            onChange={(e) => setPrice(item.id, e.target.value)}
+                            onBlur={() => savePrice(item)}
+                            disabled={savingPriceId === item.id}
+                            className="h-8 w-36 ml-auto text-right font-mono text-sm"
+                            aria-label={`Harga satuan ${item.nama_barang}`}
+                          />
+                        ) : (
+                          <span className="font-mono">{formatRupiah(numPrice(item))}</span>
+                        )}
+                      </td>
+                    )}
+                    {isOwner && (
+                      <td className="px-4 py-2 text-right align-middle font-mono">{formatRupiah(subtotalOf(item))}</td>
+                    )}
                     <td className="px-3 py-2 text-center align-middle">
                       <HelperItemChecklist
                         itemId={item.id}
@@ -440,6 +548,16 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked }: ItemsSecti
               )
             )}
           </tbody>
+          {/* Order total — owner only */}
+          {isOwner && items.length > 0 && (
+            <tfoot className="border-t bg-gray-50">
+              <tr>
+                <td className="px-4 py-2 text-right font-medium" colSpan={4}>Total</td>
+                <td className="px-4 py-2 text-right font-mono font-semibold">{formatRupiah(grandTotal)}</td>
+                <td colSpan={1 + (!isLocked ? 1 : 0)}></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>
