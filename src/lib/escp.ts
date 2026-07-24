@@ -142,17 +142,22 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
     return line
   })
 
-  // "Kepada Yth: name - address" on its own line(s) beneath the header, its
-  // first character aligned under the "Tgl." of the "Tgl. Pengiriman:" line
-  // (right-aligned to WIDTH, so its start column tracks the date length). The
-  // block then flows full-width: overflow wraps to the left margin below, so a
-  // long name+address is never truncated.
+  // "Kepada Yth: name - address" on its own line(s) beneath the header. When
+  // the whole thing fits on one line it is indented so its first character sits
+  // under the "Tgl." of the "Tgl. Pengiriman:" line above it (right-aligned to
+  // WIDTH, so the start column tracks the date length). When it would overflow
+  // that column, the entire block instead starts at the left margin and wraps
+  // full-width from there, so a long name+address is never truncated.
   const kepada = data.alamatPelanggan
     ? `${data.namaPelanggan} - ${data.alamatPelanggan}`
     : data.namaPelanggan
   const anchorCol = Math.max(0, WIDTH - pengirimanLine.length)
-  const combined = ' '.repeat(anchorCol) + KEPADA_LABEL + kepada
-  for (let i = 0; i < combined.length; i += WIDTH) lines.push(combined.slice(i, i + WIDTH))
+  const full = KEPADA_LABEL + kepada
+  if (anchorCol + full.length <= WIDTH) {
+    lines.push(' '.repeat(anchorCol) + full)
+  } else {
+    for (let i = 0; i < full.length; i += WIDTH) lines.push(full.slice(i, i + WIDTH))
+  }
 
   return lines.join(LF)
 }
