@@ -217,6 +217,7 @@ describe('buildEscP', () => {
   it('does not print an address line when there is no address', () => {
     const out = buildEscP({ ...base, alamatPelanggan: undefined })
     expect(out).toContain('Kepada Yth: Budi')
+    expect(out).not.toContain(base.alamatPelanggan!)
   })
 
   // --- ESC/P has no glyph for non-ASCII characters ---

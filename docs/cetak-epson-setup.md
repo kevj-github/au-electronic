@@ -27,6 +27,7 @@ printer) — berbeda dari "Cetak PDF" yang berbasis gambar.
 - [ ] Struk panjang (>1 halaman): halaman ke-2 mulai tepat di atas form berikutnya
       (form-feed benar); TOTAL hanya muncul di halaman terakhir.
 - [ ] Setelah cetak, kertas berhenti di awal form berikutnya (siap struk baru).
+- [ ] Kolom CHECK (paling kanan, ~0.6 inci) masih cukup lebar untuk dicentang tangan.
 - [ ] Pengaturan → Printer (input nama, tombol "Deteksi Printer", dan "Simpan")
       tetap dapat digunakan dan tidak ada yang melampaui batas layar saat dibuka
       di lebar/viewport mobile yang sempit.
