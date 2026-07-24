@@ -30,8 +30,8 @@ const AMOUNT_END = COL.no + 1 + COL.qty + 1 + COL.nama + 1 + COL.harga + 1 + COL
 
 // Fixed line costs per page, used by the pagination budget below.
 const TABLE_HEAD_LINES = 3 // '=' rule + column header row + '-' rule
-const SUBTOTAL_LINES = 1 // per-page SUBTOTAL row
-const FOOTER_LINES = 8 // blank + Perhatian (3) + blank + Penerima, + blank + rule
+const SUBTOTAL_LINES = 2 // blank + per-page SUBTOTAL row
+const FOOTER_LINES = 13 // blank + Perhatian (3) + 3 blank + Penerima, + 4 blank + rule
 const TOTAL_LINES = 2 // blank + TOTAL row, last page only
 
 // The LX-310's built-in character set is ASCII; anything outside it prints as
@@ -154,13 +154,18 @@ function footerBlock(data: InvoiceData, isLastPage: boolean): string {
     'Barang yang sudah dibeli, tidak bisa ditukar / dikembalikan,',
     'kecuali sesuai perjanjian.',
     '',
+    '',
+    '',
     'Penerima,',
+    '',
+    '',
+    '',
     '',
     '_______________________',
   ]
   if (isLastPage) {
     const totalText = `TOTAL : ${formatNumberID(data.totalPesanan)}`
-    lines.push('', BOLD_ON + padStart(totalText, AMOUNT_END) + BOLD_OFF)
+    lines.push('', padStart(totalText, AMOUNT_END))
   }
   return lines.join(LF)
 }
@@ -243,6 +248,7 @@ export function buildEscP(input: InvoiceData): string {
       row('NO', 'QTY', 'NAMA BARANG', 'HARGA(Rp)', 'JUMLAH(Rp)', 'CHECK'),
       '-'.repeat(WIDTH),
       ...pageItems.map((item, i) => itemLines(item, startIndex + i)),
+      '',
       padStart(`SUBTOTAL : ${formatNumberID(pageSubtotal)}`, AMOUNT_END),
       footerBlock(data, isLast),
     ]
