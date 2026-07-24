@@ -140,11 +140,32 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
     return line
   })
 
+  // "Kepada Yth: name - address" rides on the No. HP/WA row (the last left line),
+  // mirroring the PDF's top-right customer block. If the pair overflows 79
+  // columns the remainder wraps onto continuation lines below, so a long
+  // name+address is never truncated.
   const kepada = data.alamatPelanggan
     ? `${data.namaPelanggan} - ${data.alamatPelanggan}`
     : data.namaPelanggan
-  lines.push((KEPADA_LABEL + kepada).slice(0, WIDTH))
+  const hpLine = lines.pop()! // the "No. HP/WA: ..." row, always present
+  const combined = hpLine + '  ' + KEPADA_LABEL + kepada
+  for (let i = 0; i < combined.length; i += WIDTH) lines.push(combined.slice(i, i + WIDTH))
+
   return lines.join(LF)
+}
+
+// The signature rule under "Penerima,". When the owner has filled in a
+// pengiriman (courier/ekspedisi) name it is written centred on the rule; an
+// empty pengiriman leaves the rule blank for a handwritten signature. A name
+// wider than the rule widens the rule to fit rather than clip.
+const SIGNATURE_RULE = '_______________________' // 23 underscores
+function signatureLine(pengiriman: string | undefined): string {
+  const text = pengiriman?.trim()
+  if (!text) return SIGNATURE_RULE
+  if (text.length >= SIGNATURE_RULE.length) return text
+  const left = Math.floor((SIGNATURE_RULE.length - text.length) / 2)
+  const right = SIGNATURE_RULE.length - text.length - left
+  return '_'.repeat(left) + text + '_'.repeat(right)
 }
 
 function footerBlock(data: InvoiceData, isLastPage: boolean): string {
@@ -165,7 +186,7 @@ function footerBlock(data: InvoiceData, isLastPage: boolean): string {
     penerima,
     '',
     '',
-    '_______________________',
+    signatureLine(data.pengiriman),
     // Trailing blank so the signature rule is line-feed-terminated before the
     // page's form-feed. The LX-310 double-strikes a line ended by FF instead of
     // LF, which printed the rule as two lines. Do not remove.
@@ -223,6 +244,7 @@ export function buildEscP(input: InvoiceData): string {
     ...input,
     namaPelanggan: toAscii(input.namaPelanggan),
     alamatPelanggan: input.alamatPelanggan ? toAscii(input.alamatPelanggan) : undefined,
+    pengiriman: input.pengiriman ? toAscii(input.pengiriman) : undefined,
     items: input.items.map((i) => ({ ...i, namaBarang: toAscii(i.namaBarang) })),
   }
 

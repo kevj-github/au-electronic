@@ -377,6 +377,28 @@ export async function updateTanggalPengiriman(
   return {}
 }
 
+export async function updatePengiriman(
+  pesananId: string,
+  value: string | null
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  // Store null instead of an empty string so the signature line stays blank.
+  const trimmed = value?.trim()
+  const { error } = await supabase
+    .from('pesanan')
+    .update({ pengiriman: trimmed || null })
+    .eq('id', pesananId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pesanan/${pesananId}`)
+  revalidatePath('/pesanan')
+  return {}
+}
+
 /**
  * Fetch the current invoice data straight from the DB. Called at PDF/WhatsApp
  * generation time so the document always reflects the latest saved state,
@@ -397,7 +419,7 @@ export async function getInvoiceData(
     supabase
       .from('pesanan')
       .select(
-        'kode_pesanan, created_at, tanggal_pengiriman, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan(nama_barang, qty, harga_satuan, subtotal), pembayaran(jumlah)'
+        'kode_pesanan, created_at, tanggal_pengiriman, pengiriman, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan(nama_barang, qty, harga_satuan, subtotal), pembayaran(jumlah)'
       )
       .eq('id', pesananId)
       .single<InvoiceSource>(),

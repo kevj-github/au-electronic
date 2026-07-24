@@ -211,13 +211,44 @@ describe('buildEscP', () => {
   it('prints the customer address dash-joined after the name', () => {
     const alamat = 'Jl. Raya Darmo Permai Selatan No. 88 Blok C, Surabaya'
     const out = buildEscP({ ...base, namaPelanggan: 'Budi', alamatPelanggan: alamat })
-    expect(out).toContain(`Kepada Yth: Budi - ${alamat}`)
+    // The kepada now shares the No. HP/WA row and wraps onto a continuation line
+    // when long; joining the wrapped lines reconstructs the full name+address so
+    // nothing is truncated.
+    const joined = visible(out).replace(/\n/g, '')
+    expect(joined).toContain(`Kepada Yth: Budi - ${alamat}`)
+  })
+
+  it('rides "Kepada Yth" on the same row as the No. HP/WA line', () => {
+    const out = buildEscP({ ...base, namaPelanggan: 'Budi', alamatPelanggan: undefined })
+    const hpLine = visible(out)
+      .split('\n')
+      .find((l) => l.includes('No. HP/WA'))!
+    expect(hpLine).toContain('Kepada Yth: Budi')
   })
 
   it('does not print an address line when there is no address', () => {
     const out = buildEscP({ ...base, alamatPelanggan: undefined })
     expect(out).toContain('Kepada Yth: Budi')
     expect(out).not.toContain(base.alamatPelanggan!)
+  })
+
+  // --- Pengiriman (courier) written on the Penerima signature line ---
+
+  it('leaves the signature line blank when there is no pengiriman', () => {
+    const out = buildEscP({ ...base, pengiriman: undefined })
+    expect(out).toContain('_______________________')
+  })
+
+  it('writes the pengiriman name centred on the signature line', () => {
+    const out = buildEscP({ ...base, pengiriman: 'Expedisi Jaya' })
+    const sigLine = visible(out)
+      .split('\n')
+      .find((l) => l.includes('Expedisi Jaya') && l.includes('_'))!
+    expect(sigLine).toBeDefined()
+    // Underscores on both sides -> the name sits on the rule.
+    expect(sigLine).toMatch(/^_+Expedisi Jaya_+$/)
+    // The rule keeps its width so the layout doesn't shift.
+    expect(sigLine.length).toBe('_______________________'.length)
   })
 
   // --- ESC/P has no glyph for non-ASCII characters ---

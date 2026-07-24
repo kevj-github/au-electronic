@@ -36,6 +36,7 @@ export interface Pesanan {
   status: StatusPesanan
   catatan: string | null
   tanggal_pengiriman: string | null
+  pengiriman: string | null
   dibuat_oleh: string
   created_at: string
   updated_at: string

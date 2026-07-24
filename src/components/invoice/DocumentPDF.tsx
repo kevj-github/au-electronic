@@ -98,7 +98,18 @@ const styles = StyleSheet.create({
   perhatianTitle: { fontFamily: 'Helvetica-Bold', fontSize: 9, marginBottom: 2 },
   perhatianText: { fontSize: 8.5, color: '#374151', lineHeight: 1.3 },
   signatureBlock: { flex: 1, alignItems: 'center' },
-  signatureLine: { borderBottom: '1px solid #1a1a1a', marginTop: 32, marginBottom: 3, width: '80%' },
+  // The signature rule. When a pengiriman (courier/ekspedisi) name is set it is
+  // written centred just above the rule; otherwise the rule is left blank for a
+  // handwritten signature.
+  signatureLine: {
+    borderBottom: '1px solid #1a1a1a',
+    marginTop: 32,
+    marginBottom: 3,
+    width: '80%',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  signatureText: { fontSize: 10, fontFamily: 'Helvetica-Bold' },
   totalArea: { alignItems: 'flex-end', minWidth: 110 },
   totalLabel: { fontFamily: 'Helvetica-Bold', fontSize: 14, color: '#111' },
   totalValue: { fontFamily: 'Helvetica-Bold', fontSize: 14, color: '#111', marginTop: 2 },
@@ -231,7 +242,11 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
                 </Text>
               </View>
               <View style={styles.signatureBlock}>
-                <View style={styles.signatureLine} />
+                <View style={styles.signatureLine}>
+                  {data.pengiriman && (
+                    <Text style={styles.signatureText}>{data.pengiriman}</Text>
+                  )}
+                </View>
                 <Text>Penerima,</Text>
               </View>
               {isLastPage && (

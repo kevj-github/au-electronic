@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { TanggalPengirimanEditor } from '@/components/pesanan/TanggalPengirimanEditor'
+import { PengirimanEditor } from '@/components/pesanan/PengirimanEditor'
 import { StatusBadge } from '@/components/pesanan/StatusBadge'
 import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionButtons'
 import { DocumentButtons } from '@/components/pesanan/DocumentButtons'
@@ -102,6 +103,7 @@ export default async function PesananDetailPage({
         kode_pesanan: pesanan.kode_pesanan,
         created_at: pesanan.created_at,
         tanggal_pengiriman: pesanan.tanggal_pengiriman,
+        pengiriman: pesanan.pengiriman,
         nama_pelanggan: pesanan.nama_pelanggan,
         pelanggan: pesanan.pelanggan,
         items: ownerItems,
@@ -145,12 +147,21 @@ export default async function PesananDetailPage({
             {format(new Date(pesanan.created_at), 'd MMMM yyyy', { locale: idLocale })}
           </p>
           {isOwner && (
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-xs text-muted-foreground">Tgl. Pengiriman:</span>
-              <TanggalPengirimanEditor
-                pesananId={pesanan.id}
-                initialValue={pesanan.tanggal_pengiriman}
-              />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Tgl. Pengiriman:</span>
+                <TanggalPengirimanEditor
+                  pesananId={pesanan.id}
+                  initialValue={pesanan.tanggal_pengiriman}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Pengiriman:</span>
+                <PengirimanEditor
+                  pesananId={pesanan.id}
+                  initialValue={pesanan.pengiriman}
+                />
+              </div>
             </div>
           )}
         </div>

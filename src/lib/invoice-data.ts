@@ -11,6 +11,7 @@ export interface InvoiceData {
   tanggalPengiriman?: string   // ISO date string, null if not yet set
   namaPelanggan: string
   alamatPelanggan?: string
+  pengiriman?: string          // courier/ekspedisi name written on the signature line
   items: InvoiceItem[]
   totalPesanan: number
   totalDibayar: number
@@ -24,6 +25,7 @@ export interface InvoiceSource {
   created_at: string
   tanggal_pengiriman: string | null
   nama_pelanggan: string | null
+  pengiriman: string | null
   pelanggan: { nama: string | null; alamat: string | null } | null
   items: Array<{ nama_barang: string; qty: number; harga_satuan: number; subtotal: number }>
   pembayaran: Array<{ jumlah: number }>
@@ -46,6 +48,7 @@ export function buildInvoiceData(pesanan: InvoiceSource): InvoiceData {
     tanggalPengiriman: pesanan.tanggal_pengiriman ?? undefined,
     namaPelanggan: pesanan.pelanggan?.nama ?? pesanan.nama_pelanggan ?? '—',
     alamatPelanggan: pesanan.pelanggan?.alamat ?? undefined,
+    pengiriman: pesanan.pengiriman ?? undefined,
     items: items.map((i) => ({
       namaBarang: i.nama_barang,
       qty: i.qty,
