@@ -31,8 +31,12 @@ const AMOUNT_END = COL.no + 1 + COL.qty + 1 + COL.nama + 1 + COL.harga + 1 + COL
 // Fixed line costs per page, used by the pagination budget below.
 const TABLE_HEAD_LINES = 3 // '=' rule + column header row + '-' rule
 const SUBTOTAL_LINES = 2 // blank + per-page SUBTOTAL row
-const FOOTER_LINES = 12 // blank + Perhatian (3) + 3 blank + Penerima,(+TOTAL) + 2 blank + rule + trailing blank
+const FOOTER_LINES = 10 // blank + Perhatian (3) + 1 blank + Penerima,(+TOTAL) + 2 blank + rule + trailing blank
 const TOTAL_LINES = 0 // TOTAL shares the Penerima row on the last page — no extra line
+
+// Hard cap on items per printed form, on top of the line budget below: keeps
+// each receipt to at most 10 rows even when short names would let more fit.
+const MAX_ITEMS_PER_PAGE = 10
 
 // The LX-310's built-in character set is ASCII; anything outside it prints as
 // garbage. Fold the few non-ASCII characters that realistically reach us (the
@@ -146,8 +150,9 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
   // the whole thing fits on one line it is indented so its first character sits
   // under the "Tgl." of the "Tgl. Pengiriman:" line above it (right-aligned to
   // WIDTH, so the start column tracks the date length). When it would overflow
-  // that column, the entire block instead starts at the left margin and wraps
-  // full-width from there, so a long name+address is never truncated.
+  // that column, it wraps full-width but each wrapped line is right-aligned to
+  // the far margin, so the block stays over on the right instead of dropping to
+  // the left margin — and a long name+address is still never truncated.
   const kepada = data.alamatPelanggan
     ? `${data.namaPelanggan} - ${data.alamatPelanggan}`
     : data.namaPelanggan
@@ -156,7 +161,10 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
   if (anchorCol + full.length <= WIDTH) {
     lines.push(' '.repeat(anchorCol) + full)
   } else {
-    for (let i = 0; i < full.length; i += WIDTH) lines.push(full.slice(i, i + WIDTH))
+    for (let i = 0; i < full.length; i += WIDTH) {
+      const chunk = full.slice(i, i + WIDTH)
+      lines.push(' '.repeat(WIDTH - chunk.length) + chunk)
+    }
   }
 
   return lines.join(LF)
@@ -189,8 +197,6 @@ function footerBlock(data: InvoiceData, isLastPage: boolean): string {
     'Barang yang sudah dibeli, tidak bisa ditukar / dikembalikan,',
     'kecuali sesuai perjanjian.',
     '',
-    '',
-    '',
     penerima,
     '',
     '',
@@ -204,10 +210,12 @@ function footerBlock(data: InvoiceData, isLastPage: boolean): string {
 }
 
 /**
- * Split items into pages against a *line* budget, not an item count: a long
- * product name wraps onto continuation lines, so twelve items can be anything
- * from 12 to 40+ printed lines. Overflowing the 33-line form would push every
- * later page off its top-of-form registration.
+ * Split items into pages against a *line* budget (not just an item count): a
+ * long product name wraps onto continuation lines, so ten items can be anything
+ * from 10 to 30+ printed lines. Overflowing the 33-line form would push every
+ * later page off its top-of-form registration. A page also breaks once it holds
+ * MAX_ITEMS_PER_PAGE rows, even when short names would let the line budget fit
+ * more.
  *
  * The page containing the final item also has to fit the TOTAL rows, so that
  * item is measured against the smaller `lastBudget`.
@@ -220,7 +228,8 @@ function paginate(items: InvoiceData['items'], bodyBudget: number, lastBudget: n
   items.forEach((item, i) => {
     const cost = itemLineCost(item)
     const budget = i === items.length - 1 ? lastBudget : bodyBudget
-    if (current.length > 0 && used + cost > budget) {
+    const full = current.length >= MAX_ITEMS_PER_PAGE || used + cost > budget
+    if (current.length > 0 && full) {
       pages.push(current)
       current = []
       used = 0
@@ -241,9 +250,11 @@ function paginate(items: InvoiceData['items'], bodyBudget: number, lastBudget: n
  *
  * Page arithmetic (all in printed lines, budget = LINES_PER_PAGE = 33):
  *   header (5; +1 or more when a customer address wraps the Kepada line)
- * + table head (3) + item lines (variable) + SUBTOTAL (1) + footer (8)
- * + TOTAL (2, last page only). headerLines is measured from the built header
- * below, so a wrapped Kepada line shrinks the item budget automatically.
+ * + table head (3) + item lines (variable) + SUBTOTAL (2) + footer (10).
+ * TOTAL rides the Penerima row on the last page, so it costs no extra lines.
+ * headerLines is measured from the built header below, so a wrapped Kepada line
+ * shrinks the item budget automatically. Item count is additionally capped at
+ * MAX_ITEMS_PER_PAGE regardless of how few lines the names occupy.
  */
 export function buildEscP(input: InvoiceData): string {
   // Fold to printer-safe ASCII first, so every length below is the printed one.

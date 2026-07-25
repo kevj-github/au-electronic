@@ -233,6 +233,26 @@ describe('buildEscP', () => {
     expect(kepadaLine.indexOf('Kepada Yth:')).toBe(pengirimanLine.indexOf('Tgl. Pengiriman:'))
   })
 
+  it('right-aligns the Kepada line to the far margin when it overflows', () => {
+    const alamat = 'Jl. Raya Darmo Permai Selatan Nomor 88 Blok C, Surabaya Jawa Timur'
+    const out = buildEscP({ ...base, namaPelanggan: 'Budi', alamatPelanggan: alamat })
+    const printed = visible(out).split('\n')
+    // The Kepada block spills onto a continuation line whose leftmost characters
+    // are the address tail (not "Kepada Yth:"). That line must be right-flush:
+    // padded on the left so it ends at the far margin (length === WIDTH), never
+    // dropped to the left margin.
+    const kepadaStart = printed.findIndex((l) => l.includes('Kepada Yth:'))
+    expect(kepadaStart).toBeGreaterThanOrEqual(0)
+    const continuation = printed[kepadaStart + 1]
+    expect(continuation).toMatch(/^ +\S/) // leading spaces then text
+    expect(continuation.length).toBe(79)
+    // Nothing truncated: the right-align padding is a run of spaces, so
+    // collapsing whitespace runs stitches the wrapped lines back into the full
+    // "Kepada Yth: name - address" (which has only single spaces).
+    const joined = printed.join('\n').replace(/\s+/g, ' ')
+    expect(joined).toContain(`Kepada Yth: Budi - ${alamat}`)
+  })
+
   it('does not print an address line when there is no address', () => {
     const out = buildEscP({ ...base, alamatPelanggan: undefined })
     expect(out).toContain('Kepada Yth: Budi')
