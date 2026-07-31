@@ -5,17 +5,16 @@ import { deletePembayaran } from '@/app/(app)/pesanan/[id]/payment-actions'
 
 interface DeletePaymentButtonProps {
   pembayaranId: string
-  pesananId: string
 }
 
-export function DeletePaymentButton({ pembayaranId, pesananId }: DeletePaymentButtonProps) {
+export function DeletePaymentButton({ pembayaranId }: DeletePaymentButtonProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleDelete() {
     setError(null)
     setLoading(true)
-    const result = await deletePembayaran(pembayaranId, pesananId)
+    const result = await deletePembayaran(pembayaranId)
     if (result?.error) {
       setError(result.error)
     }

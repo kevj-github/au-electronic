@@ -270,7 +270,7 @@ export default async function PesananDetailPage({
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="font-mono">{formatRupiah(p.jumlah)}</span>
-                    <DeletePaymentButton pembayaranId={p.id} pesananId={pesanan.id} />
+                    <DeletePaymentButton pembayaranId={p.id} />
                   </div>
                 </div>
               ))}

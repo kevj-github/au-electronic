@@ -4,6 +4,12 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
 import { buildInvoiceData, type InvoiceData, type InvoiceSource } from '@/lib/invoice-data'
+import {
+  requireActivePesanan,
+  requireActivePesananByItem,
+  isGuardError,
+  getRole,
+} from '@/lib/pesanan-guards'
 import type { StatusPesanan } from '@/lib/types'
 
 export interface CreatePesananInput {
@@ -38,9 +44,8 @@ export async function createPesanan(input: CreatePesananInput) {
   // Fail-closed: any DB error reading the lock setting blocks the action rather
   // than silently allowing it through (a missing row means the table wasn't seeded,
   // which is an infrastructure problem that should surface, not be swallowed).
-  const { data: userRow } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<{ role: string }>()
-  if (userRow?.role !== 'owner') {
+  const role = await getRole(supabase)
+  if (role !== 'owner') {
     const { data: lockSetting, error: lockErr } = await supabase
       .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
     if (lockErr || !lockSetting) {
@@ -87,15 +92,14 @@ export async function createPesanan(input: CreatePesananInput) {
   return { pesananId: pesanan.id }
 }
 
-export async function updateStatusPesanan(pesananId: string, status: StatusPesanan) {
+export async function updateStatusPesanan(
+  pesananId: string,
+  status: StatusPesanan
+): Promise<{ error?: string }> {
   const supabase = await createClient()
 
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) return { error: 'Tidak terautentikasi.' }
-
-  const { data: user } = await supabase
-    .from('users').select('role').eq('id', authUser.id).single<{ role: string }>()
-  if (user?.role !== 'owner') return { error: 'Hanya pemilik yang bisa mengubah status.' }
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
 
   const { error } = await supabase
     .from('pesanan')
@@ -111,32 +115,15 @@ export async function updateStatusPesanan(pesananId: string, status: StatusPesan
 
 // Returns an error if the pesanan_locked setting is on and the user is not an owner.
 async function checkHelperLock(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string
+  supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<{ error: string } | null> {
-  const { data: userRow } = await supabase
-    .from('users').select('role').eq('id', userId).single<{ role: string }>()
-  if (userRow?.role === 'owner') return null
+  if (await getRole(supabase) === 'owner') return null
 
   const { data: lockSetting, error: lockErr } = await supabase
     .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
   if (lockErr || !lockSetting) return { error: 'Tidak dapat memverifikasi status kunci pesanan.' }
   if (lockSetting.value === 'true') return { error: 'Pesanan sedang dikunci oleh pemilik.' }
   return null
-}
-
-// Looks up an item's parent pesanan_id, qty, and pesanan status in a single join query.
-async function getItemPesananStatus(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  itemId: string
-): Promise<{ pesanan_id: string; qty: number; status: string } | null> {
-  const { data } = await supabase
-    .from('item_pesanan')
-    .select('pesanan_id, qty, pesanan:pesanan(status)')
-    .eq('id', itemId)
-    .single<{ pesanan_id: string; qty: number; pesanan: { status: string } | null }>()
-  if (!data?.pesanan) return null
-  return { pesanan_id: data.pesanan_id, qty: data.qty, status: data.pesanan.status }
 }
 
 // Any authenticated user can set jumlah_diambil — any helper may be the one
@@ -151,11 +138,11 @@ export async function toggleItemDiambil(itemId: string, value: boolean): Promise
 
   // Lock check and item-status lookup are independent — run them concurrently.
   const [lockError, info] = await Promise.all([
-    checkHelperLock(supabase, authUser.id),
-    getItemPesananStatus(supabase, itemId),
+    checkHelperLock(supabase),
+    requireActivePesananByItem(supabase, itemId),
   ])
   if (lockError) return lockError
-  if (!info || info.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
+  if (isGuardError(info)) return info
 
   const { error } = await supabase
     .from('item_pesanan')
@@ -175,11 +162,11 @@ export async function setItemJumlahDiambil(itemId: string, jumlah: number): Prom
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
   const [lockError, info] = await Promise.all([
-    checkHelperLock(supabase, authUser.id),
-    getItemPesananStatus(supabase, itemId),
+    checkHelperLock(supabase),
+    requireActivePesananByItem(supabase, itemId),
   ])
   if (lockError) return lockError
-  if (!info || info.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
+  if (isGuardError(info)) return info
 
   const clamped = Math.max(0, Math.min(Math.trunc(jumlah), info.qty))
 
@@ -199,10 +186,10 @@ export async function toggleItemDicekOwner(itemId: string, value: boolean): Prom
   // Owner check and item-status lookup are independent — run them concurrently.
   const [ownerError, info] = await Promise.all([
     requireOwner(supabase),
-    getItemPesananStatus(supabase, itemId),
+    requireActivePesananByItem(supabase, itemId),
   ])
   if (ownerError) return ownerError
-  if (!info || info.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
+  if (isGuardError(info)) return info
 
   const { error } = await supabase
     .from('item_pesanan')
@@ -223,14 +210,12 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
   } else {
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) return { error: 'Tidak terautentikasi.' }
-    const lockError = await checkHelperLock(supabase, authUser.id)
+    const lockError = await checkHelperLock(supabase)
     if (lockError) return lockError
   }
 
-  // App-layer status check — owner bypasses the DB trigger.
-  const { data: pesanan } = await supabase
-    .from('pesanan').select('status').eq('id', pesananId).single<{ status: string }>()
-  if (!pesanan || pesanan.status !== 'diproses') return { error: 'Pesanan tidak dapat diubah.' }
+  const active = await requireActivePesanan(supabase, pesananId)
+  if (isGuardError(active)) return active
 
   // diambil_oleh_helper is a generated column derived from jumlah_diambil,
   // so resetting the helper checklist means zeroing jumlah_diambil instead.
@@ -255,16 +240,11 @@ export async function addItemToPesanan(pesananId: string, item: AddItemInput): P
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const lockError = await checkHelperLock(supabase, authUser.id)
+  const lockError = await checkHelperLock(supabase)
   if (lockError) return lockError
 
-  // App-layer status guard: the DB trigger enforces this for non-owners, but the owner
-  // bypasses the trigger. Checking here closes that gap for all callers.
-  const { data: pesanan } = await supabase
-    .from('pesanan').select('status').eq('id', pesananId).single<{ status: string }>()
-  if (!pesanan || pesanan.status !== 'diproses') {
-    return { error: 'Pesanan tidak dapat diubah.' }
-  }
+  const active = await requireActivePesanan(supabase, pesananId)
+  if (isGuardError(active)) return active
 
   const { error } = await supabase
     .from('item_pesanan')
@@ -290,20 +270,11 @@ export async function updateItemDetails(
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const lockError = await checkHelperLock(supabase, authUser.id)
+  const lockError = await checkHelperLock(supabase)
   if (lockError) return lockError
 
-  // Look up the item's actual pesanan_id from the DB rather than trusting the
-  // client-supplied pesananId, then verify the parent pesanan is still active.
-  const { data: existingItem } = await supabase
-    .from('item_pesanan').select('pesanan_id').eq('id', itemId).single<{ pesanan_id: string }>()
-  if (!existingItem) return { error: 'Item tidak ditemukan.' }
-
-  const { data: pesanan } = await supabase
-    .from('pesanan').select('status').eq('id', existingItem.pesanan_id).single<{ status: string }>()
-  if (!pesanan || pesanan.status !== 'diproses') {
-    return { error: 'Pesanan tidak dapat diubah.' }
-  }
+  const existingItem = await requireActivePesananByItem(supabase, itemId)
+  if (isGuardError(existingItem)) return existingItem
 
   const { error } = await supabase
     .from('item_pesanan')
@@ -320,19 +291,11 @@ export async function deleteItemFromPesanan(itemId: string, pesananId: string): 
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const lockError = await checkHelperLock(supabase, authUser.id)
+  const lockError = await checkHelperLock(supabase)
   if (lockError) return lockError
 
-  // Look up the item's actual pesanan_id from the DB; don't trust client-supplied value.
-  const { data: existingItem } = await supabase
-    .from('item_pesanan').select('pesanan_id').eq('id', itemId).single<{ pesanan_id: string }>()
-  if (!existingItem) return { error: 'Item tidak ditemukan.' }
-
-  const { data: pesanan } = await supabase
-    .from('pesanan').select('status').eq('id', existingItem.pesanan_id).single<{ status: string }>()
-  if (!pesanan || pesanan.status !== 'diproses') {
-    return { error: 'Pesanan tidak dapat diubah.' }
-  }
+  const existingItem = await requireActivePesananByItem(supabase, itemId)
+  if (isGuardError(existingItem)) return existingItem
 
   const { error } = await supabase
     .from('item_pesanan')
@@ -447,15 +410,8 @@ export async function updateItemHarga(
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
 
-  const { data: existingItem } = await supabase
-    .from('item_pesanan').select('pesanan_id').eq('id', itemId).single<{ pesanan_id: string }>()
-  if (!existingItem) return { error: 'Item tidak ditemukan.' }
-
-  const { data: pesanan } = await supabase
-    .from('pesanan').select('status').eq('id', existingItem.pesanan_id).single<{ status: string }>()
-  if (!pesanan || pesanan.status !== 'diproses') {
-    return { error: 'Pesanan tidak dapat diubah.' }
-  }
+  const existingItem = await requireActivePesananByItem(supabase, itemId)
+  if (isGuardError(existingItem)) return existingItem
 
   const { error } = await supabase
     .from('item_pesanan')
