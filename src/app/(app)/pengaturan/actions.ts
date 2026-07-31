@@ -116,12 +116,20 @@ export async function setPesananLocked(locked: boolean): Promise<{ error?: strin
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
 
-  const { error } = await supabase
+  // `.update().eq()` matching zero rows is not an error, so a missing settings
+  // row would report success while the lock silently stayed off. Ask for the
+  // affected rows back and fail closed when there are none (see the fail-closed
+  // settings convention) — same as updateEpsonPrinterName below.
+  const { data, error } = await supabase
     .from('settings')
     .update({ value: locked ? 'true' : 'false' })
     .eq('key', 'pesanan_locked')
+    .select('key')
 
   if (error) return { error: error.message }
+  if (!data || data.length === 0) {
+    return { error: 'Pengaturan kunci pesanan belum tersedia di database. Hubungi admin.' }
+  }
   revalidatePath('/pengaturan')
   return {}
 }

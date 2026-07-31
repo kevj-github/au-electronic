@@ -20,9 +20,14 @@ export default async function PesananPage() {
   const isLocked = !isOwner && pesananLocked
 
   const supabase = await createClient()
+  // Helpers get an explicit column allowlist rather than `*`: an unfetched
+  // column can never reach the RSC payload, whereas `*` would ship catatan,
+  // pengiriman, dibuat_oleh and tanggal_pengiriman to the browser even when the
+  // UI hides them. Same defense-in-depth rule as the price columns — see the
+  // per-role selects in `[id]/page.tsx`.
   const select = isOwner
     ? `*, pelanggan(nama, alamat), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`
-    : `*, pelanggan(nama, alamat), items:item_pesanan(diambil_oleh_helper)`
+    : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), items:item_pesanan(diambil_oleh_helper)`
 
   let pesananQuery = supabase.from('pesanan').select(select)
 
@@ -35,8 +40,8 @@ export default async function PesananPage() {
     .order('created_at', { ascending: false })
     .returns<PesananWithRelations[]>()
 
-  // Helpers must never receive tanggal_pengiriman in the RSC payload sent to
-  // the browser, even though the UI hides it — same pattern as price data.
+  // The helper select above already omits tanggal_pengiriman, so nothing is
+  // stripped here — this only fills the field the shared type requires.
   const visiblePesananList = isOwner
     ? (pesananList ?? [])
     : (pesananList ?? []).map((p) => ({ ...p, tanggal_pengiriman: null }))
