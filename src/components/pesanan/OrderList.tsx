@@ -34,7 +34,9 @@ const PAGE_SIZE = 10
 
 export function OrderList({ pesananList, isOwner }: OrderListProps) {
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<StatusPesanan | 'semua'>('semua')
+  const [status, setStatus] = useState<StatusPesanan | 'semua'>(
+    isOwner ? 'diproses' : 'semua'
+  )
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)

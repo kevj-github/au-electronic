@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, X } from 'lucide-react'
 import { createPesanan } from '@/app/(app)/pesanan/actions'
@@ -23,6 +23,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
 
   const [pelangganId, setPelangganId] = useState<string>('')
   const [namaPelanggan, setNamaPelanggan] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [catatan, setCatatan] = useState('')
   const [tanggalPengiriman, setTanggalPengiriman] = useState('')
   const [items, setItems] = useState<LineItem[]>([])
@@ -54,15 +55,36 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
     (sum, i) => sum + i.qty * i.harga_satuan,
     0
   )
+  const pelangganSuggestions = useMemo(() => {
+    const q = namaPelanggan.trim().toLowerCase()
+    if (!q || pelangganId) return []
+
+    return pelangganList
+      .filter((p) => p.nama.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const aStarts = a.nama.toLowerCase().startsWith(q) ? 0 : 1
+        const bStarts = b.nama.toLowerCase().startsWith(q) ? 0 : 1
+        return aStarts - bStarts || a.nama.localeCompare(b.nama)
+      })
+      .slice(0, 8)
+  }, [namaPelanggan, pelangganId, pelangganList])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
+    const namaInput = namaPelanggan.trim()
+    const matchedPelanggan = !pelangganId
+      ? pelangganList.find(
+          (p) => p.nama.trim().toLowerCase() === namaInput.toLowerCase()
+        )
+      : null
+    const resolvedPelangganId = pelangganId || matchedPelanggan?.id || null
+
     const result = await createPesanan({
-      pelanggan_id: pelangganId || null,
-      nama_pelanggan: !pelangganId ? namaPelanggan || null : null,
+      pelanggan_id: resolvedPelangganId,
+      nama_pelanggan: resolvedPelangganId ? null : namaInput || null,
       catatan: catatan || null,
       tanggal_pengiriman: isOwner ? tanggalPengiriman || null : null,
       items: items.map((i) => ({
@@ -109,15 +131,55 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           </div>
           <div className="space-y-2">
             <Label>Atau ketik nama langsung</Label>
-            <Input
-              value={namaPelanggan}
-              onChange={(e) => {
-                setNamaPelanggan(e.target.value)
-                if (e.target.value) setPelangganId('')
-              }}
-              placeholder="Nama pelanggan baru..."
-              disabled={!!pelangganId}
-            />
+            <div className="relative">
+              <Input
+                value={namaPelanggan}
+                onChange={(e) => {
+                  setNamaPelanggan(e.target.value)
+                  if (e.target.value) {
+                    setPelangganId('')
+                    setShowSuggestions(true)
+                  } else {
+                    setShowSuggestions(false)
+                  }
+                }}
+                onFocus={() => {
+                  if (namaPelanggan.trim()) setShowSuggestions(true)
+                }}
+                onBlur={() => setShowSuggestions(false)}
+                placeholder="Nama pelanggan baru..."
+                disabled={!!pelangganId}
+                autoComplete="off"
+              />
+
+              {showSuggestions && pelangganSuggestions.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full rounded-md border bg-background shadow-md">
+                  <ul className="max-h-56 overflow-auto py-1">
+                    {pelangganSuggestions.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            setPelangganId(p.id)
+                            setNamaPelanggan('')
+                            setShowSuggestions(false)
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                        >
+                          <span className="block">{p.nama}</span>
+                          {p.alamat && (
+                            <span className="block text-xs text-muted-foreground">
+                              {p.alamat}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
