@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { pdf } from '@react-pdf/renderer'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
-import { Printer, Copy, Check, Eye } from 'lucide-react'
+import { Printer, Copy, Check, Eye, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatWhatsapp } from '@/components/invoice/whatsapp'
 import { getInvoiceData } from '@/app/(app)/pesanan/actions'
@@ -72,6 +72,7 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
   const [pdfLoading, setPdfLoading] = useState(false)
   const [epsonLoading, setEpsonLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hasHargaBelumDiisi = data.items.some((item) => item.hargaSatuan <= 0)
 
   // Always pull the latest saved state at generation time so the document never
   // reflects a stale render-time prop (e.g. a delivery date edited moments ago,
@@ -224,6 +225,12 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
   return (
     <div>
       <div className="flex flex-wrap gap-2">
+        {hasHargaBelumDiisi && (
+          <p className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+            <AlertTriangle className="size-3.5" />
+            Ada item yang harga satuannya belum diisi.
+          </p>
+        )}
         <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfLoading}>
           <Printer className="size-4" />
           {pdfLoading ? 'Memuat...' : 'Cetak PDF'}
