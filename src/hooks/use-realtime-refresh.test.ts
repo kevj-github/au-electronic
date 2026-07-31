@@ -12,6 +12,10 @@ let capturedAuthListener: ((event: string, session: { access_token: string } | n
 const removeChannel = vi.fn()
 // Mirrors the real supabase-js chaining: .channel().on() and .subscribe()
 // both return the same channel object, so `channel` ends up truthy.
+// Must stay `let`: the annotation references `typeof on`/`typeof subscribe`,
+// while those two close over `channelObj` — declaring it as a `const` after
+// them makes the type inference circular.
+// eslint-disable-next-line prefer-const
 let channelObj: { on: typeof on; subscribe: typeof subscribe }
 const subscribe = vi.fn(() => channelObj)
 const on = vi.fn((_event: string, _config: unknown, callback: () => void) => {

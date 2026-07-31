@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    name: Lint, test, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Node 20 matches the `@types/node: ^20` dev dependency and satisfies
+      # Next.js 16's minimum supported runtime.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test:run
+
+      # `npm run build` is the ONLY check that catches a sync export in a
+      # 'use server' file ("Server Actions must be async functions") — see
+      # CLAUDE.md. It must run on every push, never just locally.
+      #
+      # The Supabase clients are constructed at build time, so the three env
+      # vars from .env.example must be present. Real credentials are NOT
+      # required to type-check and compile: repository secrets are used when
+      # configured, otherwise harmless placeholders keep the build green.
+      - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key' }}
+        run: npm run build

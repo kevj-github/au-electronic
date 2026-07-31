@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
-import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns'
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
@@ -60,9 +60,17 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
   }, [pesananList, query, status, dateFrom, dateTo])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  useEffect(() => {
+
+  // Reset to the first page whenever the filters change. This adjusts state
+  // during render (React's recommended pattern) rather than in an effect —
+  // an effect would commit the stale page first, then cascade a second render.
+  const filterKey = JSON.stringify([query, status, dateFrom, dateTo])
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey)
     setPage(1)
-  }, [query, status, dateFrom, dateTo])
+  }
+
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   if (pesananList.length === 0) {

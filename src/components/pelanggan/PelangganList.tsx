@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -36,9 +36,17 @@ export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
   }, [pelangganList, query, tipe])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  useEffect(() => {
+
+  // Reset to the first page whenever the filters change. This adjusts state
+  // during render (React's recommended pattern) rather than in an effect —
+  // an effect would commit the stale page first, then cascade a second render.
+  const filterKey = JSON.stringify([query, tipe])
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey)
     setPage(1)
-  }, [query, tipe])
+  }
+
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   if (pelangganList.length === 0) {
