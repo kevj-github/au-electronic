@@ -68,6 +68,31 @@ describe('buildEscP', () => {
     expect(out).toContain('1.325.000')
   })
 
+  it('prints the columns as NO CHECK QTY NAMA HARGA JUMLAH', () => {
+    const head = visible(buildEscP(base))
+      .split('\n')
+      .find((l) => l.includes('NAMA BARANG'))!
+    expect(head.replace(/\s+/g, ' ').trim()).toBe(
+      'NO CHECK QTY NAMA BARANG HARGA(Rp) JUMLAH(Rp)'
+    )
+    // CHECK is a hand-ticked box between NO and QTY, so the qty of the first
+    // item must sit to the right of where the CHECK header starts.
+    const firstItem = visible(buildEscP(base))
+      .split('\n')
+      .find((l) => l.includes('RELAY PTC'))!
+    expect(firstItem.indexOf('10')).toBeGreaterThan(head.indexOf('CHECK'))
+    expect(firstItem.indexOf('RELAY PTC')).toBe(head.indexOf('NAMA BARANG'))
+  })
+
+  it('right-aligns SUBTOTAL and TOTAL under the JUMLAH column', () => {
+    const lines = visible(buildEscP(base)).split('\n')
+    const head = lines.find((l) => l.includes('JUMLAH(Rp)'))!
+    const jumlahEnd = head.indexOf('JUMLAH(Rp)') + 'JUMLAH(Rp)'.length
+    for (const label of ['SUBTOTAL :', 'TOTAL :']) {
+      expect(lines.find((l) => l.includes(label))!.trimEnd().length).toBe(jumlahEnd)
+    }
+  })
+
   it('keeps every printed line within 79 columns', () => {
     for (const page of pages(buildEscP(base))) {
       for (const line of page) expect(line.length).toBeLessThanOrEqual(79)

@@ -18,15 +18,18 @@ const LF = '\n'
 // Keep everything inside 79 columns so nothing lands in the tractor-hole strip.
 const WIDTH = 79
 
-// Column character widths; fields are joined with single spaces (5 separators).
-// 3 + 5 + 34 + 13 + 13 + 6 = 74, + 5 separators = 79 <= 79.
+// Column character widths, in print order: NO CHECK QTY NAMA HARGA JUMLAH.
+// Fields are joined with single spaces (5 separators).
+// 3 + 6 + 5 + 34 + 13 + 13 = 74, + 5 separators = 79 <= 79.
 // QTY holds 5 digits and the amount columns 13 characters ("1.234.567.890"), so
 // realistic values never reach the overflow marker in `padStart`.
-const COL = { no: 3, qty: 5, nama: 34, harga: 13, jumlah: 13, check: 6 } as const
+const COL = { no: 3, check: 6, qty: 5, nama: 34, harga: 13, jumlah: 13 } as const
 
 // Column at which the JUMLAH field ends; SUBTOTAL/TOTAL are right-aligned here
-// so the amounts line up under the column they total.
-const AMOUNT_END = COL.no + 1 + COL.qty + 1 + COL.nama + 1 + COL.harga + 1 + COL.jumlah
+// so the amounts line up under the column they total. JUMLAH is the last column,
+// so this is the full line width.
+const AMOUNT_END =
+  COL.no + 1 + COL.check + 1 + COL.qty + 1 + COL.nama + 1 + COL.harga + 1 + COL.jumlah
 
 // Fixed line costs per page, used by the pagination budget below.
 const TABLE_HEAD_LINES = 3 // '=' rule + column header row + '-' rule
@@ -77,14 +80,15 @@ function padStart(s: string, n: number): string {
 }
 
 // One fixed-width table row (used for both the header row and item rows).
-function row(no: string, qty: string, nama: string, harga: string, jumlah: string, check: string): string {
+// Argument order mirrors the printed column order.
+function row(no: string, check: string, qty: string, nama: string, harga: string, jumlah: string): string {
   return [
     padEnd(no, COL.no),
+    padEnd(check, COL.check),
     padStart(qty, COL.qty),
     padEnd(nama, COL.nama),
     padStart(harga, COL.harga),
     padStart(jumlah, COL.jumlah),
-    padEnd(check, COL.check),
   ].join(' ')
 }
 
@@ -105,14 +109,14 @@ function itemLines(item: InvoiceData['items'][number], index: number): string {
   const lines: string[] = [
     row(
       String(index + 1),
+      '', // CHECK stays blank — it's ticked by hand on the printed form
       String(item.qty),
       chunks[0],
       formatNumberID(item.hargaSatuan),
       formatNumberID(item.subtotal),
-      '',
     ),
   ]
-  for (let i = 1; i < chunks.length; i++) lines.push(row('', '', chunks[i], '', '', ''))
+  for (let i = 1; i < chunks.length; i++) lines.push(row('', '', '', chunks[i], '', ''))
   return lines.join(LF)
 }
 
@@ -289,7 +293,7 @@ export function buildEscP(input: InvoiceData): string {
     const parts = [
       header,
       '='.repeat(WIDTH),
-      row('NO', 'QTY', 'NAMA BARANG', 'HARGA(Rp)', 'JUMLAH(Rp)', 'CHECK'),
+      row('NO', 'CHECK', 'QTY', 'NAMA BARANG', 'HARGA(Rp)', 'JUMLAH(Rp)'),
       '-'.repeat(WIDTH),
       ...pageItems.map((item, i) => itemLines(item, startIndex + i)),
       '',
