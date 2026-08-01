@@ -263,7 +263,6 @@ export async function addItemToPesanan(pesananId: string, item: AddItemInput): P
 
 export async function updateItemDetails(
   itemId: string,
-  pesananId: string,
   changes: { nama_barang: string; qty: number }
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
@@ -286,7 +285,7 @@ export async function updateItemDetails(
   return {}
 }
 
-export async function deleteItemFromPesanan(itemId: string, pesananId: string): Promise<{ error?: string }> {
+export async function deleteItemFromPesanan(itemId: string): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
@@ -432,7 +431,6 @@ export async function getInvoiceData(
 // generated column, so updating harga_satuan recomputes it automatically.
 export async function updateItemHarga(
   itemId: string,
-  pesananId: string,
   harga_satuan: number
 ): Promise<{ error?: string }> {
   const supabase = await createClient()

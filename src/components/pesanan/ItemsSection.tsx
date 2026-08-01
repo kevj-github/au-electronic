@@ -92,7 +92,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     if (value === (item.harga_satuan ?? 0)) return
     setSavingPriceId(item.id)
     setError(null)
-    const result = await updateItemHarga(item.id, pesananId, value)
+    const result = await updateItemHarga(item.id, value)
     setSavingPriceId(null)
     if (result?.error) { setError(result.error); return }
     router.refresh()
@@ -115,7 +115,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     if (!qty || qty < 1) return
     setLoadingId(itemId)
     setError(null)
-    const result = await updateItemDetails(itemId, pesananId, { nama_barang: editState.nama_barang, qty })
+    const result = await updateItemDetails(itemId, { nama_barang: editState.nama_barang, qty })
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
     setEditingId(null)
@@ -125,7 +125,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
   async function confirmDelete(itemId: string) {
     setLoadingId(itemId)
     setError(null)
-    const result = await deleteItemFromPesanan(itemId, pesananId)
+    const result = await deleteItemFromPesanan(itemId)
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
     setDeletingId(null)
