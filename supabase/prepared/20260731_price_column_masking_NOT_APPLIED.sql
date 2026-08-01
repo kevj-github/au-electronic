@@ -1,26 +1,32 @@
 -- ============================================================================
--- PRICE / PAYMENT COLUMN MASKING  —  *** ONLY SECTION 1 REMAINS ***
+-- PRICE / PAYMENT COLUMN MASKING  —  *** FULLY APPLIED — HISTORICAL RECORD ***
 -- ============================================================================
 --
--- STATUS as of 2026-08-01:
---   * PHASE 1 (sections 2 + 3 below: the owner views and their INSTEAD OF write
---     triggers) is APPLIED LIVE — see
---     supabase/migrations/20260801104617_add_owner_price_views_phase1.sql.
---   * PHASE 2 (the app-code reroute listed below) is DONE. All four owner read
---     paths now select from item_pesanan_owner / pembayaran_owner.
---   * PHASE 3 — section 1, the REVOKE — is STILL NOT APPLIED. It is the only
---     part left, and it is the part that actually closes the hole.
+-- STATUS as of 2026-08-01: ALL THREE PHASES ARE LIVE. Nothing here is left to
+-- apply. This file is kept for its rationale and threat model; the applied SQL
+-- lives in supabase/migrations/:
+--   * PHASE 1  20260801104617_add_owner_price_views_phase1.sql
+--              (sections 2 + 3 below: owner views + INSTEAD OF write trigger)
+--   * PHASE 2  commit 79ac2f9 — the four owner read paths listed below now
+--              select from item_pesanan_owner / pembayaran_owner, deployed to
+--              production before phase 3 was applied.
+--   * PHASE 3  20260801111127_price_column_masking_phase3_revoke.sql
+--              (section 1 below, the REVOKE — the step that closes the leak)
 --
--- TO FINISH: apply ONLY section 1 (the revoke/re-grant block), and only once
--- the phase 2 reroute is deployed to production. Until then a helper can still
--- read harga_satuan/subtotal for every order via a direct REST call.
+-- Verified after phase 3, against live data:
+--   * helper selecting harga_satuan from the base table -> 42501 permission
+--     denied. The leak is closed.
+--   * owner via the views -> unchanged: 1458 items, subtotal sum 583.671.580.
+--   * production UI as owner -> byte-identical totals before and after the
+--     revoke (order AU.2026.07.00066: Total Rp 9.717.750).
+--   * both write paths still work: updateItemHarga (REST PATCH -> 204) and
+--     recordPembayaran/deletePembayaran (insert + pesanan_id lookup + delete).
 --
--- BEFORE APPLYING SECTION 1, re-verify the two write paths, which still target
--- the base table and are NOT covered by phase 2:
---   * updateItemHarga() in pesanan/actions.ts  — `.update({ harga_satuan })`
---   * payment-actions.ts                       — inserts/deletes on pembayaran
--- The revoke only removes SELECT, and these writes request no representation
--- back, so they are expected to keep working — but confirm rather than assume.
+-- STILL OPEN — `anon` was never in scope of section 1 and still holds column
+-- SELECT on harga_satuan/subtotal/jumlah. It leaks nothing today because every
+-- relevant RLS policy requires a signed-in user (an anon REST call returns [],
+-- verified), but loosening any of those policies would expose the columns
+-- immediately. Revoking from anon too is the natural follow-up.
 --
 -- CORRECTION to the threat model below: the pembayaran exposure is narrower
 -- than originally written. `pembayaran_select` is
