@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
 import { formatNumberID } from '@/lib/utils'
-import type { InvoiceData } from '@/lib/invoice-data'
+import { shipmentText, type InvoiceData } from '@/lib/invoice-data'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 
@@ -65,12 +65,13 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     borderBottom: '1px solid #f3f4f6',
   },
+  // Print order: NO CHECK QTY NAMA HARGA JUMLAH.
   colNo: { width: 24, paddingRight: 3 },
+  colCheck: { width: 70, textAlign: 'center', paddingRight: 6 },
   colQty: { width: 44, textAlign: 'right', paddingRight: 6 },
   colNama: { flex: 1, paddingRight: 6 },
   colHarga: { width: 100, textAlign: 'right', paddingRight: 6 },
   colSubtotal: { width: 92, textAlign: 'right' },
-  colCheck: { width: 70, textAlign: 'center', paddingLeft: 6 },
   pageSubtotalRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -170,11 +171,11 @@ function PageHeader({
 
       <View style={styles.tableHeader}>
         <Text style={styles.colNo}>NO</Text>
+        <Text style={styles.colCheck}>CHECK BARANG</Text>
         <Text style={styles.colQty}>QTY</Text>
         <Text style={styles.colNama}>NAMA BARANG</Text>
         <Text style={styles.colHarga}>HARGA SATUAN (Rp)</Text>
         <Text style={styles.colSubtotal}>JUMLAH (Rp)</Text>
-        <Text style={styles.colCheck}>CHECK BARANG</Text>
       </View>
     </>
   )
@@ -182,6 +183,7 @@ function PageHeader({
 
 export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) {
   const tanggal = format(new Date(data.tanggal), 'd MMM yyyy', { locale: idLocale })
+  const pengirimanText = shipmentText(data)
   const tanggalPengiriman = data.tanggalPengiriman
     ? format(new Date(data.tanggalPengiriman), 'd MMM yyyy', { locale: idLocale })
     : undefined
@@ -218,11 +220,12 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
             {pageItems.map((item, i) => (
               <View key={i} style={styles.tableRow}>
                 <Text style={styles.colNo}>{startIndex + i + 1}</Text>
+                {/* Blank — ticked by hand on the printed sheet. */}
+                <Text style={styles.colCheck} />
                 <Text style={styles.colQty}>{item.qty}</Text>
                 <Text style={styles.colNama}>{item.namaBarang.toUpperCase()}</Text>
                 <Text style={styles.colHarga}>{formatNumberID(item.hargaSatuan)}</Text>
                 <Text style={styles.colSubtotal}>{formatNumberID(item.subtotal)}</Text>
-                <Text style={styles.colCheck} />
               </View>
             ))}
 
@@ -230,7 +233,6 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
             <View style={styles.pageSubtotalRow}>
               <Text style={styles.pageSubtotalLabel}>SUBTOTAL</Text>
               <Text style={styles.pageSubtotalValue}>{formatNumberID(pageSubtotal)}</Text>
-              <View style={styles.colCheck} />
             </View>
 
             {/* [perhatian] + [signature] on every page; [total] on the last page only */}
@@ -243,8 +245,8 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
               </View>
               <View style={styles.signatureBlock}>
                 <View style={styles.signatureLine}>
-                  {data.pengiriman && (
-                    <Text style={styles.signatureText}>{data.pengiriman}</Text>
+                  {pengirimanText && (
+                    <Text style={styles.signatureText}>{pengirimanText}</Text>
                   )}
                 </View>
                 <Text>Penerima,</Text>

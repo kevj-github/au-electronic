@@ -1,7 +1,7 @@
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 import { formatNumberID } from '@/lib/utils'
-import type { InvoiceData } from '@/lib/invoice-data'
+import { shipmentText, type InvoiceData } from '@/lib/invoice-data'
 
 // ESC/P control codes for the 9-pin Epson LX-310.
 const ESC = '\x1B'
@@ -18,15 +18,18 @@ const LF = '\n'
 // Keep everything inside 79 columns so nothing lands in the tractor-hole strip.
 const WIDTH = 79
 
-// Column character widths; fields are joined with single spaces (5 separators).
-// 3 + 5 + 34 + 13 + 13 + 6 = 74, + 5 separators = 79 <= 79.
+// Column character widths, in print order: NO CHECK QTY NAMA HARGA JUMLAH.
+// Fields are joined with single spaces (5 separators).
+// 3 + 6 + 5 + 34 + 13 + 13 = 74, + 5 separators = 79 <= 79.
 // QTY holds 5 digits and the amount columns 13 characters ("1.234.567.890"), so
 // realistic values never reach the overflow marker in `padStart`.
-const COL = { no: 3, qty: 5, nama: 34, harga: 13, jumlah: 13, check: 6 } as const
+const COL = { no: 3, check: 6, qty: 5, nama: 34, harga: 13, jumlah: 13 } as const
 
 // Column at which the JUMLAH field ends; SUBTOTAL/TOTAL are right-aligned here
-// so the amounts line up under the column they total.
-const AMOUNT_END = COL.no + 1 + COL.qty + 1 + COL.nama + 1 + COL.harga + 1 + COL.jumlah
+// so the amounts line up under the column they total. JUMLAH is the last column,
+// so this is the full line width.
+const AMOUNT_END =
+  COL.no + 1 + COL.check + 1 + COL.qty + 1 + COL.nama + 1 + COL.harga + 1 + COL.jumlah
 
 // Fixed line costs per page, used by the pagination budget below.
 const TABLE_HEAD_LINES = 3 // '=' rule + column header row + '-' rule
@@ -77,14 +80,15 @@ function padStart(s: string, n: number): string {
 }
 
 // One fixed-width table row (used for both the header row and item rows).
-function row(no: string, qty: string, nama: string, harga: string, jumlah: string, check: string): string {
+// Argument order mirrors the printed column order.
+function row(no: string, check: string, qty: string, nama: string, harga: string, jumlah: string): string {
   return [
     padEnd(no, COL.no),
+    padEnd(check, COL.check),
     padStart(qty, COL.qty),
     padEnd(nama, COL.nama),
     padStart(harga, COL.harga),
     padStart(jumlah, COL.jumlah),
-    padEnd(check, COL.check),
   ].join(' ')
 }
 
@@ -105,18 +109,28 @@ function itemLines(item: InvoiceData['items'][number], index: number): string {
   const lines: string[] = [
     row(
       String(index + 1),
+      '', // CHECK stays blank — it's ticked by hand on the printed form
       String(item.qty),
       chunks[0],
       formatNumberID(item.hargaSatuan),
       formatNumberID(item.subtotal),
-      '',
     ),
   ]
-  for (let i = 1; i < chunks.length; i++) lines.push(row('', '', chunks[i], '', '', ''))
+  for (let i = 1; i < chunks.length; i++) lines.push(row('', '', '', chunks[i], '', ''))
   return lines.join(LF)
 }
 
 const KEPADA_LABEL = 'Kepada Yth: '
+
+/**
+ * "Hal. 2/3", printed centred on the Kepada line when a receipt runs to more
+ * than one form. The index is padded to the width of the total so every page's
+ * label is the same length — the pagination budget below depends on the header
+ * having a stable height whichever page it is rendered for.
+ */
+function pageLabelText(index: number, total: number): string {
+  return `Hal. ${String(index).padStart(String(total).length)}/${total}`
+}
 
 /**
  * Shop block on the left, order dates on the right, then the customer on its
@@ -124,7 +138,12 @@ const KEPADA_LABEL = 'Kepada Yth: '
  * column as "Tgl. Pengiriman:" above it, then flows across the full width so a
  * long name+address wraps onto continuation lines rather than being truncated.
  */
-function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: string): string {
+function headerBlock(
+  data: InvoiceData,
+  tanggal: string,
+  tanggalPengiriman: string,
+  pageLabel?: string,
+): string {
   const shopName = 'AU ELECTRONIC  spare parts'
   const left = [
     shopName,
@@ -158,13 +177,43 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
     : data.namaPelanggan
   const anchorCol = Math.max(0, WIDTH - pengirimanLine.length)
   const full = KEPADA_LABEL + kepada
-  if (anchorCol + full.length <= WIDTH) {
-    lines.push(' '.repeat(anchorCol) + full)
-  } else {
-    for (let i = 0; i < full.length; i += WIDTH) {
-      const chunk = full.slice(i, i + WIDTH)
-      lines.push(' '.repeat(WIDTH - chunk.length) + chunk)
+
+  if (!pageLabel) {
+    if (anchorCol + full.length <= WIDTH) {
+      lines.push(' '.repeat(anchorCol) + full)
+    } else {
+      for (let i = 0; i < full.length; i += WIDTH) {
+        const chunk = full.slice(i, i + WIDTH)
+        lines.push(' '.repeat(WIDTH - chunk.length) + chunk)
+      }
     }
+    return lines.join(LF)
+  }
+
+  // Multi-page: the page label sits centred on the same line as "Kepada Yth:".
+  // Rather than overwriting whatever is under it, the label gets a reserved slot
+  // and the customer text on that first line starts after it — so a long
+  // name+address wraps around the label instead of colliding with it.
+  const slotStart = Math.floor((WIDTH - pageLabel.length) / 2)
+  const slotEnd = slotStart + pageLabel.length
+  const textStart = Math.max(anchorCol, slotEnd + 1)
+  const withLabel = (chunk: string) =>
+    ' '.repeat(slotStart) + pageLabel + ' '.repeat(textStart - slotEnd) + chunk
+
+  // The label leaves only ~30 columns for the customer on the first line, so
+  // break on the last space that fits rather than mid-word (the full-width
+  // continuation lines below have room to spare and keep the plain slice).
+  const capacity = WIDTH - textStart
+  let firstCapacity = capacity
+  if (full.length > capacity) {
+    const lastSpace = full.lastIndexOf(' ', capacity)
+    if (lastSpace > KEPADA_LABEL.length) firstCapacity = lastSpace + 1
+  }
+  lines.push(withLabel(full.slice(0, firstCapacity).trimEnd()))
+  // Remainder wraps full-width, right-aligned to the far margin as above.
+  for (let i = firstCapacity; i < full.length; i += WIDTH) {
+    const chunk = full.slice(i, i + WIDTH)
+    lines.push(' '.repeat(WIDTH - chunk.length) + chunk)
   }
 
   return lines.join(LF)
@@ -175,8 +224,8 @@ function headerBlock(data: InvoiceData, tanggal: string, tanggalPengiriman: stri
 // empty pengiriman leaves the rule blank for a handwritten signature. A name
 // wider than the rule widens the rule to fit rather than clip.
 const SIGNATURE_RULE = '_______________________' // 23 underscores
-function signatureLine(pengiriman: string | undefined): string {
-  const text = pengiriman?.trim()
+function signatureLine(data: InvoiceData): string {
+  const text = shipmentText(data)
   if (!text) return SIGNATURE_RULE
   if (text.length >= SIGNATURE_RULE.length) return text
   const left = Math.floor((SIGNATURE_RULE.length - text.length) / 2)
@@ -200,7 +249,7 @@ function footerBlock(data: InvoiceData, isLastPage: boolean): string {
     penerima,
     '',
     '',
-    signatureLine(data.pengiriman),
+    signatureLine(data),
     // Trailing blank so the signature rule is line-feed-terminated before the
     // page's form-feed. The LX-310 double-strikes a line ended by FF instead of
     // LF, which printed the rule as two lines. Do not remove.
@@ -271,25 +320,48 @@ export function buildEscP(input: InvoiceData): string {
     ? format(new Date(data.tanggalPengiriman), 'd MMM yyyy', { locale: idLocale })
     : 'Belum ditentukan'
 
-  // The header is identical on every page, so measure it once.
-  const header = headerBlock(data, tanggal, tanggalPengiriman)
-  const headerLines = header.split(LF).length
-  const bodyBudget = LINES_PER_PAGE - headerLines - TABLE_HEAD_LINES - SUBTOTAL_LINES - FOOTER_LINES
-  const lastBudget = bodyBudget - TOTAL_LINES
+  const buildHeader = (pageLabel?: string) =>
+    headerBlock(data, tanggal, tanggalPengiriman, pageLabel)
 
-  const chunks = paginate(data.items, bodyBudget, lastBudget)
+  // The header is the same height on every page, so measuring one is enough.
+  const splitPages = (header: string) => {
+    const headerLines = header.split(LF).length
+    const bodyBudget =
+      LINES_PER_PAGE - headerLines - TABLE_HEAD_LINES - SUBTOTAL_LINES - FOOTER_LINES
+    return paginate(data.items, bodyBudget, bodyBudget - TOTAL_LINES)
+  }
+
+  // Whether a page label is printed depends on the page count, and the label can
+  // itself cost a header line (only when a long name+address has to wrap around
+  // it), which can change the page count. Settle it: paginate unlabelled to see
+  // if this is even a multi-page receipt, then re-paginate with a label of the
+  // resulting width. Every page's label is the same width, so the only thing
+  // that can shift it again is the total gaining a digit — one more pass.
+  let chunks = splitPages(buildHeader())
+  if (chunks.length > 1) {
+    let label = pageLabelText(chunks.length, chunks.length)
+    chunks = splitPages(buildHeader(label))
+    const settled = pageLabelText(chunks.length, chunks.length)
+    if (chunks.length > 1 && settled.length !== label.length) {
+      label = settled
+      chunks = splitPages(buildHeader(label))
+    }
+  }
+  const totalPages = chunks.length
 
   let out = INIT + PAGE_LENGTH
   let startIndex = 0
 
   chunks.forEach((pageItems, pageIndex) => {
-    const isLast = pageIndex === chunks.length - 1
+    const isLast = pageIndex === totalPages - 1
     const pageSubtotal = pageItems.reduce((s, it) => s + it.subtotal, 0)
 
     const parts = [
-      header,
+      buildHeader(
+        totalPages > 1 ? pageLabelText(pageIndex + 1, totalPages) : undefined,
+      ),
       '='.repeat(WIDTH),
-      row('NO', 'QTY', 'NAMA BARANG', 'HARGA(Rp)', 'JUMLAH(Rp)', 'CHECK'),
+      row('NO', 'CHECK', 'QTY', 'NAMA BARANG', 'HARGA(Rp)', 'JUMLAH(Rp)'),
       '-'.repeat(WIDTH),
       ...pageItems.map((item, i) => itemLines(item, startIndex + i)),
       '',

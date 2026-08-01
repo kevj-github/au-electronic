@@ -4,6 +4,7 @@ import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { TanggalPengirimanEditor } from '@/components/pesanan/TanggalPengirimanEditor'
 import { PengirimanEditor } from '@/components/pesanan/PengirimanEditor'
+import { CollyEditor } from '@/components/pesanan/CollyEditor'
 import { StatusBadge } from '@/components/pesanan/StatusBadge'
 import { StatusTransitionButtons } from '@/components/pesanan/StatusTransitionButtons'
 import { DocumentButtons } from '@/components/pesanan/DocumentButtons'
@@ -113,6 +114,7 @@ export default async function PesananDetailPage({
         created_at: pesanan.created_at,
         tanggal_pengiriman: pesanan.tanggal_pengiriman,
         pengiriman: pesanan.pengiriman,
+        colly: pesanan.colly,
         nama_pelanggan: pesanan.nama_pelanggan,
         pelanggan: pesanan.pelanggan,
         items: ownerItems,
@@ -172,6 +174,10 @@ export default async function PesananDetailPage({
                   pesananId={pesanan.id}
                   initialValue={pesanan.pengiriman}
                 />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Colly:</span>
+                <CollyEditor pesananId={pesanan.id} initialValue={pesanan.colly} />
               </div>
             </div>
           )}
