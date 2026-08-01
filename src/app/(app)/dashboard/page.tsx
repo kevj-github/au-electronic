@@ -27,7 +27,9 @@ export default async function DashboardPage({
   const filterFrom = from ?? defaultFrom
   const filterTo = to ?? defaultTo
 
-  const select = 'id, kode_pesanan, status, created_at, nama_pelanggan, catatan, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)'
+  // This page is owner-only (redirect above), so the priced columns are read
+  // through the owner-gated views — keeps working after the phase 3 revoke.
+  const select = 'id, kode_pesanan, status, created_at, nama_pelanggan, catatan, pelanggan(nama), items:item_pesanan_owner(subtotal, diambil_oleh_helper), pembayaran:pembayaran_owner(jumlah)'
 
   // Both queries are independent — run them in parallel.
   const [{ data: allPesanan }, { data: periodPesanan }] = await Promise.all([

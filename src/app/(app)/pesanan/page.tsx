@@ -25,8 +25,11 @@ export default async function PesananPage() {
   // pengiriman, dibuat_oleh and tanggal_pengiriman to the browser even when the
   // UI hides them. Same defense-in-depth rule as the price columns — see the
   // per-role selects in `[id]/page.tsx`.
+  // Owner branch reads priced columns via the owner-gated views so it survives
+  // the phase 3 column revoke; the helper branch selects no priced columns and
+  // stays on the base table.
   const select = isOwner
-    ? `*, pelanggan(nama, alamat), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`
+    ? `*, pelanggan(nama, alamat), items:item_pesanan_owner(subtotal, diambil_oleh_helper), pembayaran:pembayaran_owner(jumlah)`
     : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), items:item_pesanan(diambil_oleh_helper)`
 
   let pesananQuery = supabase.from('pesanan').select(select)

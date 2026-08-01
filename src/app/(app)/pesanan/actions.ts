@@ -411,7 +411,9 @@ export async function getInvoiceData(
     supabase
       .from('pesanan')
       .select(
-        'kode_pesanan, created_at, tanggal_pengiriman, pengiriman, colly, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan(nama_barang, qty, harga_satuan, subtotal), pembayaran(jumlah)'
+        // Priced columns come from the owner-gated views so this survives the
+        // phase 3 column revoke; requireOwner above is the app-layer gate.
+        'kode_pesanan, created_at, tanggal_pengiriman, pengiriman, colly, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan_owner(nama_barang, qty, harga_satuan, subtotal), pembayaran:pembayaran_owner(jumlah)'
       )
       .eq('id', pesananId)
       .single<InvoiceSource>(),

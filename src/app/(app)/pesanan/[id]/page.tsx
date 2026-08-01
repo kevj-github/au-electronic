@@ -66,8 +66,13 @@ export default async function PesananDetailPage({
     : 'id, nama_barang, qty, diambil_oleh_helper, jumlah_diambil'
   // Helpers see nama + alamat but not telepon (owner-only); don't fetch the
   // columns they can't see (defense-in-depth — same rule as the price columns).
+  // The owner branch reads the priced columns through the owner-gated views
+  // (item_pesanan_owner / pembayaran_owner) rather than the base tables, so it
+  // keeps working once phase 3 revokes column SELECT from `authenticated`. The
+  // views re-check the caller's role themselves and return zero rows otherwise.
+  // The helper branch stays on the base table — it selects no priced columns.
   const pesananSelect = isOwner
-    ? `*, pelanggan(*), items:item_pesanan(${itemsSelect}), pembayaran(*)`
+    ? `*, pelanggan(*), items:item_pesanan_owner(${itemsSelect}), pembayaran:pembayaran_owner(*)`
     : `*, pelanggan(nama, alamat), items:item_pesanan(${itemsSelect})`
 
   // Fetch pesanan and lock setting in parallel.

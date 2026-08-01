@@ -1,10 +1,34 @@
 -- ============================================================================
--- PRICE / PAYMENT COLUMN MASKING  —  *** NOT APPLIED ***
+-- PRICE / PAYMENT COLUMN MASKING  —  *** ONLY SECTION 1 REMAINS ***
 -- ============================================================================
 --
--- THIS FILE IS DELIBERATELY NOT IN supabase/migrations/. Do not apply it until
--- the app-code reroute below is done, or you WILL break the owner's own price
--- and payment views in production.
+-- STATUS as of 2026-08-01:
+--   * PHASE 1 (sections 2 + 3 below: the owner views and their INSTEAD OF write
+--     triggers) is APPLIED LIVE — see
+--     supabase/migrations/20260801104617_add_owner_price_views_phase1.sql.
+--   * PHASE 2 (the app-code reroute listed below) is DONE. All four owner read
+--     paths now select from item_pesanan_owner / pembayaran_owner.
+--   * PHASE 3 — section 1, the REVOKE — is STILL NOT APPLIED. It is the only
+--     part left, and it is the part that actually closes the hole.
+--
+-- TO FINISH: apply ONLY section 1 (the revoke/re-grant block), and only once
+-- the phase 2 reroute is deployed to production. Until then a helper can still
+-- read harga_satuan/subtotal for every order via a direct REST call.
+--
+-- BEFORE APPLYING SECTION 1, re-verify the two write paths, which still target
+-- the base table and are NOT covered by phase 2:
+--   * updateItemHarga() in pesanan/actions.ts  — `.update({ harga_satuan })`
+--   * payment-actions.ts                       — inserts/deletes on pembayaran
+-- The revoke only removes SELECT, and these writes request no representation
+-- back, so they are expected to keep working — but confirm rather than assume.
+--
+-- CORRECTION to the threat model below: the pembayaran exposure is narrower
+-- than originally written. `pembayaran_select` is
+--   dibuat_oleh = auth.uid() OR current_user_role() = 'owner'
+-- so a helper can read `jumlah` only for orders THEY created, not for every
+-- order. The item_pesanan exposure is the severe one and is accurate as
+-- written: `item_pesanan_select` is `current_user_role() IS NOT NULL`, i.e. any
+-- signed-in user reads every row.
 --
 -- ---------------------------------------------------------------------------
 -- The problem it solves
