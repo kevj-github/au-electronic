@@ -35,6 +35,13 @@ function errorMessage(e: unknown): string {
 interface DocumentButtonsProps {
   pesananId: string
   data: InvoiceData
+  /**
+   * How many items are still unticked in the owner's "Dicek pemilik" column
+   * (the leftmost checkbox in the item list). Passed in rather than read from
+   * `data`, because InvoiceData is the document payload shared with the PDF and
+   * ESC/P renderers — checklist progress is UI state, not invoice content.
+   */
+  belumDicekCount: number
 }
 
 // Cache the base64-encoded logo/watermark across clicks — they're static assets,
@@ -67,7 +74,7 @@ async function fetchImageBase64(path: string): Promise<string | undefined> {
   }
 }
 
-export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
+export function DocumentButtons({ pesananId, data, belumDicekCount }: DocumentButtonsProps) {
   const [copying, setCopying] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [epsonLoading, setEpsonLoading] = useState(false)
@@ -229,6 +236,12 @@ export function DocumentButtons({ pesananId, data }: DocumentButtonsProps) {
           <p className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
             <AlertTriangle className="size-3.5" />
             Ada item yang harga satuannya belum diisi.
+          </p>
+        )}
+        {belumDicekCount > 0 && (
+          <p className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+            <AlertTriangle className="size-3.5" />
+            {belumDicekCount} item belum dicek.
           </p>
         )}
         <Button variant="outline" size="sm" onClick={handlePrint} disabled={pdfLoading}>

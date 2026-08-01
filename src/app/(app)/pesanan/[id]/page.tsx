@@ -177,7 +177,13 @@ export default async function PesananDetailPage({
           )}
         </div>
         <div className="flex gap-2 flex-wrap">
-          {isOwner && invoiceData && <DocumentButtons pesananId={pesanan.id} data={invoiceData} />}
+          {isOwner && invoiceData && (
+            <DocumentButtons
+              pesananId={pesanan.id}
+              data={invoiceData}
+              belumDicekCount={totalItems - dicekCount}
+            />
+          )}
           {isOwner && (
             <StatusTransitionButtons
               pesananId={pesanan.id}
