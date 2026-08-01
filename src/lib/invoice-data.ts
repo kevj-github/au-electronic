@@ -12,11 +12,27 @@ export interface InvoiceData {
   namaPelanggan: string
   alamatPelanggan?: string
   pengiriman?: string          // courier/ekspedisi name written on the signature line
+  colly?: number               // package count printed beside pengiriman
   items: InvoiceItem[]
   totalPesanan: number
   totalDibayar: number
   sisaTagihan: number
   catatan: string | null
+}
+
+/**
+ * The shipment text written on the "Penerima," signature line of both documents:
+ * "Exp. Expedisi Jaya ( 3 colly )". Either half may be missing — a pickup order
+ * has neither, in which case the line is left blank for a handwritten signature.
+ * Shared by the PDF and the ESC/P receipt so they never drift apart.
+ */
+export function shipmentText(data: Pick<InvoiceData, 'pengiriman' | 'colly'>): string {
+  const pengiriman = data.pengiriman?.trim()
+  const parts: string[] = []
+  if (pengiriman) parts.push(`Exp. ${pengiriman}`)
+  // Spacing inside the parentheses is deliberate — it is how the shop writes it.
+  if (data.colly && data.colly > 0) parts.push(`( ${data.colly} colly )`)
+  return parts.join(' ')
 }
 
 /** Shape of the owner-visible pesanan row used to build an invoice. */
@@ -26,6 +42,7 @@ export interface InvoiceSource {
   tanggal_pengiriman: string | null
   nama_pelanggan: string | null
   pengiriman: string | null
+  colly: number | null
   pelanggan: { nama: string | null; alamat: string | null } | null
   items: Array<{ nama_barang: string; qty: number; harga_satuan: number; subtotal: number }>
   pembayaran: Array<{ jumlah: number }>
@@ -56,6 +73,7 @@ export function buildInvoiceData(pesanan: InvoiceSource): InvoiceData {
     namaPelanggan: pesanan.pelanggan?.nama ?? pesanan.nama_pelanggan ?? '—',
     alamatPelanggan: pesanan.pelanggan?.alamat ?? undefined,
     pengiriman: pesanan.pengiriman ?? undefined,
+    colly: pesanan.colly ?? undefined,
     items: items.map((i) => ({
       namaBarang: i.nama_barang,
       qty: i.qty,

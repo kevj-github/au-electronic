@@ -363,6 +363,36 @@ export async function updatePengiriman(
 }
 
 /**
+ * Package count handed to the courier, printed as "( N colly )" next to the
+ * pengiriman name on the signature line. Owner-only, like updatePengiriman.
+ */
+export async function updateColly(
+  pesananId: string,
+  value: number | null
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const ownerError = await requireOwner(supabase)
+  if (ownerError) return ownerError
+
+  // Anything that isn't a positive whole number is stored as null (blank), so
+  // the printed line falls back to the pengiriman name on its own. The DB check
+  // constraint enforces the same rule.
+  const colly =
+    value !== null && Number.isInteger(value) && value > 0 ? value : null
+
+  const { error } = await supabase
+    .from('pesanan')
+    .update({ colly })
+    .eq('id', pesananId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pesanan/${pesananId}`)
+  revalidatePath('/pesanan')
+  return {}
+}
+
+/**
  * Fetch the current invoice data straight from the DB. Called at PDF/WhatsApp
  * generation time so the document always reflects the latest saved state,
  * independent of any stale render-time props on the client. Owner-only, since
@@ -382,7 +412,7 @@ export async function getInvoiceData(
     supabase
       .from('pesanan')
       .select(
-        'kode_pesanan, created_at, tanggal_pengiriman, pengiriman, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan(nama_barang, qty, harga_satuan, subtotal), pembayaran(jumlah)'
+        'kode_pesanan, created_at, tanggal_pengiriman, pengiriman, colly, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan(nama_barang, qty, harga_satuan, subtotal), pembayaran(jumlah)'
       )
       .eq('id', pesananId)
       .single<InvoiceSource>(),

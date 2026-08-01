@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
 import { formatNumberID } from '@/lib/utils'
-import type { InvoiceData } from '@/lib/invoice-data'
+import { shipmentText, type InvoiceData } from '@/lib/invoice-data'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 
@@ -183,6 +183,7 @@ function PageHeader({
 
 export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) {
   const tanggal = format(new Date(data.tanggal), 'd MMM yyyy', { locale: idLocale })
+  const pengirimanText = shipmentText(data)
   const tanggalPengiriman = data.tanggalPengiriman
     ? format(new Date(data.tanggalPengiriman), 'd MMM yyyy', { locale: idLocale })
     : undefined
@@ -244,8 +245,8 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
               </View>
               <View style={styles.signatureBlock}>
                 <View style={styles.signatureLine}>
-                  {data.pengiriman && (
-                    <Text style={styles.signatureText}>{data.pengiriman}</Text>
+                  {pengirimanText && (
+                    <Text style={styles.signatureText}>{pengirimanText}</Text>
                   )}
                 </View>
                 <Text>Penerima,</Text>

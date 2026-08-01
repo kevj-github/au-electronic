@@ -184,6 +184,48 @@ describe('buildEscP', () => {
       const out = buildEscP({ ...base, items: items(30, (i) => `Barang ${i + 1}`) })
       expect((out.match(/\x0C/g) ?? []).length).toBe(pages(out).length)
     })
+
+    // --- Page number, centred on the Kepada line ---
+
+    it('prints no page label on a single-page receipt', () => {
+      expect(visible(buildEscP(base))).not.toContain('Hal.')
+    })
+
+    it('numbers each page on the Kepada line, centred', () => {
+      const all = pages(buildEscP({ ...base, items: items(30, (i) => `Barang ${i + 1}`) }))
+      expect(all.length).toBeGreaterThan(1)
+
+      all.forEach((page, i) => {
+        const line = page.find((l) => l.includes('Hal.'))!
+        expect(line).toBeDefined()
+        // Same line as the customer.
+        expect(line).toContain('Kepada Yth:')
+        expect(line).toContain(`Hal. ${i + 1}/${all.length}`)
+        // Centred: the gap before the label matches the gap after it, within the
+        // one column that an odd remainder can leave.
+        const label = `Hal. ${i + 1}/${all.length}`
+        const start = line.indexOf(label)
+        const end = start + label.length
+        expect(Math.abs(start - (79 - end))).toBeLessThanOrEqual(1)
+      })
+    })
+
+    it('keeps the page label clear of a long customer name that has to wrap', () => {
+      const out = buildEscP({
+        ...base,
+        namaPelanggan: 'Toko Sumber Rejeki Makmur Sentosa Abadi',
+        alamatPelanggan: 'Jl. Raya Darmo Permai Selatan No. 88 Blok B2 Surabaya',
+        items: items(30, (i) => `Barang ${i + 1}`),
+      })
+      for (const page of pages(out)) {
+        const line = page.find((l) => l.includes('Hal.'))!
+        // The label is intact — the customer text wrapped around it rather than
+        // overwriting it — and nothing spills past the tractor margin.
+        expect(line).toMatch(/Hal\. \d+\/\d+/)
+        expect(line).toContain('Kepada Yth:')
+        for (const l of page) expect(l.length).toBeLessThanOrEqual(79)
+      }
+    })
   })
 
   // --- Number columns must not lose digits ---
@@ -298,9 +340,30 @@ describe('buildEscP', () => {
       .find((l) => l.includes('Expedisi Jaya') && l.includes('_'))!
     expect(sigLine).toBeDefined()
     // Underscores on both sides -> the name sits on the rule.
-    expect(sigLine).toMatch(/^_+Expedisi Jaya_+$/)
+    expect(sigLine).toMatch(/^_+Exp\. Expedisi Jaya_+$/)
     // The rule keeps its width so the layout doesn't shift.
     expect(sigLine.length).toBe('_______________________'.length)
+  })
+
+  // --- Colly (package count) on the signature line ---
+
+  it('prints "Exp. <pengiriman> ( N colly )" when both are set', () => {
+    const out = buildEscP({ ...base, pengiriman: 'Expedisi Jaya', colly: 3 })
+    expect(visible(out)).toContain('Exp. Expedisi Jaya ( 3 colly )')
+  })
+
+  it('prints only the colly when there is no pengiriman', () => {
+    const out = buildEscP({ ...base, pengiriman: undefined, colly: 3 })
+    const sigLine = visible(out)
+      .split('\n')
+      .find((l) => l.includes('colly'))!
+    expect(sigLine).toMatch(/^_+\( 3 colly \)_+$/)
+  })
+
+  it('prints only the pengiriman when there is no colly', () => {
+    const out = buildEscP({ ...base, pengiriman: 'Expedisi Jaya', colly: undefined })
+    expect(visible(out)).toContain('Exp. Expedisi Jaya')
+    expect(visible(out)).not.toContain('colly')
   })
 
   // --- ESC/P has no glyph for non-ASCII characters ---

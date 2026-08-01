@@ -37,6 +37,8 @@ export interface Pesanan {
   catatan: string | null
   tanggal_pengiriman: string | null
   pengiriman: string | null
+  /** Number of packages (colly) handed to the courier; printed beside pengiriman. */
+  colly: number | null
   dibuat_oleh: string
   created_at: string
   updated_at: string
