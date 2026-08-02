@@ -9,6 +9,18 @@ import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import { Button } from '@/components/ui/button'
 
+/**
+ * Upper bound on how many orders this page hydrates. PostgREST silently caps a
+ * result set at 1000 rows, so an unbounded fetch would one day start dropping
+ * the oldest orders with no error at all — at the current ~25 orders/week that
+ * is roughly 9 months out. An explicit limit well under the cap, paired with the
+ * exact count below, turns that silent loss into a visible "N dari M" notice.
+ *
+ * OrderList filters, searches and paginates client-side over whatever it is
+ * given, so this is deliberately generous rather than a page size.
+ */
+const PESANAN_LIST_LIMIT = 500
+
 export default async function PesananPage() {
   const [user, pesananLocked] = await Promise.all([
     getCurrentUser(),
@@ -32,15 +44,18 @@ export default async function PesananPage() {
     ? `*, pelanggan(nama, alamat), items:item_pesanan_owner(subtotal, diambil_oleh_helper), pembayaran:pembayaran_owner(jumlah)`
     : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), items:item_pesanan(diambil_oleh_helper)`
 
-  let pesananQuery = supabase.from('pesanan').select(select)
+  // `count: 'exact'` returns the true number of matching rows regardless of the
+  // limit, so the header stays accurate even when the list is capped.
+  let pesananQuery = supabase.from('pesanan').select(select, { count: 'exact' })
 
   if (!isOwner) {
     // Helpers always see all Diproses orders, across all dates — no date filter.
     pesananQuery = pesananQuery.eq('status', 'diproses')
   }
 
-  const { data: pesananList } = await pesananQuery
+  const { data: pesananList, count: pesananCount } = await pesananQuery
     .order('created_at', { ascending: false })
+    .limit(PESANAN_LIST_LIMIT)
     .returns<PesananWithRelations[]>()
 
   // The helper select above already omits tanggal_pengiriman, so nothing is
@@ -49,6 +64,9 @@ export default async function PesananPage() {
     ? (pesananList ?? [])
     : (pesananList ?? []).map((p) => ({ ...p, tanggal_pengiriman: null }))
 
+  const totalPesanan = pesananCount ?? visiblePesananList.length
+  const listTruncated = totalPesanan > visiblePesananList.length
+
   return (
     <div className="space-y-4">
       <RealtimeRefresh table="pesanan" />
@@ -56,7 +74,9 @@ export default async function PesananPage() {
         <div>
           <h2 className="text-lg font-semibold">Pesanan</h2>
           <p className="text-sm text-muted-foreground">
-            {pesananList?.length ?? 0} pesanan
+            {totalPesanan} pesanan
+            {listTruncated &&
+              ` — menampilkan ${visiblePesananList.length} terbaru`}
           </p>
         </div>
         {!isLocked && (
