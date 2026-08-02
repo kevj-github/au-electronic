@@ -32,6 +32,72 @@ const statusOptions: Array<{ value: StatusPesanan | 'semua'; label: string }> = 
 
 const PAGE_SIZE = 10
 
+/**
+ * What the Tagihan column should say. Three states, not two: an order whose
+ * items have no price yet has sisaTagihan === 0, which would otherwise read as
+ * "Lunas" — a false signal that the customer owes nothing. See the same rule on
+ * the detail page.
+ */
+export type TagihanState =
+  | { kind: 'belum-ada-harga' }
+  | { kind: 'sisa'; amount: number }
+  | { kind: 'lunas' }
+
+export interface OrderRowView {
+  diambilCount: number
+  totalItems: number
+  totalPesanan: number
+  totalDibayar: number
+  sisaTagihan: number
+  tagihan: TagihanState
+}
+
+/**
+ * Everything the row markup needs, derived once per order.
+ *
+ * The mobile card list and the desktop table render the same orders with
+ * different markup, and both are always mounted (one is `sm:hidden`, the other
+ * `hidden sm:block`) — so this used to be computed twice per render and, more
+ * importantly, maintained twice. The Tagihan three-state rule in particular was
+ * copy-pasted into both branches, which is exactly how mobile and desktop drift
+ * apart. Deriving it here means a change lands in both by construction.
+ */
+export function deriveOrderRow(p: PesananWithRelations, isOwner: boolean): OrderRowView {
+  const { totalPesanan, totalDibayar } = isOwner
+    ? orderTotals(p)
+    : { totalPesanan: 0, totalDibayar: 0 }
+  const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
+
+  const tagihan: TagihanState =
+    totalPesanan === 0 && (p.pembayaran ?? []).length === 0
+      ? { kind: 'belum-ada-harga' }
+      : sisaTagihan > 0
+        ? { kind: 'sisa', amount: sisaTagihan }
+        : { kind: 'lunas' }
+
+  return {
+    diambilCount: p.items.filter((i) => i.diambil_oleh_helper).length,
+    totalItems: p.items.length,
+    totalPesanan,
+    totalDibayar,
+    sisaTagihan,
+    tagihan,
+  }
+}
+
+/**
+ * Renders a TagihanState. Shared so the two layouts cannot disagree — they
+ * previously differed by a stray `font-medium`, which only looked the same
+ * because the mobile wrapper was already bold.
+ */
+function TagihanText({ tagihan }: { tagihan: TagihanState }) {
+  if (tagihan.kind === 'belum-ada-harga') {
+    return <span className="text-muted-foreground font-normal text-xs">Belum ada harga</span>
+  }
+  if (tagihan.kind === 'sisa') return <>{formatRupiah(tagihan.amount)}</>
+  return <span className="text-green-600 font-medium">Lunas</span>
+}
+
 export function OrderList({ pesananList, isOwner }: OrderListProps) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusPesanan | 'semua'>(
@@ -71,7 +137,17 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
     setPage(1)
   }
 
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  // Derive once; both the mobile and desktop layouts read from this. The slice
+  // happens inside the memo on purpose — `filtered` is itself memoized, whereas
+  // slicing outside would hand useMemo a fresh array on every render and defeat
+  // it entirely.
+  const rows = useMemo(
+    () =>
+      filtered
+        .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+        .map((p) => ({ p, view: deriveOrderRow(p, isOwner) })),
+    [filtered, page, isOwner],
+  )
 
   if (pesananList.length === 0) {
     return <p className="text-muted-foreground text-sm">Belum ada pesanan.</p>
@@ -139,13 +215,7 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
         <>
           {/* Mobile: card list */}
           <div className="space-y-2 sm:hidden">
-            {paged.map((p) => {
-              const diambilCount = p.items.filter((i) => i.diambil_oleh_helper).length
-              const { totalPesanan, totalDibayar } = isOwner
-                ? orderTotals(p)
-                : { totalPesanan: 0, totalDibayar: 0 }
-              const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
-
+            {rows.map(({ p, view: { diambilCount, totalItems, tagihan } }) => {
               return (
                 <div key={p.id} className="border rounded-lg p-3 flex gap-2 items-start hover:bg-gray-50">
                   <Link href={`/pesanan/${p.id}`} className="flex-1 min-w-0 block">
@@ -163,15 +233,11 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                       </span>
                       {isOwner ? (
                         <span className="font-mono font-medium">
-                          {totalPesanan === 0 && (p.pembayaran ?? []).length === 0 ? (
-                            <span className="text-muted-foreground font-normal text-xs">Belum ada harga</span>
-                          ) : sisaTagihan > 0 ? formatRupiah(sisaTagihan) : (
-                            <span className="text-green-600">Lunas</span>
-                          )}
+                          <TagihanText tagihan={tagihan} />
                         </span>
                       ) : (
                         <span className="text-muted-foreground">
-                          {diambilCount}/{p.items.length} diambil
+                          {diambilCount}/{totalItems} diambil
                         </span>
                       )}
                     </div>
@@ -212,13 +278,7 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {paged.map((p) => {
-                  const diambilCount = p.items.filter((i) => i.diambil_oleh_helper).length
-                  const { totalPesanan, totalDibayar } = isOwner
-                    ? orderTotals(p)
-                    : { totalPesanan: 0, totalDibayar: 0 }
-                  const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
-
+                {rows.map(({ p, view: { diambilCount, totalItems, totalPesanan, tagihan } }) => {
                   return (
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
@@ -251,18 +311,12 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                             {formatRupiah(totalPesanan)}
                           </td>
                           <td className="px-4 py-3 text-right font-mono">
-                            {totalPesanan === 0 && (p.pembayaran ?? []).length === 0 ? (
-                              <span className="text-muted-foreground font-normal text-xs">Belum ada harga</span>
-                            ) : sisaTagihan > 0 ? (
-                              formatRupiah(sisaTagihan)
-                            ) : (
-                              <span className="text-green-600 font-medium">Lunas</span>
-                            )}
+                            <TagihanText tagihan={tagihan} />
                           </td>
                         </>
                       ) : (
                         <td className="px-4 py-3 text-right text-muted-foreground">
-                          {diambilCount}/{p.items.length}
+                          {diambilCount}/{totalItems}
                         </td>
                       )}
                       <td className="px-4 py-3">
