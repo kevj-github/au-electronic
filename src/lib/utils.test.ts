@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcOrderTotal, formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput } from './utils'
+import { calcOrderTotal, formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals } from './utils'
 
 describe('formatRupiah', () => {
   it('formats zero', () => {
@@ -76,5 +76,62 @@ describe('formatThousandsInput', () => {
     expect(formatThousandsInput('1.000')).toBe('1.000')
     expect(formatThousandsInput('')).toBe('')
     expect(formatThousandsInput('0')).toBe('0')
+  })
+})
+
+describe('orderTotals', () => {
+  it('sums items and payments with multiple entries', () => {
+    expect(orderTotals({
+      items: [
+        { subtotal: 100000 },
+        { subtotal: 200000 },
+        { subtotal: 300000 },
+      ],
+      pembayaran: [
+        { jumlah: 150000 },
+        { jumlah: 250000 },
+      ],
+    })).toEqual({
+      totalPesanan: 600000,
+      totalDibayar: 400000,
+    })
+  })
+
+  it('handles undefined pembayaran', () => {
+    expect(orderTotals({
+      items: [
+        { subtotal: 500000 },
+        { subtotal: 300000 },
+      ],
+    })).toEqual({
+      totalPesanan: 800000,
+      totalDibayar: 0,
+    })
+  })
+
+  it('handles items with undefined subtotal', () => {
+    expect(orderTotals({
+      items: [
+        { subtotal: 100000 },
+        {},
+        { subtotal: 200000 },
+      ],
+      pembayaran: [
+        { jumlah: 100000 },
+      ],
+    })).toEqual({
+      totalPesanan: 300000,
+      totalDibayar: 100000,
+    })
+  })
+
+  it('returns zeros for empty items array', () => {
+    expect(orderTotals({
+      items: [],
+      pembayaran: [],
+    })).toEqual({
+      totalPesanan: 0,
+      totalDibayar: 0,
+    })
   })
 })

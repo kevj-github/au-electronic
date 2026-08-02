@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
-import { formatRupiah, hitungSaldo } from '@/lib/utils'
+import { formatRupiah, hitungSaldo, orderTotals } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
 import { DeletePesananButton } from './DeletePesananButton'
 import { Input } from '@/components/ui/input'
@@ -141,8 +141,9 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
           <div className="space-y-2 sm:hidden">
             {paged.map((p) => {
               const diambilCount = p.items.filter((i) => i.diambil_oleh_helper).length
-              const totalPesanan = isOwner ? p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0) : 0
-              const totalDibayar = isOwner ? (p.pembayaran ?? []).reduce((s, pm) => s + pm.jumlah, 0) : 0
+              const { totalPesanan, totalDibayar } = isOwner
+                ? orderTotals(p)
+                : { totalPesanan: 0, totalDibayar: 0 }
               const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
 
               return (
@@ -213,8 +214,9 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
               <tbody className="divide-y">
                 {paged.map((p) => {
                   const diambilCount = p.items.filter((i) => i.diambil_oleh_helper).length
-                  const totalPesanan = isOwner ? p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0) : 0
-                  const totalDibayar = isOwner ? (p.pembayaran ?? []).reduce((s, pm) => s + pm.jumlah, 0) : 0
+                  const { totalPesanan, totalDibayar } = isOwner
+                    ? orderTotals(p)
+                    : { totalPesanan: 0, totalDibayar: 0 }
                   const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
 
                   return (

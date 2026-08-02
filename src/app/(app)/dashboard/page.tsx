@@ -6,8 +6,16 @@ import { getCurrentUser } from '@/lib/supabase/request-cache'
 export const metadata: Metadata = { title: 'Dashboard' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { DashboardDateFilter } from '@/components/pesanan/DashboardDateFilter'
-import { formatRupiah, hitungSaldo } from '@/lib/utils'
+import { formatRupiah } from '@/lib/utils'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
+
+/**
+ * Upper bound on how many unpaid orders the "Tagihan Belum Lunas" list hydrates.
+ * Comfortably above the current count (~72) so nothing is hidden today, and far
+ * below PostgREST's 1000-row cap so the query can never silently truncate. The
+ * Belum Lunas tile always shows the true total, which is counted in SQL.
+ */
+const PIUTANG_LIST_LIMIT = 200
 
 export default async function DashboardPage({
   searchParams,
@@ -31,44 +39,46 @@ export default async function DashboardPage({
   // through the owner-gated views — keeps working after the phase 3 revoke.
   const select = 'id, kode_pesanan, status, created_at, nama_pelanggan, catatan, pelanggan(nama), items:item_pesanan_owner(subtotal, diambil_oleh_helper), pembayaran:pembayaran_owner(jumlah)'
 
-  // Both queries are independent — run them in parallel.
-  const [{ data: allPesanan }, { data: periodPesanan }] = await Promise.all([
+  // The four stat tiles are aggregated in SQL rather than by fetching every
+  // order and summing in JS. That fetch was unbounded, and PostgREST silently
+  // caps a result set at 1000 rows — so past 1000 non-cancelled orders it would
+  // have truncated without error and under-reported Total Piutang. A scalar sum
+  // is immune to the row cap, and the payload no longer grows with the shop.
+  const fromTs = `${filterFrom}T00:00:00`
+  const toTs = `${filterTo}T23:59:59`
+
+  const [{ data: summaryRows }, { data: unpaidRefs }] = await Promise.all([
+    supabase.rpc('dashboard_summary', { p_from: fromTs, p_to: toTs }),
     supabase
-      .from('pesanan')
-      .select(select)
-      .neq('status', 'dibatalkan')
+      .from('pesanan_unpaid_owner')
+      .select('id')
       .order('created_at', { ascending: true })
-      .returns<PesananWithRelations[]>(),
-    supabase
-      .from('pesanan')
-      .select(select)
-      .neq('status', 'dibatalkan')
-      .gte('created_at', `${filterFrom}T00:00:00`)
-      .lte('created_at', `${filterTo}T23:59:59`)
-      .order('created_at', { ascending: false })
-      .returns<PesananWithRelations[]>(),
+      .limit(PIUTANG_LIST_LIMIT)
+      .returns<{ id: string }[]>(),
   ])
 
-  const periodList = periodPesanan ?? []
-  const allList = allPesanan ?? []
+  // Postgres numeric/bigint arrive as strings over PostgREST — coerce, don't
+  // concatenate. Falling back to 0 keeps the tiles rendering if the RPC errors.
+  const summary = summaryRows?.[0]
+  const periodCount = Number(summary?.period_count ?? 0)
+  const periodRevenue = Number(summary?.period_revenue ?? 0)
+  const totalPiutang = Number(summary?.total_piutang ?? 0)
+  const unpaidCount = Number(summary?.unpaid_count ?? 0)
 
-  const periodCount = periodList.length
-  const periodRevenue = periodList.reduce(
-    (sum, p) => sum + p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0),
-    0
-  )
+  // Only the bounded slice of unpaid orders is hydrated with nested items, which
+  // OrderList needs for the "n/m diambil" checklist badge.
+  const unpaidIds = (unpaidRefs ?? []).map((r) => r.id)
+  const { data: piutangPesanan } = unpaidIds.length
+    ? await supabase
+        .from('pesanan')
+        .select(select)
+        .in('id', unpaidIds)
+        .order('created_at', { ascending: true })
+        .returns<PesananWithRelations[]>()
+    : { data: [] as PesananWithRelations[] }
 
-  const piutangList = allList.filter((p) => {
-    const totalPesanan = p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0)
-    const totalDibayar = (p.pembayaran ?? []).reduce((s, pm) => s + pm.jumlah, 0)
-    return hitungSaldo(totalPesanan, totalDibayar).sisaTagihan > 0
-  })
-
-  const totalPiutang = piutangList.reduce((sum, p) => {
-    const totalPesanan = p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0)
-    const totalDibayar = (p.pembayaran ?? []).reduce((s, pm) => s + pm.jumlah, 0)
-    return sum + hitungSaldo(totalPesanan, totalDibayar).sisaTagihan
-  }, 0)
+  const piutangList = piutangPesanan ?? []
+  const piutangTruncated = unpaidCount > piutangList.length
 
   const isDefaultPeriod = !from && !to
 
@@ -104,7 +114,7 @@ export default async function DashboardPage({
         </div>
         <div className="border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">Belum Lunas</p>
-          <p className="text-2xl font-semibold mt-1">{piutangList.length} pesanan</p>
+          <p className="text-2xl font-semibold mt-1">{unpaidCount} pesanan</p>
         </div>
       </div>
 
@@ -114,7 +124,14 @@ export default async function DashboardPage({
         {piutangList.length === 0 ? (
           <p className="text-sm text-muted-foreground">Semua pesanan sudah lunas.</p>
         ) : (
-          <OrderList pesananList={piutangList} isOwner />
+          <>
+            {piutangTruncated && (
+              <p className="text-sm text-muted-foreground mb-2">
+                Menampilkan {piutangList.length} tagihan terlama dari {unpaidCount}.
+              </p>
+            )}
+            <OrderList pesananList={piutangList} isOwner />
+          </>
         )}
       </div>
     </div>
