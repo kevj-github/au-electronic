@@ -8,6 +8,7 @@ import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { DashboardDateFilter } from '@/components/pesanan/DashboardDateFilter'
 import { formatRupiah } from '@/lib/utils'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
+import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 
 /**
  * Upper bound on how many unpaid orders the "Tagihan Belum Lunas" list hydrates.
@@ -36,8 +37,8 @@ export default async function DashboardPage({
   const filterTo = to ?? defaultTo
 
   // This page is owner-only (redirect above), so the priced columns are read
-  // through the owner-gated views — keeps working after the phase 3 revoke.
-  const select = 'id, kode_pesanan, status, created_at, nama_pelanggan, catatan, pelanggan(nama), items:item_pesanan_owner(subtotal, diambil_oleh_helper), pembayaran:pembayaran_owner(jumlah)'
+  // through the owner-gated views — see lib/pesanan-select.
+  const select = `id, kode_pesanan, status, created_at, nama_pelanggan, catatan, pelanggan(nama), ${itemsEmbed(true, 'subtotal, diambil_oleh_helper')}, ${pembayaranEmbed('jumlah')}`
 
   // The four stat tiles are aggregated in SQL rather than by fetching every
   // order and summing in JS. That fetch was unbounded, and PostgREST silently

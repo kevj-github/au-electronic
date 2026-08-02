@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
 import { buildInvoiceData, type InvoiceData, type InvoiceSource } from '@/lib/invoice-data'
+import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 import {
   requireActivePesanan,
   requireActivePesananByItem,
@@ -413,7 +414,7 @@ export async function getInvoiceData(
       .select(
         // Priced columns come from the owner-gated views so this survives the
         // phase 3 column revoke; requireOwner above is the app-layer gate.
-        'kode_pesanan, created_at, tanggal_pengiriman, pengiriman, colly, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan_owner(nama_barang, qty, harga_satuan, subtotal), pembayaran:pembayaran_owner(jumlah)'
+        `kode_pesanan, created_at, tanggal_pengiriman, pengiriman, colly, nama_pelanggan, catatan, pelanggan(nama, alamat), ${itemsEmbed(true, 'nama_barang, qty, harga_satuan, subtotal')}, ${pembayaranEmbed('jumlah')}`
       )
       .eq('id', pesananId)
       .single<InvoiceSource>(),

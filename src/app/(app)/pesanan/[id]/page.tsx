@@ -13,6 +13,7 @@ import { DeletePaymentButton } from '@/components/pesanan/DeletePaymentButton'
 import { ItemsSection } from '@/components/pesanan/ItemsSection'
 import { ResetChecklistButton } from '@/components/pesanan/ResetChecklistButton'
 import { buildInvoiceData, type InvoiceData } from '@/lib/invoice-data'
+import { DETAIL_ITEM_COLUMNS, itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Check } from 'lucide-react'
@@ -61,19 +62,15 @@ export default async function PesananDetailPage({
 
   // Helpers never get price/payment data fetched into the RSC payload at all —
   // not just hidden in the UI. requireOwner/RLS still back this up server-side.
-  const itemsSelect = isOwner
-    ? 'id, nama_barang, qty, harga_satuan, subtotal, diambil_oleh_helper, dicek_oleh_owner, jumlah_diambil'
-    : 'id, nama_barang, qty, diambil_oleh_helper, jumlah_diambil'
+  // Source and per-role item columns come from lib/pesanan-select, which is
+  // where the "owner reads the views, helper asks for no priced column" rule
+  // lives and is tested.
+  const itemsSelect = isOwner ? DETAIL_ITEM_COLUMNS.owner : DETAIL_ITEM_COLUMNS.helper
   // Helpers see nama + alamat but not telepon (owner-only); don't fetch the
   // columns they can't see (defense-in-depth — same rule as the price columns).
-  // The owner branch reads the priced columns through the owner-gated views
-  // (item_pesanan_owner / pembayaran_owner) rather than the base tables, so it
-  // keeps working once phase 3 revokes column SELECT from `authenticated`. The
-  // views re-check the caller's role themselves and return zero rows otherwise.
-  // The helper branch stays on the base table — it selects no priced columns.
   const pesananSelect = isOwner
-    ? `*, pelanggan(*), items:item_pesanan_owner(${itemsSelect}), pembayaran:pembayaran_owner(*)`
-    : `*, pelanggan(nama, alamat), items:item_pesanan(${itemsSelect})`
+    ? `*, pelanggan(*), ${itemsEmbed(true, itemsSelect)}, ${pembayaranEmbed('*')}`
+    : `*, pelanggan(nama, alamat), ${itemsEmbed(false, itemsSelect)}`
 
   // Fetch pesanan and lock setting in parallel.
   const [{ data: pesanan }, pesananLocked] = await Promise.all([

@@ -8,6 +8,7 @@ export const metadata: Metadata = { title: 'Pesanan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import { Button } from '@/components/ui/button'
+import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 
 /**
  * Upper bound on how many orders this page hydrates. PostgREST silently caps a
@@ -37,12 +38,10 @@ export default async function PesananPage() {
   // pengiriman, dibuat_oleh and tanggal_pengiriman to the browser even when the
   // UI hides them. Same defense-in-depth rule as the price columns — see the
   // per-role selects in `[id]/page.tsx`.
-  // Owner branch reads priced columns via the owner-gated views so it survives
-  // the phase 3 column revoke; the helper branch selects no priced columns and
-  // stays on the base table.
+  // Embed sources come from lib/pesanan-select — see the rules encoded there.
   const select = isOwner
-    ? `*, pelanggan(nama, alamat), items:item_pesanan_owner(subtotal, diambil_oleh_helper), pembayaran:pembayaran_owner(jumlah)`
-    : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), items:item_pesanan(diambil_oleh_helper)`
+    ? `*, pelanggan(nama, alamat), ${itemsEmbed(true, 'subtotal, diambil_oleh_helper')}, ${pembayaranEmbed('jumlah')}`
+    : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), ${itemsEmbed(false, 'diambil_oleh_helper')}`
 
   // `count: 'exact'` returns the true number of matching rows regardless of the
   // limit, so the header stays accurate even when the list is capped.
