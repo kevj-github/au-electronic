@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deriveOrderRow, type PesananWithRelations } from './OrderList'
+import { deriveOrderRow, toOrderRows, type PesananWithRelations } from './OrderList'
 
 /**
  * `deriveOrderRow` was extracted because the mobile card list and the desktop
@@ -115,5 +115,72 @@ describe('deriveOrderRow — the three-state Tagihan rule', () => {
   it('treats a missing pembayaran array as no payments', () => {
     const view = deriveOrderRow(order({ items: [item(undefined)], pembayaran: undefined }), true)
     expect(view.tagihan).toEqual({ kind: 'belum-ada-harga' })
+  })
+})
+
+/**
+ * `toOrderRows` is the server-side projection that keeps the embedded
+ * items/pembayaran arrays off the wire. The assertions below are the reason it
+ * exists: if a future edit widens what it copies, the payload silently grows
+ * again — and in the `pelanggan` case, starts carrying columns the page's
+ * select deliberately never asked for.
+ */
+describe('toOrderRows', () => {
+  it('drops items and pembayaran from the client-facing row', () => {
+    const [row] = toOrderRows(
+      [order({ items: [item(1000, true), item(2000)], pembayaran: [{ jumlah: 500 }] })],
+      true,
+    )
+
+    expect(row.p).not.toHaveProperty('items')
+    expect(row.p).not.toHaveProperty('pembayaran')
+    // ...while still carrying everything they were reduced to.
+    expect(row.view).toMatchObject({
+      diambilCount: 1,
+      totalItems: 2,
+      totalPesanan: 3000,
+      totalDibayar: 500,
+    })
+  })
+
+  it('copies only the pelanggan fields the list renders', () => {
+    const [row] = toOrderRows(
+      [
+        order({
+          // A wider row than the select asks for — telepon/tipe must not ride along.
+          pelanggan: {
+            id: 'c1',
+            nama: 'Budi',
+            alamat: 'Jl. Mawar 1',
+            telepon: '0812',
+            tipe: 'retail',
+            created_at: '2026-01-01T00:00:00.000Z',
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any),
+      ],
+      true,
+    )
+
+    expect(row.p.pelanggan).toEqual({ nama: 'Budi', alamat: 'Jl. Mawar 1' })
+  })
+
+  it('keeps pelanggan null when the order has no linked customer', () => {
+    const [row] = toOrderRows([order({ nama_pelanggan: 'Tanpa Akun' })], true)
+
+    expect(row.p.pelanggan).toBeNull()
+    expect(row.p.nama_pelanggan).toBe('Tanpa Akun')
+  })
+
+  it('preserves the fields the filter and markup read', () => {
+    const [row] = toOrderRows([order()], true)
+
+    expect(row.p).toMatchObject({
+      id: 'p1',
+      kode_pesanan: 'AU.2026.08.00001',
+      status: 'diproses',
+      created_at: '2026-08-01T00:00:00.000Z',
+      tanggal_pengiriman: null,
+    })
   })
 })

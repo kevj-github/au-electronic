@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'Dashboard' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { DashboardDateFilter } from '@/components/pesanan/DashboardDateFilter'
 import { formatRupiah } from '@/lib/utils'
-import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
+import { OrderList, toOrderRows, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 
 /**
@@ -78,8 +78,10 @@ export default async function DashboardPage({
         .returns<PesananWithRelations[]>()
     : { data: [] as PesananWithRelations[] }
 
-  const piutangList = piutangPesanan ?? []
-  const piutangTruncated = unpaidCount > piutangList.length
+  // Same server-side projection as /pesanan: the embedded items/pembayaran
+  // collapse into row views here and never reach the browser.
+  const piutangRows = toOrderRows(piutangPesanan ?? [], true)
+  const piutangTruncated = unpaidCount > piutangRows.length
 
   const isDefaultPeriod = !from && !to
 
@@ -122,16 +124,16 @@ export default async function DashboardPage({
       {/* Piutang list */}
       <div>
         <h3 className="font-medium mb-3">Tagihan Belum Lunas (terlama dulu)</h3>
-        {piutangList.length === 0 ? (
+        {piutangRows.length === 0 ? (
           <p className="text-sm text-muted-foreground">Semua pesanan sudah lunas.</p>
         ) : (
           <>
             {piutangTruncated && (
               <p className="text-sm text-muted-foreground mb-2">
-                Menampilkan {piutangList.length} tagihan terlama dari {unpaidCount}.
+                Menampilkan {piutangRows.length} tagihan terlama dari {unpaidCount}.
               </p>
             )}
-            <OrderList pesananList={piutangList} isOwner />
+            <OrderList rows={piutangRows} isOwner />
           </>
         )}
       </div>

@@ -10,16 +10,52 @@ import { StatusBadge } from './StatusBadge'
 import { DeletePesananButton } from './DeletePesananButton'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
-import type { Pesanan, ItemPesanan, Pembayaran, StatusPesanan } from '@/lib/types'
+import type { Pelanggan, Pesanan, ItemPesanan, Pembayaran, StatusPesanan } from '@/lib/types'
 
-export type PesananWithRelations = Pesanan & {
+/**
+ * The server-side shape: a fetched order with its embedded rows still attached.
+ *
+ * `Omit` first, then re-add — an intersection (`Pesanan & { items: ... }`) does
+ * not override, it *adds*, so `items` resolved to `ItemPesanan & Pick<...>` and
+ * the type demanded every column while the query selects two. Both list pages
+ * select `items(subtotal, diambil_oleh_helper)` and `pembayaran(jumlah)`, and
+ * `alamat` is optional because the dashboard asks for `pelanggan(nama)` alone.
+ */
+export type PesananWithRelations = Omit<
+  Pesanan,
+  'items' | 'pembayaran' | 'pelanggan'
+> & {
   items: Array<Partial<Pick<ItemPesanan, 'subtotal'>> & Pick<ItemPesanan, 'diambil_oleh_helper'>>
   pembayaran?: Pick<Pembayaran, 'jumlah'>[]
+  pelanggan?: (Pick<Pelanggan, 'nama'> & Partial<Pick<Pelanggan, 'alamat'>>) | null
   tanggal_pengiriman: string | null
 }
 
+/**
+ * Exactly the per-order fields the list markup reads — no `items`, no
+ * `pembayaran`. Those two are only ever reduced to the four numbers in
+ * `OrderRowView`, so shipping the rows themselves to the browser sent hundreds
+ * of objects across the RSC boundary to render a couple of totals.
+ *
+ * Rebuilding the `pelanggan` object field-by-field also drops anything the
+ * select didn't ask for, the same defense-in-depth rule the page's column
+ * allowlist follows: an omitted field can't leak through the payload.
+ */
+export type PesananListItem = Pick<
+  Pesanan,
+  'id' | 'kode_pesanan' | 'status' | 'created_at' | 'nama_pelanggan'
+> & {
+  pelanggan: (Pick<Pelanggan, 'nama'> & { alamat: string | null }) | null
+  tanggal_pengiriman: string | null
+}
+
+export interface OrderRow {
+  p: PesananListItem
+  view: OrderRowView
+}
+
 interface OrderListProps {
-  pesananList: PesananWithRelations[]
+  rows: OrderRow[]
   isOwner: boolean
 }
 
@@ -86,6 +122,33 @@ export function deriveOrderRow(p: PesananWithRelations, isOwner: boolean): Order
 }
 
 /**
+ * Server-side projection: derive every order's row view and keep only the
+ * fields the markup renders. Call this in the Server Component, never in the
+ * browser — the whole point is that the embedded `items`/`pembayaran` arrays
+ * stay on the server.
+ */
+export function toOrderRows(
+  list: PesananWithRelations[],
+  isOwner: boolean
+): OrderRow[] {
+  return list.map((p) => ({
+    p: {
+      id: p.id,
+      kode_pesanan: p.kode_pesanan,
+      status: p.status,
+      created_at: p.created_at,
+      nama_pelanggan: p.nama_pelanggan,
+      // `?? null` because the dashboard's select omits alamat entirely.
+      pelanggan: p.pelanggan
+        ? { nama: p.pelanggan.nama, alamat: p.pelanggan.alamat ?? null }
+        : null,
+      tanggal_pengiriman: p.tanggal_pengiriman,
+    },
+    view: deriveOrderRow(p, isOwner),
+  }))
+}
+
+/**
  * Renders a TagihanState. Shared so the two layouts cannot disagree — they
  * previously differed by a stray `font-medium`, which only looked the same
  * because the mobile wrapper was already bold.
@@ -98,7 +161,7 @@ function TagihanText({ tagihan }: { tagihan: TagihanState }) {
   return <span className="text-green-600 font-medium">Lunas</span>
 }
 
-export function OrderList({ pesananList, isOwner }: OrderListProps) {
+export function OrderList({ rows, isOwner }: OrderListProps) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusPesanan | 'semua'>(
     isOwner ? 'diproses' : 'semua'
@@ -109,7 +172,7 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return pesananList.filter((p) => {
+    return rows.filter(({ p }) => {
       if (status !== 'semua' && p.status !== status) return false
       if (dateFrom || dateTo) {
         const created = parseISO(p.created_at)
@@ -123,7 +186,7 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
         nama.toLowerCase().includes(q)
       )
     })
-  }, [pesananList, query, status, dateFrom, dateTo])
+  }, [rows, query, status, dateFrom, dateTo])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
 
@@ -137,19 +200,15 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
     setPage(1)
   }
 
-  // Derive once; both the mobile and desktop layouts read from this. The slice
-  // happens inside the memo on purpose — `filtered` is itself memoized, whereas
-  // slicing outside would hand useMemo a fresh array on every render and defeat
-  // it entirely.
-  const rows = useMemo(
-    () =>
-      filtered
-        .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-        .map((p) => ({ p, view: deriveOrderRow(p, isOwner) })),
-    [filtered, page, isOwner],
+  // The row views are already derived (server-side, in `toOrderRows`), so this
+  // is just the page slice. Memoized so both layouts read the same array
+  // identity rather than a fresh one per render.
+  const pageRows = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page],
   )
 
-  if (pesananList.length === 0) {
+  if (rows.length === 0) {
     return <p className="text-muted-foreground text-sm">Belum ada pesanan.</p>
   }
 
@@ -215,7 +274,7 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
         <>
           {/* Mobile: card list */}
           <div className="space-y-2 sm:hidden">
-            {rows.map(({ p, view: { diambilCount, totalItems, tagihan } }) => {
+            {pageRows.map(({ p, view: { diambilCount, totalItems, tagihan } }) => {
               return (
                 <div key={p.id} className="border rounded-lg p-3 flex gap-2 items-start hover:bg-gray-50">
                   <Link href={`/pesanan/${p.id}`} className="flex-1 min-w-0 block">
@@ -278,7 +337,7 @@ export function OrderList({ pesananList, isOwner }: OrderListProps) {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {rows.map(({ p, view: { diambilCount, totalItems, totalPesanan, tagihan } }) => {
+                {pageRows.map(({ p, view: { diambilCount, totalItems, totalPesanan, tagihan } }) => {
                   return (
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">

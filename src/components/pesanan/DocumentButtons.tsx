@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { pdf } from '@react-pdf/renderer'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 import { Printer, Copy, Check, Eye, AlertTriangle } from 'lucide-react'
@@ -92,8 +91,16 @@ export function DocumentButtons({ pesananId, data, belumDicekCount }: DocumentBu
 
   // Render the latest data to a PDF blob and return its object URL + filename.
   // Shared by the download (Cetak) and preview flows.
+  //
+  // `pdf` is imported here rather than at the top of the file: it drags in
+  // pdfkit and the yoga-layout WASM shim, ~1.6 MB that made this route's eager
+  // bundle five times heavier than any other page in the app. Lazily importing
+  // only DocumentPDF achieved nothing while `pdf` itself stayed static, since
+  // both live in @react-pdf/renderer. Keep it a plain `await import()` — a
+  // next/dynamic wrapper cannot be passed to pdf() (see CLAUDE.md).
   async function generatePdfUrl(): Promise<{ url: string; filename: string }> {
-    const [{ DocumentPDF }, crownSrc, watermarkSrc, latest] = await Promise.all([
+    const [{ pdf }, { DocumentPDF }, crownSrc, watermarkSrc, latest] = await Promise.all([
+      import('@react-pdf/renderer'),
       import('@/components/invoice/DocumentPDF'),
       loadImageBase64('/au-crown.png'),
       loadImageBase64('/au-trademark.png'),

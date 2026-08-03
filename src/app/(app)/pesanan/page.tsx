@@ -6,7 +6,7 @@ import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 
 export const metadata: Metadata = { title: 'Pesanan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
-import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
+import { OrderList, toOrderRows, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import { Button } from '@/components/ui/button'
 import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 
@@ -63,8 +63,14 @@ export default async function PesananPage() {
     ? (pesananList ?? [])
     : (pesananList ?? []).map((p) => ({ ...p, tanggal_pengiriman: null }))
 
-  const totalPesanan = pesananCount ?? visiblePesananList.length
-  const listTruncated = totalPesanan > visiblePesananList.length
+  // Collapse each order's embedded items/pembayaran into its row view here, on
+  // the server. OrderList only ever reduced them to four numbers per order, so
+  // sending the arrays themselves meant serialising thousands of objects into
+  // the RSC payload to render a handful of totals.
+  const rows = toOrderRows(visiblePesananList, isOwner)
+
+  const totalPesanan = pesananCount ?? rows.length
+  const listTruncated = totalPesanan > rows.length
 
   return (
     <div className="space-y-4">
@@ -75,7 +81,7 @@ export default async function PesananPage() {
           <p className="text-sm text-muted-foreground">
             {totalPesanan} pesanan
             {listTruncated &&
-              ` — menampilkan ${visiblePesananList.length} terbaru`}
+              ` — menampilkan ${rows.length} terbaru`}
           </p>
         </div>
         {!isLocked && (
@@ -84,7 +90,7 @@ export default async function PesananPage() {
           </Link>
         )}
       </div>
-      <OrderList pesananList={visiblePesananList} isOwner={isOwner} />
+      <OrderList rows={rows} isOwner={isOwner} />
     </div>
   )
 }
