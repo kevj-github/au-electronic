@@ -7,6 +7,7 @@ import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 export const metadata: Metadata = { title: 'Pesanan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
+import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 import { Button } from '@/components/ui/button'
 
 export default async function PesananPage() {
@@ -26,8 +27,8 @@ export default async function PesananPage() {
   // UI hides them. Same defense-in-depth rule as the price columns — see the
   // per-role selects in `[id]/page.tsx`.
   const select = isOwner
-    ? `*, pelanggan(nama, alamat), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)`
-    : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), items:item_pesanan(diambil_oleh_helper)`
+    ? `*, pelanggan(nama, alamat), ${itemsEmbed(true, 'subtotal, diambil_oleh_helper')}, ${pembayaranEmbed('jumlah')}`
+    : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), ${itemsEmbed(false, 'diambil_oleh_helper')}`
 
   let pesananQuery = supabase.from('pesanan').select(select)
 
@@ -36,9 +37,15 @@ export default async function PesananPage() {
     pesananQuery = pesananQuery.eq('status', 'diproses')
   }
 
-  const { data: pesananList } = await pesananQuery
+  // Destructure `error`, don't drop it. A failing query returns `data: null`,
+  // which renders as an empty list indistinguishable from "no orders yet" —
+  // that is how a 42501 on a revoked price column showed up as "0 pesanan"
+  // rather than as an error anyone could act on.
+  const { data: pesananList, error: pesananError } = await pesananQuery
     .order('created_at', { ascending: false })
     .returns<PesananWithRelations[]>()
+
+  if (pesananError) throw new Error(`Gagal memuat pesanan: ${pesananError.message}`)
 
   // The helper select above already omits tanggal_pengiriman, so nothing is
   // stripped here — this only fills the field the shared type requires.

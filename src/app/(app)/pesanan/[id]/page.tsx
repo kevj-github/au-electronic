@@ -13,6 +13,7 @@ import { DeletePaymentButton } from '@/components/pesanan/DeletePaymentButton'
 import { ItemsSection } from '@/components/pesanan/ItemsSection'
 import { ResetChecklistButton } from '@/components/pesanan/ResetChecklistButton'
 import { buildInvoiceData, type InvoiceData } from '@/lib/invoice-data'
+import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Check } from 'lucide-react'
@@ -66,12 +67,15 @@ export default async function PesananDetailPage({
     : 'id, nama_barang, qty, diambil_oleh_helper, jumlah_diambil'
   // Helpers see nama + alamat but not telepon (owner-only); don't fetch the
   // columns they can't see (defense-in-depth — same rule as the price columns).
+  // `pembayaran(*)` cannot be used here: every column on the base table except
+  // id/pesanan_id is revoked from `authenticated`, so `*` fails. The owner view
+  // exposes the same shape and re-checks the owner role itself.
   const pesananSelect = isOwner
-    ? `*, pelanggan(*), items:item_pesanan(${itemsSelect}), pembayaran(*)`
-    : `*, pelanggan(nama, alamat), items:item_pesanan(${itemsSelect})`
+    ? `*, pelanggan(*), ${itemsEmbed(true, itemsSelect)}, ${pembayaranEmbed('id, pesanan_id, jumlah, metode, catatan, dibayar_pada, dicatat_oleh')}`
+    : `*, pelanggan(nama, alamat), ${itemsEmbed(false, itemsSelect)}`
 
   // Fetch pesanan and lock setting in parallel.
-  const [{ data: pesanan }, pesananLocked] = await Promise.all([
+  const [{ data: pesanan, error: pesananError }, pesananLocked] = await Promise.all([
     supabase
       .from('pesanan')
       .select(pesananSelect)
@@ -80,6 +84,12 @@ export default async function PesananDetailPage({
     getPesananLocked(),
   ])
 
+  // A genuine "no such order" (PGRST116, zero rows from .single()) is a 404.
+  // Anything else — a permission failure on a priced column, say — must surface
+  // as an error rather than masquerading as a missing order.
+  if (pesananError && pesananError.code !== 'PGRST116') {
+    throw new Error(`Gagal memuat pesanan: ${pesananError.message}`)
+  }
   if (!pesanan) notFound()
 
   // Without an explicit order, Postgres row order is not guaranteed to stay

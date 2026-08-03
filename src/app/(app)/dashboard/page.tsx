@@ -8,6 +8,7 @@ import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { DashboardDateFilter } from '@/components/pesanan/DashboardDateFilter'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
+import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 
 export default async function DashboardPage({
   searchParams,
@@ -27,10 +28,15 @@ export default async function DashboardPage({
   const filterFrom = from ?? defaultFrom
   const filterTo = to ?? defaultTo
 
-  const select = 'id, kode_pesanan, status, created_at, nama_pelanggan, catatan, pelanggan(nama), items:item_pesanan(subtotal, diambil_oleh_helper), pembayaran(jumlah)'
+  // Owner-only route (non-owners are redirected above), so both embeds read the
+  // owner-gated views — the priced columns are revoked on the base tables.
+  const select = `id, kode_pesanan, status, created_at, nama_pelanggan, catatan, pelanggan(nama), ${itemsEmbed(true, 'subtotal, diambil_oleh_helper')}, ${pembayaranEmbed('jumlah')}`
 
   // Both queries are independent — run them in parallel.
-  const [{ data: allPesanan }, { data: periodPesanan }] = await Promise.all([
+  const [
+    { data: allPesanan, error: allError },
+    { data: periodPesanan, error: periodError },
+  ] = await Promise.all([
     supabase
       .from('pesanan')
       .select(select)
@@ -46,6 +52,11 @@ export default async function DashboardPage({
       .order('created_at', { ascending: false })
       .returns<PesananWithRelations[]>(),
   ])
+
+  // Surface a failed query instead of rendering zeroed totals, which read as
+  // real numbers ("Rp 0 revenue") rather than as a fault.
+  const loadError = allError ?? periodError
+  if (loadError) throw new Error(`Gagal memuat dashboard: ${loadError.message}`)
 
   const periodList = periodPesanan ?? []
   const allList = allPesanan ?? []
