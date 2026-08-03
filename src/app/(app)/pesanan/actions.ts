@@ -8,8 +8,12 @@ import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 import {
   requireActivePesanan,
   requireActivePesananByItem,
+  requireHelperCanMutateItem,
+  requireHelperCanMutatePesanan,
+  requireUnlocked,
   isGuardError,
   getRole,
+  CREATE_PESANAN_LOCKED,
 } from '@/lib/pesanan-guards'
 import type { StatusPesanan } from '@/lib/types'
 
@@ -25,7 +29,13 @@ export interface CreatePesananInput {
   }>
 }
 
-export async function createPesanan(input: CreatePesananInput) {
+// Declared rather than inferred: TypeScript only synthesises the implicit
+// `pesananId?: undefined` / `error?: undefined` members when every return is a
+// fresh object literal, so returning a guard's result would otherwise narrow the
+// union and break `result.error` at the call site.
+export async function createPesanan(
+  input: CreatePesananInput
+): Promise<{ error?: string; pesananId?: string }> {
   const supabase = await createClient()
 
   const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -41,21 +51,10 @@ export async function createPesanan(input: CreatePesananInput) {
   const { data: kodeData, error: kodeError } = await supabase.rpc('next_kode_pesanan')
   if (kodeError) return { error: kodeError.message }
 
-  // Check if helpers are locked from creating new pesanan.
-  // Fail-closed: any DB error reading the lock setting blocks the action rather
-  // than silently allowing it through (a missing row means the table wasn't seeded,
-  // which is an infrastructure problem that should surface, not be swallowed).
+  // Helpers can be locked out of creating new pesanan; owners never are.
   const role = await getRole(supabase)
-  if (role !== 'owner') {
-    const { data: lockSetting, error: lockErr } = await supabase
-      .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
-    if (lockErr || !lockSetting) {
-      return { error: 'Tidak dapat memverifikasi status kunci pesanan.' }
-    }
-    if (lockSetting.value === 'true') {
-      return { error: 'Pembuatan pesanan baru sedang dikunci oleh pemilik.' }
-    }
-  }
+  const lockError = await requireUnlocked(supabase, role, CREATE_PESANAN_LOCKED)
+  if (lockError) return lockError
 
   const { data: pesanan, error: pesananError } = await supabase
     .from('pesanan')
@@ -114,19 +113,6 @@ export async function updateStatusPesanan(
   return {}
 }
 
-// Returns an error if the pesanan_locked setting is on and the user is not an owner.
-async function checkHelperLock(
-  supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<{ error: string } | null> {
-  if (await getRole(supabase) === 'owner') return null
-
-  const { data: lockSetting, error: lockErr } = await supabase
-    .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
-  if (lockErr || !lockSetting) return { error: 'Tidak dapat memverifikasi status kunci pesanan.' }
-  if (lockSetting.value === 'true') return { error: 'Pesanan sedang dikunci oleh pemilik.' }
-  return null
-}
-
 // Any authenticated user can set jumlah_diambil — any helper may be the one
 // fetching items from the etalase. guard_item_pesanan_write is the DB-level gatekeeper
 // (it also clamps jumlah_diambil to qty); the status check here closes the owner
@@ -134,15 +120,8 @@ async function checkHelperLock(
 // from jumlah_diambil, so checking the box is just "set jumlah_diambil to qty".
 export async function toggleItemDiambil(itemId: string, value: boolean): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  // Lock check and item-status lookup are independent — run them concurrently.
-  const [lockError, info] = await Promise.all([
-    checkHelperLock(supabase),
-    requireActivePesananByItem(supabase, itemId),
-  ])
-  if (lockError) return lockError
+  const info = await requireHelperCanMutateItem(supabase, itemId)
   if (isGuardError(info)) return info
 
   const { error } = await supabase
@@ -159,14 +138,8 @@ export async function toggleItemDiambil(itemId: string, value: boolean): Promise
 // the DB-fetched qty, never a client-supplied one) as well as by the DB trigger.
 export async function setItemJumlahDiambil(itemId: string, jumlah: number): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const [lockError, info] = await Promise.all([
-    checkHelperLock(supabase),
-    requireActivePesananByItem(supabase, itemId),
-  ])
-  if (lockError) return lockError
+  const info = await requireHelperCanMutateItem(supabase, itemId)
   if (isGuardError(info)) return info
 
   const clamped = Math.max(0, Math.min(Math.trunc(jumlah), info.qty))
@@ -208,15 +181,14 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
   if (target === 'owner') {
     const ownerError = await requireOwner(supabase)
     if (ownerError) return ownerError
-  } else {
-    const { data: { user: authUser } } = await supabase.auth.getUser()
-    if (!authUser) return { error: 'Tidak terautentikasi.' }
-    const lockError = await checkHelperLock(supabase)
-    if (lockError) return lockError
-  }
 
-  const active = await requireActivePesanan(supabase, pesananId)
-  if (isGuardError(active)) return active
+    // Owners skip the helper lock but still can't touch a closed order.
+    const active = await requireActivePesanan(supabase, pesananId)
+    if (isGuardError(active)) return active
+  } else {
+    const active = await requireHelperCanMutatePesanan(supabase, pesananId)
+    if (isGuardError(active)) return active
+  }
 
   // diambil_oleh_helper is a generated column derived from jumlah_diambil,
   // so resetting the helper checklist means zeroing jumlah_diambil instead.
@@ -238,13 +210,8 @@ export interface AddItemInput {
 
 export async function addItemToPesanan(pesananId: string, item: AddItemInput): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const lockError = await checkHelperLock(supabase)
-  if (lockError) return lockError
-
-  const active = await requireActivePesanan(supabase, pesananId)
+  const active = await requireHelperCanMutatePesanan(supabase, pesananId)
   if (isGuardError(active)) return active
 
   const { error } = await supabase
@@ -267,13 +234,8 @@ export async function updateItemDetails(
   changes: { nama_barang: string; qty: number }
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const lockError = await checkHelperLock(supabase)
-  if (lockError) return lockError
-
-  const existingItem = await requireActivePesananByItem(supabase, itemId)
+  const existingItem = await requireHelperCanMutateItem(supabase, itemId)
   if (isGuardError(existingItem)) return existingItem
 
   const { error } = await supabase
@@ -288,13 +250,8 @@ export async function updateItemDetails(
 
 export async function deleteItemFromPesanan(itemId: string): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const lockError = await checkHelperLock(supabase)
-  if (lockError) return lockError
-
-  const existingItem = await requireActivePesananByItem(supabase, itemId)
+  const existingItem = await requireHelperCanMutateItem(supabase, itemId)
   if (isGuardError(existingItem)) return existingItem
 
   const { error } = await supabase
