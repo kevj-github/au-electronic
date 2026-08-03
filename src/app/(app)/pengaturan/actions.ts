@@ -58,9 +58,18 @@ export async function deleteHelper(userId: string): Promise<{ error?: string }> 
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
 
-  const { data: targetUser } = await supabase
+  const { data: targetUser, error: lookupError } = await supabase
     .from('users').select('role').eq('id', userId).single<Pick<User, 'role'>>()
-  if (targetUser?.role === 'owner') {
+
+  // Fail closed. This lookup is the only thing standing between the caller and
+  // deleting an owner account, and the deletion below goes through the
+  // service-role admin client, which bypasses RLS. Reading the role with `?.`
+  // and no error check meant a transient failure produced `null`, which is not
+  // 'owner', which proceeded to delete. Refuse unless the role is confirmed.
+  if (lookupError || !targetUser) {
+    return { error: 'Tidak dapat memverifikasi akun yang akan dihapus.' }
+  }
+  if (targetUser.role === 'owner') {
     return { error: 'Tidak bisa menghapus akun owner.' }
   }
 

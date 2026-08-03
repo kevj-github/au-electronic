@@ -113,29 +113,19 @@ export async function updateStatusPesanan(
   return {}
 }
 
-// Any authenticated user can set jumlah_diambil — any helper may be the one
-// fetching items from the etalase. guard_item_pesanan_write is the DB-level gatekeeper
-// (it also clamps jumlah_diambil to qty); the status check here closes the owner
-// bypass gap at the app layer. diambil_oleh_helper is a generated column derived
-// from jumlah_diambil, so checking the box is just "set jumlah_diambil to qty".
-export async function toggleItemDiambil(itemId: string, value: boolean): Promise<{ error?: string }> {
-  const supabase = await createClient()
-
-  const info = await requireHelperCanMutateItem(supabase, itemId)
-  if (isGuardError(info)) return info
-
-  const { error } = await supabase
-    .from('item_pesanan')
-    .update({ jumlah_diambil: value ? info.qty : 0 })
-    .eq('id', itemId)
-
-  if (error) return { error: error.message }
-  revalidatePath(`/pesanan/${info.pesanan_id}`)
-  return {}
-}
-
-// Sets the partial quantity taken from the etalase. Clamped to [0, qty] here (using
-// the DB-fetched qty, never a client-supplied one) as well as by the DB trigger.
+// Sets the partial quantity taken from the etalase — the only way the helper
+// checklist writes `jumlah_diambil`. An all-or-nothing `toggleItemDiambil` used
+// to sit alongside this; it was superseded when the checklist gained partial
+// quantities and removed once nothing called it. Every export in a 'use server'
+// file is a publicly reachable POST endpoint with a stable action id, so an
+// uncalled one is live surface area, not dead weight — delete rather than keep.
+//
+// Any authenticated user may write it: any helper can be the one fetching from
+// the etalase. `guard_item_pesanan_write` is the DB-level gatekeeper (it clamps
+// to qty as well); the app-layer status check closes the owner-bypass gap.
+// `diambil_oleh_helper` is a generated column derived from `jumlah_diambil`.
+//
+// Clamped to [0, qty] here using the DB-fetched qty, never a client-supplied one.
 export async function setItemJumlahDiambil(itemId: string, jumlah: number): Promise<{ error?: string }> {
   const supabase = await createClient()
 

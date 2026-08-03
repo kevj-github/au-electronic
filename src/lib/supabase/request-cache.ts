@@ -27,10 +27,17 @@ export const getCurrentUser = cache(async () => {
 
 export const getPesananLocked = cache(async () => {
   const supabase = await createClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('settings')
     .select('value')
     .eq('key', 'pesanan_locked')
     .single<{ value: string }>()
-  return data?.value === 'true'
+
+  // Fail closed, matching `requireUnlocked` in the action layer. Returning
+  // `false` here on a read failure rendered the *unlocked* helper UI while every
+  // mutation those affordances trigger was already being rejected — buttons that
+  // only produce errors. Presenting the locked UI is the honest degradation.
+  // Scope is helper-facing UI only; owners are gated by order status instead.
+  if (error || !data) return true
+  return data.value === 'true'
 })
