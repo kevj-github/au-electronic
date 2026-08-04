@@ -170,23 +170,43 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
 
+  /**
+   * Search text and timestamp, lowercased and parsed once per order rather than
+   * once per order *per keystroke*. Keyed on `rows` alone, so typing reuses it.
+   */
+  const searchable = useMemo(
+    () =>
+      rows.map((row) => ({
+        row,
+        // Joined with NUL, which cannot appear in a typed query, so a match can
+        // never span the boundary. That keeps the original "kode matches OR
+        // nama matches" semantics rather than quietly widening them.
+        haystack: `${row.p.kode_pesanan}\u0000${
+          row.p.pelanggan?.nama ?? row.p.nama_pelanggan ?? ''
+        }`.toLowerCase(),
+        createdAt: parseISO(row.p.created_at).getTime(),
+      })),
+    [rows],
+  )
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return rows.filter(({ p }) => {
-      if (status !== 'semua' && p.status !== status) return false
-      if (dateFrom || dateTo) {
-        const created = parseISO(p.created_at)
-        if (dateFrom && created < startOfDay(parseISO(dateFrom))) return false
-        if (dateTo && created > endOfDay(parseISO(dateTo))) return false
-      }
-      if (!q) return true
-      const nama = p.pelanggan?.nama ?? p.nama_pelanggan ?? ''
-      return (
-        p.kode_pesanan.toLowerCase().includes(q) ||
-        nama.toLowerCase().includes(q)
-      )
-    })
-  }, [rows, query, status, dateFrom, dateTo])
+    // Hoisted out of the row loop: these depend only on the filter inputs, but
+    // sat inside the predicate, so each keystroke re-parsed the same two dates
+    // once per order — 1000 extra parses on a full 500-order list.
+    const fromMs = dateFrom ? startOfDay(parseISO(dateFrom)).getTime() : null
+    const toMs = dateTo ? endOfDay(parseISO(dateTo)).getTime() : null
+
+    return searchable
+      .filter(({ row: { p }, haystack, createdAt }) => {
+        if (status !== 'semua' && p.status !== status) return false
+        if (fromMs !== null && createdAt < fromMs) return false
+        if (toMs !== null && createdAt > toMs) return false
+        // The NUL separator keeps a match from spanning kode and nama.
+        return !q || haystack.includes(q)
+      })
+      .map(({ row }) => row)
+  }, [searchable, query, status, dateFrom, dateTo])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
 

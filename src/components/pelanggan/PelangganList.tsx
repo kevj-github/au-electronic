@@ -22,18 +22,29 @@ export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
   const [tipe, setTipe] = useState<TipePelanggan | 'semua'>('semua')
   const [page, setPage] = useState(1)
 
+  /**
+   * Lowercased once per customer instead of three times per customer per
+   * keystroke. Keyed on the list alone so typing reuses it. NUL separators keep
+   * a query from matching across the nama/telepon/alamat boundaries.
+   */
+  const searchable = useMemo(
+    () =>
+      pelangganList.map((p) => ({
+        p,
+        haystack: `${p.nama}\u0000${p.telepon ?? ''}\u0000${p.alamat ?? ''}`.toLowerCase(),
+      })),
+    [pelangganList],
+  )
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return pelangganList.filter((p) => {
-      if (tipe !== 'semua' && p.tipe !== tipe) return false
-      if (!q) return true
-      return (
-        p.nama.toLowerCase().includes(q) ||
-        (p.telepon ?? '').toLowerCase().includes(q) ||
-        (p.alamat ?? '').toLowerCase().includes(q)
-      )
-    })
-  }, [pelangganList, query, tipe])
+    return searchable
+      .filter(({ p, haystack }) => {
+        if (tipe !== 'semua' && p.tipe !== tipe) return false
+        return !q || haystack.includes(q)
+      })
+      .map(({ p }) => p)
+  }, [searchable, query, tipe])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
 
