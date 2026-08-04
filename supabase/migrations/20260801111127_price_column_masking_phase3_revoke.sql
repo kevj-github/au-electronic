@@ -1,7 +1,7 @@
 -- Applied live to project pjkddahrjjqblexxhaef on 2026-08-01.
 --
 -- PHASE 3 (final) of price/payment column masking — section 1 of
--- supabase/prepared/20260731_price_column_masking_NOT_APPLIED.sql, verbatim.
+-- supabase/prepared/20260731_price_column_masking_APPLIED.sql, verbatim.
 -- This is the step that actually closes the leak: before it, any signed-in
 -- helper could read harga_satuan/subtotal for every order with a direct REST
 -- call, because RLS restricts rows but not columns and all signed-in users

@@ -1,7 +1,7 @@
 -- Applied live to project pjkddahrjjqblexxhaef on 2026-08-01.
 --
 -- PHASE 1 of price/payment column masking. See
--- supabase/prepared/20260731_price_column_masking_NOT_APPLIED.sql for the full
+-- supabase/prepared/20260731_price_column_masking_APPLIED.sql for the full
 -- rationale, the threat model and the remaining phase 3.
 --
 -- Additive only: creates the owner-gated views and their INSTEAD OF write
