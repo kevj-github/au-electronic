@@ -34,6 +34,9 @@ const requireUnlocked = vi.fn()
 const getRole = vi.fn()
 const rpc = vi.fn()
 
+/** What the create_pesanan_atomic RPC returns, per test. */
+let atomicResult: { data: unknown; error: { code?: string; message: string } | null }
+
 /** Row returned by `.single()`, and error returned by a write, per test. */
 let singleData: unknown = null
 let writeError: { message: string } | null = null
@@ -118,7 +121,12 @@ beforeEach(() => {
   requireActivePesananByItem.mockReset().mockResolvedValue(ACTIVE_ITEM)
   requireUnlocked.mockReset().mockResolvedValue(null)
   getRole.mockReset().mockResolvedValue('owner')
-  rpc.mockReset().mockResolvedValue({ data: 'AU.2026.08.00001', error: null })
+  atomicResult = { data: 'new-pesanan', error: null }
+  rpc.mockReset().mockImplementation(async (fn: string) => {
+    if (fn === 'create_pesanan_atomic') return atomicResult
+    if (fn === 'next_kode_pesanan') return { data: 'AU.2026.08.00001', error: null }
+    return { data: null, error: null }
+  })
 })
 
 // ---- owner gating ----------------------------------------------------------
@@ -318,7 +326,8 @@ describe('createPesanan validation', () => {
     expect(ops).toHaveLength(0)
   })
 
-  it('inserts the order as diproses with the generated kode', async () => {
+  it('inserts the order as diproses with the generated kode, on the legacy path', async () => {
+    atomicResult = { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }
     singleData = { id: 'new-pesanan' }
     const { createPesanan } = await actions()
 
@@ -477,5 +486,104 @@ describe('createPesanan item validation happens before anything is written', () 
     })
 
     expect(result.pesananId).toBe('new-pesanan')
+  })
+})
+
+/**
+ * createPesanan now delegates to the `create_pesanan_atomic` RPC so the kode
+ * draw, the pesanan row and the lines share one transaction.
+ *
+ * The fallback to the old three-step sequence exists only because the function
+ * has not been applied to the live project yet, and it is deliberately narrow:
+ * it triggers on PGRST202 ("no such function") and nothing else. Any other
+ * error is a real answer from the function — a lock, a failed validation, an
+ * RLS rejection — and re-running the write with those checks skipped would be
+ * the worst possible response to it.
+ */
+describe('createPesanan atomic RPC', () => {
+  const valid = {
+    pelanggan_id: 'c1',
+    nama_pelanggan: null,
+    catatan: 'catatan',
+    items: [{ nama_barang: 'X', qty: 2, harga_satuan: 1000 }],
+  }
+
+  it('creates the order in a single RPC, writing nothing directly', async () => {
+    const { createPesanan } = await actions()
+
+    const result = await createPesanan(valid)
+
+    expect(result.pesananId).toBe('new-pesanan')
+    expect(rpc).toHaveBeenCalledWith('create_pesanan_atomic', {
+      p_pelanggan_id: 'c1',
+      p_nama_pelanggan: null,
+      p_catatan: 'catatan',
+      p_tanggal_pengiriman: null,
+      p_items: valid.items,
+    })
+    // The whole point: no separate parent insert that could be left behind.
+    expect(ops).toHaveLength(0)
+    expect(rpc).not.toHaveBeenCalledWith('next_kode_pesanan')
+    expect(revalidatePath).toHaveBeenCalledWith('/pesanan')
+  })
+
+  it('passes the delivery date through when the owner set one', async () => {
+    const { createPesanan } = await actions()
+
+    await createPesanan({ ...valid, tanggal_pengiriman: '2026-08-20' })
+
+    expect(rpc).toHaveBeenCalledWith(
+      'create_pesanan_atomic',
+      expect.objectContaining({ p_tanggal_pengiriman: '2026-08-20' }),
+    )
+  })
+
+  it.each([
+    ['a lock rejection', 'P0001', 'Pembuatan pesanan baru sedang dikunci oleh pemilik.'],
+    ['a check violation', '23514', 'new row violates check constraint'],
+    ['an RLS rejection', '42501', 'permission denied for table pesanan'],
+    ['an unknown failure', undefined, 'connection reset'],
+  ])('surfaces %s without falling back to the legacy path', async (_label, code, message) => {
+    atomicResult = { data: null, error: { code, message } }
+    const { createPesanan } = await actions()
+
+    const result = await createPesanan(valid)
+
+    expect(result.error).toBe(message)
+    // Falling back here would redo the write with the function's checks skipped.
+    expect(ops).toHaveLength(0)
+    expect(rpc).not.toHaveBeenCalledWith('next_kode_pesanan')
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the legacy sequence only when the function is absent', async () => {
+    atomicResult = { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }
+    singleData = { id: 'legacy-pesanan' }
+    const { createPesanan } = await actions()
+
+    const result = await createPesanan(valid)
+
+    expect(rpc).toHaveBeenCalledWith('next_kode_pesanan')
+    expect(ops[0]).toMatchObject({ table: 'pesanan', op: 'insert' })
+    expect(result.pesananId).toBe('legacy-pesanan')
+  })
+
+  it('still rejects invalid input before calling the RPC at all', async () => {
+    const { createPesanan } = await actions()
+
+    await createPesanan({ ...valid, items: [{ nama_barang: 'X', qty: 0, harga_satuan: 0 }] })
+
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('still applies the helper lock before calling the RPC', async () => {
+    getRole.mockResolvedValue('helper')
+    requireUnlocked.mockResolvedValue({ error: 'Pembuatan pesanan baru sedang dikunci oleh pemilik.' })
+    const { createPesanan } = await actions()
+
+    const result = await createPesanan(valid)
+
+    expect(result.error).toBe('Pembuatan pesanan baru sedang dikunci oleh pemilik.')
+    expect(rpc).not.toHaveBeenCalled()
   })
 })

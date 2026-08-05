@@ -65,13 +65,45 @@ export async function createPesanan(
     return { error: 'Qty setiap barang harus berupa angka bulat minimal 1.' }
   }
 
-  const { data: kodeData, error: kodeError } = await supabase.rpc('next_kode_pesanan')
-  if (kodeError) return { error: kodeError.message }
-
-  // Helpers can be locked out of creating new pesanan; owners never are.
+  // Helpers can be locked out of creating new pesanan; owners never are. Kept
+  // in the app as well as in the RPC so the rejection is one round-trip and
+  // carries this exact message.
   const role = await getRole(supabase)
   const lockError = await requireUnlocked(supabase, role, CREATE_PESANAN_LOCKED)
   if (lockError) return lockError
+
+  // One RPC, one transaction: the kode draw, the pesanan row and every line
+  // either all commit or all roll back. The three-step version below committed
+  // the parent before the lines, so any failure between them left an order with
+  // no items holding a permanently consumed kode.
+  const { data: rpcId, error: rpcError } = await supabase.rpc('create_pesanan_atomic', {
+    p_pelanggan_id: input.pelanggan_id,
+    p_nama_pelanggan: input.nama_pelanggan,
+    p_catatan: input.catatan,
+    p_tanggal_pengiriman: input.tanggal_pengiriman ?? null,
+    p_items: input.items,
+  })
+
+  if (!rpcError) {
+    revalidatePath('/pesanan')
+    return { pesananId: rpcId as string }
+  }
+
+  // PGRST202 is PostgREST's "no such function". It means only that
+  // supabase/prepared/20260805_atomic_create_pesanan_NOT_APPLIED.sql has not
+  // been applied yet, so fall through to the legacy sequence and keep order
+  // creation working whichever order the DB and the app are deployed in.
+  //
+  // Narrow on purpose: every OTHER error — the lock, a failed validation, an
+  // RLS rejection — is a real answer from the function and must be surfaced.
+  // Falling back on those would re-run the write with the RPC's checks skipped.
+  //
+  // DELETE THIS BRANCH once the function is confirmed live; it is the only
+  // thing keeping the non-atomic path alive.
+  if (rpcError.code !== 'PGRST202') return { error: rpcError.message }
+
+  const { data: kodeData, error: kodeError } = await supabase.rpc('next_kode_pesanan')
+  if (kodeError) return { error: kodeError.message }
 
   const { data: pesanan, error: pesananError } = await supabase
     .from('pesanan')

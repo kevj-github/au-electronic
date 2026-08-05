@@ -1,18 +1,23 @@
 -- ============================================================================
--- ATOMIC create_pesanan  —  *** NOT APPLIED — DO NOT DEPLOY THE APP CHANGE
---                              BEFORE THIS IS LIVE ***
+-- ATOMIC create_pesanan  —  *** NOT APPLIED TO THE LIVE PROJECT ***
+--   Until it is, createPesanan keeps using the old non-atomic sequence.
 -- ============================================================================
 --
 -- STATUS: written, verified only by review. It has NOT been applied to project
 -- pjkddahrjjqblexxhaef, because doing so needs Supabase MCP authentication that
 -- has to be completed in a browser by the project owner.
 --
--- DEPLOY ORDER — this is a breaking change if reversed:
+-- DEPLOY ORDER: no longer load-bearing, but still the intended sequence.
 --   1. apply this function live
---   2. THEN deploy the app change that calls it
--- `createPesanan` calls this RPC by name. Shipping the app first makes every
--- order-creation attempt fail with PGRST202 (function not found). Same ordering
--- discipline the price-masking phases used.
+--   2. remove the PGRST202 fallback branch in createPesanan
+--
+-- createPesanan already calls this RPC and falls back to the old three-step
+-- sequence when PostgREST answers PGRST202 ("no such function"), so the app is
+-- safe to deploy in either order — it simply keeps using the non-atomic path
+-- until this lands. Applying this function switches it over with no redeploy.
+--
+-- AFTER APPLYING: delete the fallback branch in createPesanan. It is the only
+-- thing keeping the orphan-prone sequence in the codebase.
 --
 -- ---------------------------------------------------------------------------
 -- WHY
