@@ -5,8 +5,9 @@
 ```bash
 npm run dev        # Next.js dev server (Turbopack)
 npm run build       # Production build — the only check that catches async/Server Action errors (see below)
-npm run test:run    # Vitest, single run
+npm run test:run    # Vitest, single run (hermetic — no network)
 npm run lint        # ESLint
+npm run test:db     # Live DB security posture — real credentials, hits production
 ```
 
 ## Architecture
@@ -55,6 +56,8 @@ npm run lint        # ESLint
   The rationale, threat model and post-apply verification live in `supabase/prepared/20260731_price_column_masking_APPLIED.sql`, which is a historical record with nothing left to apply.
 
   `anon` was closed off too in `20260805083315_price_column_masking_anon_revoke.sql`, which it had been left out of. `anon` and `authenticated` now hold identical `SELECT` column sets on both tables, so neither can read a price. Verified with the public anon key: `/rest/v1/item_pesanan?select=harga_satuan` returns `42501`, while `?select=nama_barang` returns `[]` — RLS blocking rows rather than a blanket table lockout.
+
+  **The invariant is enforced by `npm run test:db`** (`scripts/db-security.test.ts`), which asserts against the live project that neither `anon` nor `authenticated` holds a column *or* table-level `SELECT` on the priced columns, that both owner views still re-check `current_user_role() = 'owner'` and are not `security_invoker`, and that the realtime publication is exactly `pesanan`/`pelanggan`/`users`. It reads the catalog through `public.security_posture()` (service-role only) and also probes REST with the public anon key. It never skips: placeholder credentials fail the suite, because a security check that passes when it cannot run is what created the four-day gap in the first place. Deliberately outside `npm run test:run`, which stays hermetic.
 
   Two things to know before touching these grants. `anon` and `authenticated` hold **table-level** SELECT by default in Supabase, and a column-level `REVOKE` does not remove a table-level grant — you have to revoke the table grant and re-grant the columns that stay readable (check `pg_class.relacl` for an `r`). And the `security_definer_view` ERROR advisories on `item_pesanan_owner`/`pembayaran_owner` are intentional: the views must run as their owner or the revoke would apply to them too and defeat the whole design.
 - **Toggle buttons must show the action, not the current state.** A button labelled with what IS (e.g. "Terkunci") confuses users — they can't tell if clicking will change or confirm that state. Label with what WILL HAPPEN: "Kunci" when currently unlocked, "Buka Kunci" when currently locked. This is a recurring mistake; apply it to any toggle-style button in this codebase.

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "test:db": "vitest run --config vitest.db.config.ts"
   },
   "overrides": {
     "postcss": "^8.5.25",

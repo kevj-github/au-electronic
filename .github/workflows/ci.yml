@@ -44,3 +44,24 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key' }}
         run: npm run build
+
+      # Asserts the live database's price-masking and realtime invariants
+      # (scripts/db-security.test.ts). These were previously "verified" only by
+      # curl commands pasted into migration comments, which is how `anon` kept
+      # SELECT on the price columns unnoticed from 1 to 5 Aug 2026.
+      #
+      # Read-only, and it needs REAL credentials — placeholders make the suite
+      # fail by design rather than pass hollowly. If the secrets are not
+      # configured, this logs a warning instead of silently succeeding, so an
+      # unverified invariant is at least visible in the run.
+      - name: Database security posture
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::warning title=DB posture not verified::Supabase secrets are not configured, so the price-masking invariants were NOT checked in this run."
+            exit 0
+          fi
+          npm run test:db

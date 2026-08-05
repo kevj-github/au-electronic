@@ -8,6 +8,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
+    // The live database posture checks need network access and real
+    // credentials. They run via `npm run test:db` (vitest.db.config.ts); this
+    // suite stays hermetic.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**', 'scripts/db-security.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
