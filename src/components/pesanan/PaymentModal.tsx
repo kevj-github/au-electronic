@@ -26,6 +26,25 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
   const [error, setError] = useState<string | null>(null)
   const [jumlahRaw, setJumlahRaw] = useState(String(sisaTagihan > 0 ? sisaTagihan : ''))
 
+  // Re-seed the prefill every time the dialog opens rather than only at mount.
+  //
+  // This component is rendered whenever `sisaTagihan > 0`, so a *partial*
+  // payment leaves it mounted with its state intact while the page revalidates
+  // to a smaller balance. A mount-only prefill therefore offered the ORIGINAL
+  // balance again on the second payment, and one unnoticed Simpan overpaid the
+  // order. (A full payment unmounts the component, so only the partial flow —
+  // the one `bayar_sebagian` exists for — was exposed.)
+  //
+  // Keyed on the open transition, not on `sisaTagihan`, so a balance change
+  // arriving via Realtime while the dialog is open cannot clobber what the
+  // owner is currently typing. Adjusting state during render is the
+  // React-recommended form and converges: `prevOpen` matches immediately after.
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) setJumlahRaw(String(sisaTagihan > 0 ? sisaTagihan : ''))
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)

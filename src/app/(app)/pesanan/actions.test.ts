@@ -409,3 +409,73 @@ describe('revalidation targets', () => {
     expect(revalidatePath).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * `item_pesanan` carries `check (qty > 0)` and `nama_barang` is required, but
+ * `createPesanan` validated neither — it only checked that the array was
+ * non-empty. Because the pesanan row is inserted BEFORE its items, a single
+ * qty-0 line meant: a kode burned, a pesanan row committed, the items insert
+ * rejected by the constraint, and a raw Postgres message shown to the user —
+ * leaving an orphaned order with no items behind on every attempt.
+ */
+describe('createPesanan item validation happens before anything is written', () => {
+  const base = {
+    pelanggan_id: 'c1',
+    nama_pelanggan: null,
+    catatan: null,
+  }
+
+  it.each([
+    ['zero qty', 0],
+    ['negative qty', -1],
+    ['fractional qty', 0.5],
+    ['NaN qty', Number.NaN],
+  ])('rejects %s without burning a kode or inserting a pesanan', async (_label, qty) => {
+    const { createPesanan } = await actions()
+
+    const result = await createPesanan({
+      ...base,
+      items: [{ nama_barang: 'Kabel', qty, harga_satuan: 1000 }],
+    })
+
+    expect(result.error).toBeTruthy()
+    // The two things that made this leave orphans.
+    expect(rpc).not.toHaveBeenCalled()
+    expect(ops).toHaveLength(0)
+  })
+
+  it('rejects a blank nama_barang', async () => {
+    const { createPesanan } = await actions()
+
+    const result = await createPesanan({
+      ...base,
+      items: [{ nama_barang: '   ', qty: 1, harga_satuan: 0 }],
+    })
+
+    expect(result.error).toBeTruthy()
+    expect(ops).toHaveLength(0)
+  })
+
+  it('reports a readable message, not a raw constraint violation', async () => {
+    const { createPesanan } = await actions()
+
+    const result = await createPesanan({
+      ...base,
+      items: [{ nama_barang: 'Kabel', qty: 0, harga_satuan: 1000 }],
+    })
+
+    expect(result.error).not.toMatch(/constraint|violates|item_pesanan_qty/i)
+  })
+
+  it('still accepts a valid line', async () => {
+    singleData = { id: 'new-pesanan' }
+    const { createPesanan } = await actions()
+
+    const result = await createPesanan({
+      ...base,
+      items: [{ nama_barang: 'Kabel', qty: 2, harga_satuan: 1000 }],
+    })
+
+    expect(result.pesananId).toBe('new-pesanan')
+  })
+})

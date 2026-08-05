@@ -48,6 +48,23 @@ export async function createPesanan(
     return { error: 'Tambahkan minimal satu barang.' }
   }
 
+  // Validate every line BEFORE the kode is drawn and the pesanan row inserted.
+  // `item_pesanan` carries `check (qty > 0)`, and the items are inserted after
+  // the parent, so an invalid line used to commit a pesanan row, burn a kode,
+  // then fail the items insert — leaving an orphaned order with no items and
+  // surfacing a raw Postgres constraint message. Rejecting up front means
+  // nothing is written at all.
+  if (input.items.some((item) => !item.nama_barang.trim())) {
+    return { error: 'Nama barang tidak boleh kosong.' }
+  }
+  if (
+    input.items.some(
+      (item) => !Number.isInteger(item.qty) || item.qty < 1
+    )
+  ) {
+    return { error: 'Qty setiap barang harus berupa angka bulat minimal 1.' }
+  }
+
   const { data: kodeData, error: kodeError } = await supabase.rpc('next_kode_pesanan')
   if (kodeError) return { error: kodeError.message }
 
