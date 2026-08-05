@@ -73,10 +73,13 @@ export async function createPesanan(
   if (lockError) return lockError
 
   // One RPC, one transaction: the kode draw, the pesanan row and every line
-  // either all commit or all roll back. The three-step version below committed
-  // the parent before the lines, so any failure between them left an order with
-  // no items holding a permanently consumed kode.
-  const { data: rpcId, error: rpcError } = await supabase.rpc('create_pesanan_atomic', {
+  // either all commit or all roll back. This replaced a three-step sequence
+  // (next_kode_pesanan -> insert pesanan -> insert item_pesanan) in which each
+  // step was its own transaction, so any failure on the lines left an order with
+  // no items holding a permanently consumed kode. See
+  // supabase/migrations/20260805081656_atomic_create_pesanan.sql, which records
+  // the live verification of the rollback behaviour.
+  const { data: pesananId, error } = await supabase.rpc('create_pesanan_atomic', {
     p_pelanggan_id: input.pelanggan_id,
     p_nama_pelanggan: input.nama_pelanggan,
     p_catatan: input.catatan,
@@ -84,61 +87,10 @@ export async function createPesanan(
     p_items: input.items,
   })
 
-  if (!rpcError) {
-    revalidatePath('/pesanan')
-    return { pesananId: rpcId as string }
-  }
-
-  // PGRST202 is PostgREST's "no such function". It means only that
-  // supabase/prepared/20260805_atomic_create_pesanan_NOT_APPLIED.sql has not
-  // been applied yet, so fall through to the legacy sequence and keep order
-  // creation working whichever order the DB and the app are deployed in.
-  //
-  // Narrow on purpose: every OTHER error — the lock, a failed validation, an
-  // RLS rejection — is a real answer from the function and must be surfaced.
-  // Falling back on those would re-run the write with the RPC's checks skipped.
-  //
-  // DELETE THIS BRANCH once the function is confirmed live; it is the only
-  // thing keeping the non-atomic path alive.
-  if (rpcError.code !== 'PGRST202') return { error: rpcError.message }
-
-  const { data: kodeData, error: kodeError } = await supabase.rpc('next_kode_pesanan')
-  if (kodeError) return { error: kodeError.message }
-
-  const { data: pesanan, error: pesananError } = await supabase
-    .from('pesanan')
-    .insert({
-      kode_pesanan: kodeData as string,
-      pelanggan_id: input.pelanggan_id,
-      nama_pelanggan: input.nama_pelanggan,
-      catatan: input.catatan,
-      tanggal_pengiriman: input.tanggal_pengiriman ?? null,
-      dibuat_oleh: authUser.id,
-      status: 'diproses',
-    })
-    .select('id')
-    .single<{ id: string }>()
-
-  if (pesananError) return { error: pesananError.message }
-
-  // Non-owners get harga_satuan forced to 0 by the guard_item_pesanan_write
-  // trigger regardless of what's sent here — the owner fills in the real price later.
-  const { error: itemsError } = await supabase
-    .from('item_pesanan')
-    .insert(
-      input.items.map((item) => ({
-        pesanan_id: pesanan.id,
-        nama_barang: item.nama_barang,
-        qty: item.qty,
-        harga_satuan: item.harga_satuan,
-        catatan_item: null,
-      }))
-    )
-
-  if (itemsError) return { error: itemsError.message }
+  if (error) return { error: error.message }
 
   revalidatePath('/pesanan')
-  return { pesananId: pesanan.id }
+  return { pesananId: pesananId as string }
 }
 
 export async function updateStatusPesanan(

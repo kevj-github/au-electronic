@@ -1,23 +1,26 @@
--- ============================================================================
--- ATOMIC create_pesanan  —  *** NOT APPLIED TO THE LIVE PROJECT ***
---   Until it is, createPesanan keeps using the old non-atomic sequence.
--- ============================================================================
+-- Applied live to project pjkddahrjjqblexxhaef on 2026-08-05.
 --
--- STATUS: written, verified only by review. It has NOT been applied to project
--- pjkddahrjjqblexxhaef, because doing so needs Supabase MCP authentication that
--- has to be completed in a browser by the project owner.
+-- Atomic replacement for createPesanan's three-step sequence. The app now calls
+-- this via rpc('create_pesanan_atomic'); the PGRST202 fallback that kept the old
+-- path alive while this was unapplied was removed in the same commit.
 --
--- DEPLOY ORDER: no longer load-bearing, but still the intended sequence.
---   1. apply this function live
---   2. remove the PGRST202 fallback branch in createPesanan
---
--- createPesanan already calls this RPC and falls back to the old three-step
--- sequence when PostgREST answers PGRST202 ("no such function"), so the app is
--- safe to deploy in either order — it simply keeps using the non-atomic path
--- until this lands. Applying this function switches it over with no redeploy.
---
--- AFTER APPLYING: delete the fallback branch in createPesanan. It is the only
--- thing keeping the orphan-prone sequence in the codebase.
+-- Verified against live data immediately after applying:
+--   * happy path, as an owner session (jwt claims set, role authenticated):
+--     kode AU.2026.08.00036 drawn, status diproses, tanggal_pengiriman stored,
+--     dibuat_oleh = the caller, 2 lines, total 9.500. Rolled back.
+--   * ATOMICITY, the property this exists for: a payload that passes the
+--     up-front validation but fails the harga_satuan cast *during the item
+--     insert* — i.e. after the parent row is written — left
+--         kode counter 35 -> 35   (the kode is released, not burned)
+--         pesanan rows 107 -> 107 (no orphan)
+--         orphaned pesanan 0 -> 0
+--     Under the old three-step path that same failure committed the parent and
+--     consumed kode 36 permanently.
+--   * grants: security_definer = false, EXECUTE held by authenticated and
+--     service_role only — not anon, not public.
+--   * get_advisors(security) reports nothing new for this function. A
+--     SECURITY DEFINER version would have added an
+--     authenticated_security_definer_function_executable warning.
 --
 -- ---------------------------------------------------------------------------
 -- WHY

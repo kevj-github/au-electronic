@@ -124,7 +124,6 @@ beforeEach(() => {
   atomicResult = { data: 'new-pesanan', error: null }
   rpc.mockReset().mockImplementation(async (fn: string) => {
     if (fn === 'create_pesanan_atomic') return atomicResult
-    if (fn === 'next_kode_pesanan') return { data: 'AU.2026.08.00001', error: null }
     return { data: null, error: null }
   })
 })
@@ -326,26 +325,6 @@ describe('createPesanan validation', () => {
     expect(ops).toHaveLength(0)
   })
 
-  it('inserts the order as diproses with the generated kode, on the legacy path', async () => {
-    atomicResult = { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }
-    singleData = { id: 'new-pesanan' }
-    const { createPesanan } = await actions()
-
-    const result = await createPesanan({
-      pelanggan_id: 'c1',
-      nama_pelanggan: null,
-      catatan: 'catatan',
-      items: [{ nama_barang: 'X', qty: 2, harga_satuan: 1000 }],
-    })
-
-    expect(ops[0]).toMatchObject({
-      table: 'pesanan',
-      op: 'insert',
-      payload: { kode_pesanan: 'AU.2026.08.00001', status: 'diproses', pelanggan_id: 'c1' },
-    })
-    expect(result.pesananId).toBe('new-pesanan')
-  })
-
   it('does not burn a kode when validation fails', async () => {
     const { createPesanan } = await actions()
 
@@ -490,15 +469,14 @@ describe('createPesanan item validation happens before anything is written', () 
 })
 
 /**
- * createPesanan now delegates to the `create_pesanan_atomic` RPC so the kode
- * draw, the pesanan row and the lines share one transaction.
+ * createPesanan delegates entirely to the `create_pesanan_atomic` RPC, so the
+ * kode draw, the pesanan row and the lines share one transaction. There is no
+ * longer a second path: the action must never write pesanan or item_pesanan
+ * directly, because doing so is what allowed a failure between the two inserts
+ * to leave an orphaned order holding a consumed kode.
  *
- * The fallback to the old three-step sequence exists only because the function
- * has not been applied to the live project yet, and it is deliberately narrow:
- * it triggers on PGRST202 ("no such function") and nothing else. Any other
- * error is a real answer from the function — a lock, a failed validation, an
- * RLS rejection — and re-running the write with those checks skipped would be
- * the worst possible response to it.
+ * Every error the function raises is a real answer — the lock, a failed
+ * validation, an RLS rejection — and is surfaced as-is rather than retried.
  */
 describe('createPesanan atomic RPC', () => {
   const valid = {
@@ -523,7 +501,6 @@ describe('createPesanan atomic RPC', () => {
     })
     // The whole point: no separate parent insert that could be left behind.
     expect(ops).toHaveLength(0)
-    expect(rpc).not.toHaveBeenCalledWith('next_kode_pesanan')
     expect(revalidatePath).toHaveBeenCalledWith('/pesanan')
   })
 
@@ -543,29 +520,15 @@ describe('createPesanan atomic RPC', () => {
     ['a check violation', '23514', 'new row violates check constraint'],
     ['an RLS rejection', '42501', 'permission denied for table pesanan'],
     ['an unknown failure', undefined, 'connection reset'],
-  ])('surfaces %s without falling back to the legacy path', async (_label, code, message) => {
+  ])('surfaces %s and writes nothing', async (_label, code, message) => {
     atomicResult = { data: null, error: { code, message } }
     const { createPesanan } = await actions()
 
     const result = await createPesanan(valid)
 
     expect(result.error).toBe(message)
-    // Falling back here would redo the write with the function's checks skipped.
     expect(ops).toHaveLength(0)
-    expect(rpc).not.toHaveBeenCalledWith('next_kode_pesanan')
     expect(revalidatePath).not.toHaveBeenCalled()
-  })
-
-  it('falls back to the legacy sequence only when the function is absent', async () => {
-    atomicResult = { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }
-    singleData = { id: 'legacy-pesanan' }
-    const { createPesanan } = await actions()
-
-    const result = await createPesanan(valid)
-
-    expect(rpc).toHaveBeenCalledWith('next_kode_pesanan')
-    expect(ops[0]).toMatchObject({ table: 'pesanan', op: 'insert' })
-    expect(result.pesananId).toBe('legacy-pesanan')
   })
 
   it('still rejects invalid input before calling the RPC at all', async () => {
