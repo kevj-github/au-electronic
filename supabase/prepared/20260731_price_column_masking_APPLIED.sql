@@ -22,11 +22,13 @@
 --   * both write paths still work: updateItemHarga (REST PATCH -> 204) and
 --     recordPembayaran/deletePembayaran (insert + pesanan_id lookup + delete).
 --
--- STILL OPEN — `anon` was never in scope of section 1 and still holds column
--- SELECT on harga_satuan/subtotal/jumlah. It leaks nothing today because every
--- relevant RLS policy requires a signed-in user (an anon REST call returns [],
--- verified), but loosening any of those policies would expose the columns
--- immediately. Revoking from anon too is the natural follow-up.
+-- CLOSED 2026-08-05 — `anon` was never in scope of section 1 and kept column
+-- SELECT on harga_satuan/subtotal/jumlah after phase 3. That was harmless while
+-- every relevant RLS policy required a signed-in user, but one loosened policy
+-- from exposure. Revoked in
+-- supabase/migrations/20260805083315_price_column_masking_anon_revoke.sql;
+-- anon and authenticated now hold identical SELECT column sets on both tables,
+-- verified with the public anon key (harga_satuan -> 42501, nama_barang -> []).
 --
 -- CORRECTION to the threat model below: the pembayaran exposure is narrower
 -- than originally written. `pembayaran_select` is
