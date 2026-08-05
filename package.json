@@ -10,7 +10,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "coverage": "vitest run --coverage",
-    "test:db": "vitest run --config vitest.db.config.ts"
+    "test:db": "vitest run --config vitest.db.config.ts",
+    "types:check": "node scripts/check-db-types.mjs"
   },
   "overrides": {
     "postcss": "^8.5.25",

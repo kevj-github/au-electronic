@@ -10,7 +10,7 @@ import { StatusBadge } from './StatusBadge'
 import { DeletePesananButton } from './DeletePesananButton'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
-import type { Pelanggan, Pesanan, ItemPesanan, Pembayaran, StatusPesanan } from '@/lib/types'
+import type { Pelanggan, Pesanan, ItemPesananOwner, PembayaranOwner, StatusPesanan } from '@/lib/types'
 
 /**
  * The server-side shape: a fetched order with its embedded rows still attached.
@@ -25,8 +25,8 @@ export type PesananWithRelations = Omit<
   Pesanan,
   'items' | 'pembayaran' | 'pelanggan'
 > & {
-  items: Array<Partial<Pick<ItemPesanan, 'subtotal'>> & Pick<ItemPesanan, 'diambil_oleh_helper'>>
-  pembayaran?: Pick<Pembayaran, 'jumlah'>[]
+  items: Array<Partial<Pick<ItemPesananOwner, 'subtotal'>> & Pick<ItemPesananOwner, 'diambil_oleh_helper'>>
+  pembayaran?: Pick<PembayaranOwner, 'jumlah'>[]
   pelanggan?: (Pick<Pelanggan, 'nama'> & Partial<Pick<Pelanggan, 'alamat'>>) | null
   tanggal_pengiriman: string | null
 }

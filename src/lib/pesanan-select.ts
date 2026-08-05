@@ -28,6 +28,44 @@
  */
 export const PRICED_COLUMNS = ['harga_satuan', 'subtotal', 'jumlah'] as const
 
+export type PricedColumn = (typeof PRICED_COLUMNS)[number]
+
+/** Strip surrounding spaces from a string literal type. */
+type Trim<S extends string> = S extends ` ${infer R}`
+  ? Trim<R>
+  : S extends `${infer R} `
+    ? Trim<R>
+    : S
+
+/**
+ * A PostgREST column list literal split into its individual column names.
+ *
+ * Tokenising matters: a naive `S extends \`${string}jumlah${string}\`` check
+ * would reject `jumlah_diambil`, which is a helper column and must stay
+ * readable. Comparing whole tokens keeps `jumlah` and `jumlah_diambil` distinct.
+ */
+type SplitColumns<S extends string> = S extends `${infer Head},${infer Rest}`
+  ? Trim<Head> | SplitColumns<Rest>
+  : Trim<S>
+
+/** Which priced columns, if any, a column list asks for. */
+export type PricedColumnsIn<S extends string> = Extract<SplitColumns<S>, PricedColumn>
+
+/**
+ * `S` if it is a literal naming no priced column, otherwise `never` — so a
+ * helper-facing select that asks for a price fails to compile rather than
+ * failing a test.
+ *
+ * The `string extends S` guard rejects a widened `string` too. Without it a
+ * value whose type had decayed to plain `string` would slip through unchecked,
+ * which is the one case where the guarantee would be silently absent.
+ */
+export type HelperSafeColumns<S extends string> = string extends S
+  ? never
+  : [PricedColumnsIn<S>] extends [never]
+    ? S
+    : never
+
 /** Where item rows are read from, per role. See rule 1. */
 export const ITEMS_SOURCE = {
   owner: 'item_pesanan_owner',
@@ -52,7 +90,22 @@ export const DETAIL_ITEM_COLUMNS = {
  * Build the `items:` embed, pointing at the owner view or the base table
  * according to the caller's role. Always alias to `items` so consumers see one
  * property name regardless of which source was used.
+ *
+ * The helper overload constrains its column list: `columns` must be a literal
+ * naming no priced column, so `itemsEmbed(false, 'harga_satuan')` is a
+ * compile error rather than something only a runtime test would notice. The
+ * owner overload is unconstrained — reading prices is the point.
+ *
+ * `S & HelperSafeColumns<S>` rather than `HelperSafeColumns<S>` alone because
+ * `S` sits in a non-inferrable position inside a conditional type; the
+ * intersection gives inference something to latch onto while still collapsing
+ * to `never` when the check fails.
  */
+export function itemsEmbed(isOwner: true, columns: string): string
+export function itemsEmbed<S extends string>(
+  isOwner: false,
+  columns: S & HelperSafeColumns<S>,
+): string
 export function itemsEmbed(isOwner: boolean, columns: string): string {
   return `items:${isOwner ? ITEMS_SOURCE.owner : ITEMS_SOURCE.helper}(${columns})`
 }

@@ -19,16 +19,16 @@ import { Button } from '@/components/ui/button'
 import { Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
-import type { Pesanan, ItemPesanan, Pembayaran, Pelanggan, StatusPesanan } from '@/lib/types'
+import type { Pesanan, ItemPesananHelper, ItemPesananOwner, PembayaranOwner, Pelanggan, StatusPesanan } from '@/lib/types'
 import Link from 'next/link'
 
-type HelperItem = Pick<ItemPesanan, 'id' | 'nama_barang' | 'qty' | 'diambil_oleh_helper' | 'jumlah_diambil'>
-type OwnerItem = ItemPesanan
+type HelperItem = Pick<ItemPesananHelper, 'id' | 'nama_barang' | 'qty' | 'diambil_oleh_helper' | 'jumlah_diambil'>
+type OwnerItem = ItemPesananOwner
 
 type PesananDetail = Omit<Pesanan, 'pelanggan' | 'items' | 'pembayaran'> & {
   pelanggan: Pelanggan | null
   items: HelperItem[] | OwnerItem[]
-  pembayaran: Pembayaran[]
+  pembayaran: PembayaranOwner[]
 }
 
 const statusTransitions: Record<StatusPesanan, StatusPesanan[]> = {
@@ -65,12 +65,20 @@ export default async function PesananDetailPage({
   // Source and per-role item columns come from lib/pesanan-select, which is
   // where the "owner reads the views, helper asks for no priced column" rule
   // lives and is tested.
-  const itemsSelect = isOwner ? DETAIL_ITEM_COLUMNS.owner : DETAIL_ITEM_COLUMNS.helper
+  //
+  // Each branch names its own column list rather than sharing a precomputed
+  // `itemsSelect`. That variable was the union of both lists, so on the helper
+  // branch its type still included the owner's `harga_satuan, subtotal` — the
+  // two stayed in step only because `isOwner` happened to be read consistently
+  // on both lines. `itemsEmbed`'s helper overload rejects that union outright,
+  // which is the guarantee working: the correct pairing is now enforced rather
+  // than merely intended.
+  //
   // Helpers see nama + alamat but not telepon (owner-only); don't fetch the
   // columns they can't see (defense-in-depth — same rule as the price columns).
   const pesananSelect = isOwner
-    ? `*, pelanggan(*), ${itemsEmbed(true, itemsSelect)}, ${pembayaranEmbed('*')}`
-    : `*, pelanggan(nama, alamat), ${itemsEmbed(false, itemsSelect)}`
+    ? `*, pelanggan(*), ${itemsEmbed(true, DETAIL_ITEM_COLUMNS.owner)}, ${pembayaranEmbed('*')}`
+    : `*, pelanggan(nama, alamat), ${itemsEmbed(false, DETAIL_ITEM_COLUMNS.helper)}`
 
   // Fetch pesanan and lock setting in parallel.
   const [{ data: pesanan }, pesananLocked] = await Promise.all([

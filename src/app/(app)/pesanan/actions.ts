@@ -16,6 +16,7 @@ import {
   CREATE_PESANAN_LOCKED,
 } from '@/lib/pesanan-guards'
 import type { StatusPesanan } from '@/lib/types'
+import type { Database } from '@/lib/database.types'
 
 export interface CreatePesananInput {
   pelanggan_id: string | null
@@ -79,13 +80,21 @@ export async function createPesanan(
   // no items holding a permanently consumed kode. See
   // supabase/migrations/20260805081656_atomic_create_pesanan.sql, which records
   // the live verification of the rollback behaviour.
+  //
+  // The cast is the one place the generated types are knowably wrong: Postgres
+  // function parameters carry no nullability information, so
+  // `generate_typescript_types` declares all five as non-nullable `string`.
+  // Four of them genuinely accept NULL — an order with no linked pelanggan, no
+  // catatan, no delivery date — and the function's own validation decides what
+  // is acceptable. Widening here rather than editing database.types.ts, which
+  // is regenerated after every migration.
   const { data: pesananId, error } = await supabase.rpc('create_pesanan_atomic', {
     p_pelanggan_id: input.pelanggan_id,
     p_nama_pelanggan: input.nama_pelanggan,
     p_catatan: input.catatan,
     p_tanggal_pengiriman: input.tanggal_pengiriman ?? null,
     p_items: input.items,
-  })
+  } as unknown as Database['public']['Functions']['create_pesanan_atomic']['Args'])
 
   if (error) return { error: error.message }
 
