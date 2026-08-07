@@ -58,18 +58,9 @@ export async function deleteHelper(userId: string): Promise<{ error?: string }> 
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
 
-  const { data: targetUser, error: lookupError } = await supabase
+  const { data: targetUser } = await supabase
     .from('users').select('role').eq('id', userId).single<Pick<User, 'role'>>()
-
-  // Fail closed. This lookup is the only thing standing between the caller and
-  // deleting an owner account, and the deletion below goes through the
-  // service-role admin client, which bypasses RLS. Reading the role with `?.`
-  // and no error check meant a transient failure produced `null`, which is not
-  // 'owner', which proceeded to delete. Refuse unless the role is confirmed.
-  if (lookupError || !targetUser) {
-    return { error: 'Tidak dapat memverifikasi akun yang akan dihapus.' }
-  }
-  if (targetUser.role === 'owner') {
+  if (targetUser?.role === 'owner') {
     return { error: 'Tidak bisa menghapus akun owner.' }
   }
 
@@ -99,18 +90,20 @@ export async function clearAllPelanggan(): Promise<{ error?: string }> {
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
 
-  // One DB transaction: every linked order keeps its customer name and every
-  // pelanggan row is removed, or neither happens.
-  //
-  // This replaced a select-then-update-per-row-then-delete sequence run from
-  // here. That version read the pelanggan list unbounded, and PostgREST silently
-  // caps a result set at 1000 rows — so past 1000 customers only the first 1000
-  // had their name copied onto their orders, and the final delete then failed on
-  // the pesanan_pelanggan_id_fkey (a plain FK, no ON DELETE clause) *after* those
-  // name-copying updates had already committed. The operation could therefore
-  // half-complete, leaving ~1000 orders detached from customers that still
-  // existed. It also cost one round-trip per customer.
-  const { error } = await supabase.rpc('clear_all_pelanggan')
+  // Gather all pelanggan names first so linked pesanan don't lose the customer name
+  const { data: pelangganList } = await supabase
+    .from('pelanggan').select('id, nama').returns<Array<{ id: string; nama: string }>>()
+
+  await Promise.all(
+    (pelangganList ?? []).map((p) =>
+      supabase
+        .from('pesanan')
+        .update({ pelanggan_id: null, nama_pelanggan: p.nama })
+        .eq('pelanggan_id', p.id)
+    )
+  )
+
+  const { error } = await supabase.from('pelanggan').delete().not('id', 'is', null)
   if (error) return { error: error.message }
 
   revalidatePath('/pelanggan')

@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { setItemJumlahDiambil } from '@/app/(app)/pesanan/actions'
@@ -12,7 +12,7 @@ interface HelperItemChecklistProps {
   disabled?: boolean
 }
 
-function HelperItemChecklistImpl({ itemId, qty, jumlahDiambil, disabled = false }: HelperItemChecklistProps) {
+export function HelperItemChecklist({ itemId, qty, jumlahDiambil, disabled = false }: HelperItemChecklistProps) {
   const [prevJumlah, setPrevJumlah] = useState(jumlahDiambil)
   const [pending, setPending] = useState<number | null>(null)
   const [inputValue, setInputValue] = useState(jumlahDiambil > 0 ? String(jumlahDiambil) : '')
@@ -78,11 +78,3 @@ function HelperItemChecklistImpl({ itemId, qty, jumlahDiambil, disabled = false 
     </div>
   )
 }
-
-/**
- * Memoised for the same reason as `ItemChecklistCheckbox`: the parent owns the
- * price inputs, so every keystroke re-rendered each row's picker — including
- * the local `inputValue` state a helper may be mid-edit in. All props are
- * primitives, so the default shallow comparison applies.
- */
-export const HelperItemChecklist = memo(HelperItemChecklistImpl)

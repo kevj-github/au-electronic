@@ -5,10 +5,6 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>
 
 export const PESANAN_NOT_MODIFIABLE = 'Pesanan tidak dapat diubah.'
 export const ITEM_NOT_FOUND = 'Item tidak ditemukan.'
-export const NOT_AUTHENTICATED = 'Tidak terautentikasi.'
-export const LOCK_UNVERIFIABLE = 'Tidak dapat memverifikasi status kunci pesanan.'
-export const PESANAN_LOCKED = 'Pesanan sedang dikunci oleh pemilik.'
-export const CREATE_PESANAN_LOCKED = 'Pembuatan pesanan baru sedang dikunci oleh pemilik.'
 
 export interface ActivePesananByItem {
   pesanan_id: string
@@ -93,86 +89,4 @@ export async function getRole(supabase: ServerClient): Promise<string | null> {
     .single<Pick<User, 'role'>>()
 
   return data?.role ?? null
-}
-
-/**
- * The `pesanan_locked` setting, which gates helper mutations only — owners are
- * gated by order status instead, so they skip the read entirely.
- *
- * Fail-closed: a read error or a missing row means the `settings` table wasn't
- * seeded correctly, which is an infrastructure problem that should surface
- * rather than be swallowed as "not locked".
- *
- * Takes the role rather than fetching it so callers that already know it don't
- * pay for a second lookup. `lockedMessage` exists because creating a pesanan
- * phrases the rejection differently from editing one.
- */
-export async function requireUnlocked(
-  supabase: ServerClient,
-  role: string | null,
-  lockedMessage: string = PESANAN_LOCKED
-): Promise<{ error: string } | null> {
-  if (role === 'owner') return null
-
-  const { data, error } = await supabase
-    .from('settings')
-    .select('value')
-    .eq('key', 'pesanan_locked')
-    .single<{ value: string }>()
-
-  if (error || !data) return { error: LOCK_UNVERIFIABLE }
-  if (data.value === 'true') return { error: lockedMessage }
-  return null
-}
-
-/**
- * The complete gate every helper-facing item mutation needs: authenticated,
- * not locked, and the parent pesanan still `diproses`. Resolves to the item's
- * parent ids on success so the caller can revalidate and clamp against `qty`.
- *
- * The role lookup and the item lookup are independent, so they run
- * concurrently. Doing this by hand at each call site had drifted: two actions
- * parallelized it, four serialized all three steps, and every one of them
- * validated the session twice (once directly, once inside the lock check).
- *
- * Error precedence is the one the call sites already used: auth, then lock,
- * then order status.
- */
-export async function requireHelperCanMutateItem(
-  supabase: ServerClient,
-  itemId: string
-): Promise<{ error: string } | ActivePesananByItem> {
-  const [role, active] = await Promise.all([
-    getRole(supabase),
-    requireActivePesananByItem(supabase, itemId),
-  ])
-
-  // `getRole` is null both for a missing session and for a signed-in user with
-  // no `users` row. Rejecting the second case too only matches what the DB
-  // already does — `item_pesanan_update` is `using (current_user_role() is not
-  // null)`, so such a caller cannot write regardless.
-  if (role === null) return { error: NOT_AUTHENTICATED }
-
-  const lockError = await requireUnlocked(supabase, role)
-  if (lockError) return lockError
-
-  return active
-}
-
-/** As `requireHelperCanMutateItem`, for actions keyed by the pesanan itself. */
-export async function requireHelperCanMutatePesanan(
-  supabase: ServerClient,
-  pesananId: string
-): Promise<{ error: string } | ActivePesanan> {
-  const [role, active] = await Promise.all([
-    getRole(supabase),
-    requireActivePesanan(supabase, pesananId),
-  ])
-
-  if (role === null) return { error: NOT_AUTHENTICATED }
-
-  const lockError = await requireUnlocked(supabase, role)
-  if (lockError) return lockError
-
-  return active
 }

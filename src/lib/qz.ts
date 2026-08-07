@@ -2,18 +2,16 @@
 // never import this from a Server Component or at a module's top level in one.
 // Unsigned mode uses an empty certificate + empty signature, so QZ shows a
 // one-time "Allow this site?" prompt instead of requiring a signing cert.
-// The API surface is typed in src/types/qz-tray.d.ts — no `any` needed.
-import type { QzTray } from 'qz-tray'
+// The `any` types below are deliberate: qz-tray ships no usable type definitions.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let qzPromise: Promise<any> | null = null
 
-let qzPromise: Promise<QzTray> | null = null
-
-// Not exported: `connectQz` is the only entry point callers should use — a bare
-// `getQz` hands back a client whose socket may not be open yet.
-function getQz(): Promise<QzTray> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getQz(): Promise<any> {
   if (!qzPromise) {
     qzPromise = import('qz-tray').then(({ default: qz }) => {
-      qz.security.setCertificatePromise((resolve) => resolve())
-      qz.security.setSignaturePromise(() => (resolve) => resolve())
+      qz.security.setCertificatePromise((resolve: () => void) => resolve())
+      qz.security.setSignaturePromise(() => (resolve: () => void) => resolve())
       return qz
     })
   }
@@ -25,9 +23,11 @@ function getQz(): Promise<QzTray> {
 // it would skip `connect()` and print against a socket that isn't open yet
 // (reachable by clicking "Deteksi Printer" then "Cetak Epson" quickly). Cleared
 // once the attempt settles so a later disconnect can be reconnected.
-let connectPromise: Promise<void> | null = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let connectPromise: Promise<any> | null = null
 
-export async function connectQz(): Promise<QzTray> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function connectQz(): Promise<any> {
   const qz = await getQz()
   if (connectPromise) {
     await connectPromise

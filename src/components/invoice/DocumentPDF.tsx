@@ -1,11 +1,3 @@
-/*
- * `Image` here is the @react-pdf/renderer primitive, not next/image or a DOM
- * <img> — it renders into a PDF and has no `alt` prop to give. eslint-config-next
- * maps `Image` -> `img` for jsx-a11y to catch next/image misuse, which misfires
- * on every image in this file. Disabled file-wide because nothing here can be a
- * DOM image; a real accessibility issue could not hide behind this.
- */
-/* eslint-disable jsx-a11y/alt-text */
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
 import { formatNumberID } from '@/lib/utils'
 import { shipmentText, type InvoiceData } from '@/lib/invoice-data'

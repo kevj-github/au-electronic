@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toggleItemDicekOwner } from '@/app/(app)/pesanan/actions'
 
@@ -13,7 +13,7 @@ interface ItemChecklistCheckboxProps {
   showLabel?: boolean
 }
 
-function ItemChecklistCheckboxImpl({
+export function ItemChecklistCheckbox({
   itemId,
   checked,
   label,
@@ -58,16 +58,3 @@ function ItemChecklistCheckboxImpl({
     </label>
   )
 }
-
-/**
- * Memoised because `ItemsSection` owns the price-input state for every row, so
- * a single keystroke there re-renders the whole item list — and the list is
- * rendered twice over (a `sm:hidden` card list and a `hidden sm:block` table,
- * both always mounted). Without this, typing one digit re-rendered every
- * checkbox on the order, each re-running its render-phase optimistic-state
- * resync.
- *
- * Every prop is a primitive, so the default shallow comparison is correct and
- * no `useCallback` is needed at the call sites.
- */
-export const ItemChecklistCheckbox = memo(ItemChecklistCheckboxImpl)

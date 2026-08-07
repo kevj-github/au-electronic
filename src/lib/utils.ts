@@ -51,18 +51,3 @@ export function formatThousandsInput(raw: string): string {
   if (digits === '') return ''
   return Number(digits).toLocaleString('id-ID')
 }
-
-/**
- * Order money totals derived from its nested items and payments. The same pair
- * of reduces was previously copy-pasted across the dashboard and OrderList;
- * `subtotal` is optional because helper-facing queries deliberately omit it.
- */
-export function orderTotals(p: {
-  items: Array<{ subtotal?: number }>
-  pembayaran?: Array<{ jumlah: number }>
-}): { totalPesanan: number; totalDibayar: number } {
-  return {
-    totalPesanan: p.items.reduce((s, i) => s + (i.subtotal ?? 0), 0),
-    totalDibayar: (p.pembayaran ?? []).reduce((s, pm) => s + pm.jumlah, 0),
-  }
-}

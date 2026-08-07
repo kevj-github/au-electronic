@@ -10,24 +10,13 @@ import { PelangganList } from '@/components/pelanggan/PelangganList'
 import { Button } from '@/components/ui/button'
 import type { Pelanggan } from '@/lib/types'
 
-/** See PESANAN_LIST_LIMIT in pesanan/page.tsx — same rationale, same cap. */
-const PELANGGAN_LIST_LIMIT = 500
-
 export default async function PelangganPage() {
   const supabase = await createClient()
 
   // User check and pelanggan list are independent — run in parallel.
-  // Bounded for the same reason as the order list: PostgREST silently truncates
-  // at 1000 rows, and `count: 'exact'` keeps the header accurate if that ever
-  // bites. PelangganList searches and paginates client-side over what it gets.
-  const [user, { data: pelangganList, count: pelangganCount }] = await Promise.all([
+  const [user, { data: pelangganList }] = await Promise.all([
     getCurrentUser(),
-    supabase
-      .from('pelanggan')
-      .select('*', { count: 'exact' })
-      .order('nama')
-      .limit(PELANGGAN_LIST_LIMIT)
-      .returns<Pelanggan[]>(),
+    supabase.from('pelanggan').select('*').order('nama').returns<Pelanggan[]>(),
   ])
   if (!user) redirect('/login')
   if (user.role !== 'owner') redirect('/pesanan')
@@ -41,9 +30,7 @@ export default async function PelangganPage() {
         <div>
           <h2 className="text-lg font-semibold">Pelanggan</h2>
           <p className="text-sm text-muted-foreground">
-            {pelangganCount ?? pelangganList?.length ?? 0} pelanggan terdaftar
-            {(pelangganCount ?? 0) > (pelangganList?.length ?? 0) &&
-              ` — menampilkan ${pelangganList?.length ?? 0}`}
+            {pelangganList?.length ?? 0} pelanggan terdaftar
           </p>
         </div>
         {isOwner && (

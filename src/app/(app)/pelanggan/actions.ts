@@ -29,13 +29,7 @@ export async function deletePelanggan(pelangganId: string): Promise<{ error?: st
   return {}
 }
 
-// Returns undefined on success rather than `{}` — the happy path ends in
-// `redirect()`, which throws. Declared rather than inferred, like every other
-// action here: an inferred union silently narrows the moment a branch returns a
-// guard's result instead of a literal (see CLAUDE.md).
-export async function upsertPelanggan(
-  formData: FormData
-): Promise<{ error?: string } | undefined> {
+export async function upsertPelanggan(formData: FormData) {
   const supabase = await createClient()
 
   const ownerError = await requireOwner(supabase)

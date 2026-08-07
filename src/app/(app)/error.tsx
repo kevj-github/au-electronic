@@ -8,18 +8,13 @@ import { Button } from '@/components/ui/button'
  * query Supabase directly, so a network blip or a DB error would otherwise
  * render Next's default unstyled error screen with no way back — bad on a
  * shop-floor tablet. This gives a readable message and a retry.
- *
- * `unstable_retry` (Next 16.2+), not `reset`: the failure we recover from is a
- * failed Supabase query in a Server Component, and only `unstable_retry`
- * refetches. `reset` just clears the boundary's error state and re-renders the
- * same already-failed RSC payload, so the button would appear to do nothing.
  */
 export default function AppError({
   error,
-  unstable_retry,
+  reset,
 }: {
   error: Error & { digest?: string }
-  unstable_retry: () => void
+  reset: () => void
 }) {
   useEffect(() => {
     console.error(error)
@@ -36,7 +31,7 @@ export default function AppError({
           Kode: {error.digest}
         </p>
       )}
-      <Button onClick={() => unstable_retry()}>Coba Lagi</Button>
+      <Button onClick={reset}>Coba Lagi</Button>
     </div>
   )
 }

@@ -1,42 +1,10 @@
 -- ============================================================================
--- PRICE / PAYMENT COLUMN MASKING  —  *** FULLY APPLIED — HISTORICAL RECORD ***
+-- PRICE / PAYMENT COLUMN MASKING  —  *** NOT APPLIED ***
 -- ============================================================================
 --
--- STATUS as of 2026-08-01: ALL THREE PHASES ARE LIVE. Nothing here is left to
--- apply. This file is kept for its rationale and threat model; the applied SQL
--- lives in supabase/migrations/:
---   * PHASE 1  20260801104617_add_owner_price_views_phase1.sql
---              (sections 2 + 3 below: owner views + INSTEAD OF write trigger)
---   * PHASE 2  commit 79ac2f9 — the four owner read paths listed below now
---              select from item_pesanan_owner / pembayaran_owner, deployed to
---              production before phase 3 was applied.
---   * PHASE 3  20260801111127_price_column_masking_phase3_revoke.sql
---              (section 1 below, the REVOKE — the step that closes the leak)
---
--- Verified after phase 3, against live data:
---   * helper selecting harga_satuan from the base table -> 42501 permission
---     denied. The leak is closed.
---   * owner via the views -> unchanged: 1458 items, subtotal sum 583.671.580.
---   * production UI as owner -> byte-identical totals before and after the
---     revoke (order AU.2026.07.00066: Total Rp 9.717.750).
---   * both write paths still work: updateItemHarga (REST PATCH -> 204) and
---     recordPembayaran/deletePembayaran (insert + pesanan_id lookup + delete).
---
--- CLOSED 2026-08-05 — `anon` was never in scope of section 1 and kept column
--- SELECT on harga_satuan/subtotal/jumlah after phase 3. That was harmless while
--- every relevant RLS policy required a signed-in user, but one loosened policy
--- from exposure. Revoked in
--- supabase/migrations/20260805083315_price_column_masking_anon_revoke.sql;
--- anon and authenticated now hold identical SELECT column sets on both tables,
--- verified with the public anon key (harga_satuan -> 42501, nama_barang -> []).
---
--- CORRECTION to the threat model below: the pembayaran exposure is narrower
--- than originally written. `pembayaran_select` is
---   dibuat_oleh = auth.uid() OR current_user_role() = 'owner'
--- so a helper can read `jumlah` only for orders THEY created, not for every
--- order. The item_pesanan exposure is the severe one and is accurate as
--- written: `item_pesanan_select` is `current_user_role() IS NOT NULL`, i.e. any
--- signed-in user reads every row.
+-- THIS FILE IS DELIBERATELY NOT IN supabase/migrations/. Do not apply it until
+-- the app-code reroute below is done, or you WILL break the owner's own price
+-- and payment views in production.
 --
 -- ---------------------------------------------------------------------------
 -- The problem it solves

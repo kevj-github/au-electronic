@@ -6,16 +6,13 @@ import { useEffect } from 'react'
  * Last-resort boundary: catches errors thrown by the root layout itself.
  * It replaces the whole document, so it must render its own <html>/<body>
  * and cannot rely on the app's providers or global styles being mounted.
- *
- * Takes `unstable_retry` (Next 16.2+) rather than `reset` for the same reason
- * as `(app)/error.tsx`: only `unstable_retry` refetches the server render.
  */
 export default function GlobalError({
   error,
-  unstable_retry,
+  reset,
 }: {
   error: Error & { digest?: string }
-  unstable_retry: () => void
+  reset: () => void
 }) {
   useEffect(() => {
     console.error(error)
@@ -49,7 +46,7 @@ export default function GlobalError({
           </p>
         )}
         <button
-          onClick={() => unstable_retry()}
+          onClick={reset}
           style={{
             padding: '0.5rem 1rem',
             borderRadius: '0.375rem',

@@ -4,19 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
 import { buildInvoiceData, type InvoiceData, type InvoiceSource } from '@/lib/invoice-data'
-import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 import {
   requireActivePesanan,
   requireActivePesananByItem,
-  requireHelperCanMutateItem,
-  requireHelperCanMutatePesanan,
-  requireUnlocked,
   isGuardError,
   getRole,
-  CREATE_PESANAN_LOCKED,
 } from '@/lib/pesanan-guards'
 import type { StatusPesanan } from '@/lib/types'
-import type { Database } from '@/lib/database.types'
 
 export interface CreatePesananInput {
   pelanggan_id: string | null
@@ -30,13 +24,7 @@ export interface CreatePesananInput {
   }>
 }
 
-// Declared rather than inferred: TypeScript only synthesises the implicit
-// `pesananId?: undefined` / `error?: undefined` members when every return is a
-// fresh object literal, so returning a guard's result would otherwise narrow the
-// union and break `result.error` at the call site.
-export async function createPesanan(
-  input: CreatePesananInput
-): Promise<{ error?: string; pesananId?: string }> {
+export async function createPesanan(input: CreatePesananInput) {
   const supabase = await createClient()
 
   const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -49,57 +37,59 @@ export async function createPesanan(
     return { error: 'Tambahkan minimal satu barang.' }
   }
 
-  // Validate every line BEFORE the kode is drawn and the pesanan row inserted.
-  // `item_pesanan` carries `check (qty > 0)`, and the items are inserted after
-  // the parent, so an invalid line used to commit a pesanan row, burn a kode,
-  // then fail the items insert — leaving an orphaned order with no items and
-  // surfacing a raw Postgres constraint message. Rejecting up front means
-  // nothing is written at all.
-  if (input.items.some((item) => !item.nama_barang.trim())) {
-    return { error: 'Nama barang tidak boleh kosong.' }
-  }
-  if (
-    input.items.some(
-      (item) => !Number.isInteger(item.qty) || item.qty < 1
-    )
-  ) {
-    return { error: 'Qty setiap barang harus berupa angka bulat minimal 1.' }
-  }
+  const { data: kodeData, error: kodeError } = await supabase.rpc('next_kode_pesanan')
+  if (kodeError) return { error: kodeError.message }
 
-  // Helpers can be locked out of creating new pesanan; owners never are. Kept
-  // in the app as well as in the RPC so the rejection is one round-trip and
-  // carries this exact message.
+  // Check if helpers are locked from creating new pesanan.
+  // Fail-closed: any DB error reading the lock setting blocks the action rather
+  // than silently allowing it through (a missing row means the table wasn't seeded,
+  // which is an infrastructure problem that should surface, not be swallowed).
   const role = await getRole(supabase)
-  const lockError = await requireUnlocked(supabase, role, CREATE_PESANAN_LOCKED)
-  if (lockError) return lockError
+  if (role !== 'owner') {
+    const { data: lockSetting, error: lockErr } = await supabase
+      .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
+    if (lockErr || !lockSetting) {
+      return { error: 'Tidak dapat memverifikasi status kunci pesanan.' }
+    }
+    if (lockSetting.value === 'true') {
+      return { error: 'Pembuatan pesanan baru sedang dikunci oleh pemilik.' }
+    }
+  }
 
-  // One RPC, one transaction: the kode draw, the pesanan row and every line
-  // either all commit or all roll back. This replaced a three-step sequence
-  // (next_kode_pesanan -> insert pesanan -> insert item_pesanan) in which each
-  // step was its own transaction, so any failure on the lines left an order with
-  // no items holding a permanently consumed kode. See
-  // supabase/migrations/20260805081656_atomic_create_pesanan.sql, which records
-  // the live verification of the rollback behaviour.
-  //
-  // The cast is the one place the generated types are knowably wrong: Postgres
-  // function parameters carry no nullability information, so
-  // `generate_typescript_types` declares all five as non-nullable `string`.
-  // Four of them genuinely accept NULL — an order with no linked pelanggan, no
-  // catatan, no delivery date — and the function's own validation decides what
-  // is acceptable. Widening here rather than editing database.types.ts, which
-  // is regenerated after every migration.
-  const { data: pesananId, error } = await supabase.rpc('create_pesanan_atomic', {
-    p_pelanggan_id: input.pelanggan_id,
-    p_nama_pelanggan: input.nama_pelanggan,
-    p_catatan: input.catatan,
-    p_tanggal_pengiriman: input.tanggal_pengiriman ?? null,
-    p_items: input.items,
-  } as unknown as Database['public']['Functions']['create_pesanan_atomic']['Args'])
+  const { data: pesanan, error: pesananError } = await supabase
+    .from('pesanan')
+    .insert({
+      kode_pesanan: kodeData as string,
+      pelanggan_id: input.pelanggan_id,
+      nama_pelanggan: input.nama_pelanggan,
+      catatan: input.catatan,
+      tanggal_pengiriman: input.tanggal_pengiriman ?? null,
+      dibuat_oleh: authUser.id,
+      status: 'diproses',
+    })
+    .select('id')
+    .single<{ id: string }>()
 
-  if (error) return { error: error.message }
+  if (pesananError) return { error: pesananError.message }
+
+  // Non-owners get harga_satuan forced to 0 by the guard_item_pesanan_write
+  // trigger regardless of what's sent here — the owner fills in the real price later.
+  const { error: itemsError } = await supabase
+    .from('item_pesanan')
+    .insert(
+      input.items.map((item) => ({
+        pesanan_id: pesanan.id,
+        nama_barang: item.nama_barang,
+        qty: item.qty,
+        harga_satuan: item.harga_satuan,
+        catatan_item: null,
+      }))
+    )
+
+  if (itemsError) return { error: itemsError.message }
 
   revalidatePath('/pesanan')
-  return { pesananId: pesananId as string }
+  return { pesananId: pesanan.id }
 }
 
 export async function updateStatusPesanan(
@@ -123,23 +113,59 @@ export async function updateStatusPesanan(
   return {}
 }
 
-// Sets the partial quantity taken from the etalase — the only way the helper
-// checklist writes `jumlah_diambil`. An all-or-nothing `toggleItemDiambil` used
-// to sit alongside this; it was superseded when the checklist gained partial
-// quantities and removed once nothing called it. Every export in a 'use server'
-// file is a publicly reachable POST endpoint with a stable action id, so an
-// uncalled one is live surface area, not dead weight — delete rather than keep.
-//
-// Any authenticated user may write it: any helper can be the one fetching from
-// the etalase. `guard_item_pesanan_write` is the DB-level gatekeeper (it clamps
-// to qty as well); the app-layer status check closes the owner-bypass gap.
-// `diambil_oleh_helper` is a generated column derived from `jumlah_diambil`.
-//
-// Clamped to [0, qty] here using the DB-fetched qty, never a client-supplied one.
+// Returns an error if the pesanan_locked setting is on and the user is not an owner.
+async function checkHelperLock(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<{ error: string } | null> {
+  if (await getRole(supabase) === 'owner') return null
+
+  const { data: lockSetting, error: lockErr } = await supabase
+    .from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>()
+  if (lockErr || !lockSetting) return { error: 'Tidak dapat memverifikasi status kunci pesanan.' }
+  if (lockSetting.value === 'true') return { error: 'Pesanan sedang dikunci oleh pemilik.' }
+  return null
+}
+
+// Any authenticated user can set jumlah_diambil — any helper may be the one
+// fetching items from the etalase. guard_item_pesanan_write is the DB-level gatekeeper
+// (it also clamps jumlah_diambil to qty); the status check here closes the owner
+// bypass gap at the app layer. diambil_oleh_helper is a generated column derived
+// from jumlah_diambil, so checking the box is just "set jumlah_diambil to qty".
+export async function toggleItemDiambil(itemId: string, value: boolean): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
+
+  // Lock check and item-status lookup are independent — run them concurrently.
+  const [lockError, info] = await Promise.all([
+    checkHelperLock(supabase),
+    requireActivePesananByItem(supabase, itemId),
+  ])
+  if (lockError) return lockError
+  if (isGuardError(info)) return info
+
+  const { error } = await supabase
+    .from('item_pesanan')
+    .update({ jumlah_diambil: value ? info.qty : 0 })
+    .eq('id', itemId)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/pesanan/${info.pesanan_id}`)
+  return {}
+}
+
+// Sets the partial quantity taken from the etalase. Clamped to [0, qty] here (using
+// the DB-fetched qty, never a client-supplied one) as well as by the DB trigger.
 export async function setItemJumlahDiambil(itemId: string, jumlah: number): Promise<{ error?: string }> {
   const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const info = await requireHelperCanMutateItem(supabase, itemId)
+  const [lockError, info] = await Promise.all([
+    checkHelperLock(supabase),
+    requireActivePesananByItem(supabase, itemId),
+  ])
+  if (lockError) return lockError
   if (isGuardError(info)) return info
 
   const clamped = Math.max(0, Math.min(Math.trunc(jumlah), info.qty))
@@ -181,14 +207,15 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
   if (target === 'owner') {
     const ownerError = await requireOwner(supabase)
     if (ownerError) return ownerError
-
-    // Owners skip the helper lock but still can't touch a closed order.
-    const active = await requireActivePesanan(supabase, pesananId)
-    if (isGuardError(active)) return active
   } else {
-    const active = await requireHelperCanMutatePesanan(supabase, pesananId)
-    if (isGuardError(active)) return active
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser) return { error: 'Tidak terautentikasi.' }
+    const lockError = await checkHelperLock(supabase)
+    if (lockError) return lockError
   }
+
+  const active = await requireActivePesanan(supabase, pesananId)
+  if (isGuardError(active)) return active
 
   // diambil_oleh_helper is a generated column derived from jumlah_diambil,
   // so resetting the helper checklist means zeroing jumlah_diambil instead.
@@ -210,8 +237,13 @@ export interface AddItemInput {
 
 export async function addItemToPesanan(pesananId: string, item: AddItemInput): Promise<{ error?: string }> {
   const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const active = await requireHelperCanMutatePesanan(supabase, pesananId)
+  const lockError = await checkHelperLock(supabase)
+  if (lockError) return lockError
+
+  const active = await requireActivePesanan(supabase, pesananId)
   if (isGuardError(active)) return active
 
   const { error } = await supabase
@@ -231,11 +263,17 @@ export async function addItemToPesanan(pesananId: string, item: AddItemInput): P
 
 export async function updateItemDetails(
   itemId: string,
+  pesananId: string,
   changes: { nama_barang: string; qty: number }
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const existingItem = await requireHelperCanMutateItem(supabase, itemId)
+  const lockError = await checkHelperLock(supabase)
+  if (lockError) return lockError
+
+  const existingItem = await requireActivePesananByItem(supabase, itemId)
   if (isGuardError(existingItem)) return existingItem
 
   const { error } = await supabase
@@ -248,10 +286,15 @@ export async function updateItemDetails(
   return {}
 }
 
-export async function deleteItemFromPesanan(itemId: string): Promise<{ error?: string }> {
+export async function deleteItemFromPesanan(itemId: string, pesananId: string): Promise<{ error?: string }> {
   const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return { error: 'Tidak terautentikasi.' }
 
-  const existingItem = await requireHelperCanMutateItem(supabase, itemId)
+  const lockError = await checkHelperLock(supabase)
+  if (lockError) return lockError
+
+  const existingItem = await requireActivePesananByItem(supabase, itemId)
   if (isGuardError(existingItem)) return existingItem
 
   const { error } = await supabase
@@ -369,9 +412,7 @@ export async function getInvoiceData(
     supabase
       .from('pesanan')
       .select(
-        // Priced columns come from the owner-gated views so this survives the
-        // phase 3 column revoke; requireOwner above is the app-layer gate.
-        `kode_pesanan, created_at, tanggal_pengiriman, pengiriman, colly, nama_pelanggan, catatan, pelanggan(nama, alamat), ${itemsEmbed(true, 'nama_barang, qty, harga_satuan, subtotal')}, ${pembayaranEmbed('jumlah')}`
+        'kode_pesanan, created_at, tanggal_pengiriman, pengiriman, colly, nama_pelanggan, catatan, pelanggan(nama, alamat), items:item_pesanan(nama_barang, qty, harga_satuan, subtotal), pembayaran(jumlah)'
       )
       .eq('id', pesananId)
       .single<InvoiceSource>(),
@@ -391,6 +432,7 @@ export async function getInvoiceData(
 // generated column, so updating harga_satuan recomputes it automatically.
 export async function updateItemHarga(
   itemId: string,
+  pesananId: string,
   harga_satuan: number
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
