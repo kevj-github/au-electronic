@@ -33,7 +33,7 @@ export const getPesananLocked = cache(async () => {
     .eq('key', 'pesanan_locked')
     .single<{ value: string }>()
 
-  // Fail closed, matching `checkHelperLock` in the action layer. Returning
+  // Fail closed, matching `requireUnlocked` in the action layer. Returning
   // `false` here on a read failure rendered the *unlocked* helper UI while every
   // mutation those affordances trigger was already being rejected — buttons that
   // only produce errors. Presenting the locked UI is the honest degradation.

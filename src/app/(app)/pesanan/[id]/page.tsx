@@ -13,22 +13,22 @@ import { DeletePaymentButton } from '@/components/pesanan/DeletePaymentButton'
 import { ItemsSection } from '@/components/pesanan/ItemsSection'
 import { ResetChecklistButton } from '@/components/pesanan/ResetChecklistButton'
 import { buildInvoiceData, type InvoiceData } from '@/lib/invoice-data'
-import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
+import { DETAIL_ITEM_COLUMNS, itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 import { formatRupiah, hitungSaldo } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
-import type { Pesanan, ItemPesanan, Pembayaran, Pelanggan, StatusPesanan } from '@/lib/types'
+import type { Pesanan, ItemPesananHelper, ItemPesananOwner, PembayaranOwner, Pelanggan, StatusPesanan } from '@/lib/types'
 import Link from 'next/link'
 
-type HelperItem = Pick<ItemPesanan, 'id' | 'nama_barang' | 'qty' | 'diambil_oleh_helper' | 'jumlah_diambil'>
-type OwnerItem = ItemPesanan
+type HelperItem = Pick<ItemPesananHelper, 'id' | 'nama_barang' | 'qty' | 'diambil_oleh_helper' | 'jumlah_diambil'>
+type OwnerItem = ItemPesananOwner
 
 type PesananDetail = Omit<Pesanan, 'pelanggan' | 'items' | 'pembayaran'> & {
   pelanggan: Pelanggan | null
   items: HelperItem[] | OwnerItem[]
-  pembayaran: Pembayaran[]
+  pembayaran: PembayaranOwner[]
 }
 
 const statusTransitions: Record<StatusPesanan, StatusPesanan[]> = {
@@ -62,20 +62,26 @@ export default async function PesananDetailPage({
 
   // Helpers never get price/payment data fetched into the RSC payload at all —
   // not just hidden in the UI. requireOwner/RLS still back this up server-side.
-  const itemsSelect = isOwner
-    ? 'id, nama_barang, qty, harga_satuan, subtotal, diambil_oleh_helper, dicek_oleh_owner, jumlah_diambil'
-    : 'id, nama_barang, qty, diambil_oleh_helper, jumlah_diambil'
+  // Source and per-role item columns come from lib/pesanan-select, which is
+  // where the "owner reads the views, helper asks for no priced column" rule
+  // lives and is tested.
+  //
+  // Each branch names its own column list rather than sharing a precomputed
+  // `itemsSelect`. That variable was the union of both lists, so on the helper
+  // branch its type still included the owner's `harga_satuan, subtotal` — the
+  // two stayed in step only because `isOwner` happened to be read consistently
+  // on both lines. `itemsEmbed`'s helper overload rejects that union outright,
+  // which is the guarantee working: the correct pairing is now enforced rather
+  // than merely intended.
+  //
   // Helpers see nama + alamat but not telepon (owner-only); don't fetch the
   // columns they can't see (defense-in-depth — same rule as the price columns).
-  // `pembayaran(*)` cannot be used here: every column on the base table except
-  // id/pesanan_id is revoked from `authenticated`, so `*` fails. The owner view
-  // exposes the same shape and re-checks the owner role itself.
   const pesananSelect = isOwner
-    ? `*, pelanggan(*), ${itemsEmbed(true, itemsSelect)}, ${pembayaranEmbed('id, pesanan_id, jumlah, metode, catatan, dibayar_pada, dicatat_oleh')}`
-    : `*, pelanggan(nama, alamat), ${itemsEmbed(false, itemsSelect)}`
+    ? `*, pelanggan(*), ${itemsEmbed(true, DETAIL_ITEM_COLUMNS.owner)}, ${pembayaranEmbed('*')}`
+    : `*, pelanggan(nama, alamat), ${itemsEmbed(false, DETAIL_ITEM_COLUMNS.helper)}`
 
   // Fetch pesanan and lock setting in parallel.
-  const [{ data: pesanan, error: pesananError }, pesananLocked] = await Promise.all([
+  const [{ data: pesanan }, pesananLocked] = await Promise.all([
     supabase
       .from('pesanan')
       .select(pesananSelect)
@@ -84,12 +90,6 @@ export default async function PesananDetailPage({
     getPesananLocked(),
   ])
 
-  // A genuine "no such order" (PGRST116, zero rows from .single()) is a 404.
-  // Anything else — a permission failure on a priced column, say — must surface
-  // as an error rather than masquerading as a missing order.
-  if (pesananError && pesananError.code !== 'PGRST116') {
-    throw new Error(`Gagal memuat pesanan: ${pesananError.message}`)
-  }
   if (!pesanan) notFound()
 
   // Without an explicit order, Postgres row order is not guaranteed to stay

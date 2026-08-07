@@ -99,20 +99,18 @@ export async function clearAllPelanggan(): Promise<{ error?: string }> {
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
 
-  // Gather all pelanggan names first so linked pesanan don't lose the customer name
-  const { data: pelangganList } = await supabase
-    .from('pelanggan').select('id, nama').returns<Array<{ id: string; nama: string }>>()
-
-  await Promise.all(
-    (pelangganList ?? []).map((p) =>
-      supabase
-        .from('pesanan')
-        .update({ pelanggan_id: null, nama_pelanggan: p.nama })
-        .eq('pelanggan_id', p.id)
-    )
-  )
-
-  const { error } = await supabase.from('pelanggan').delete().not('id', 'is', null)
+  // One DB transaction: every linked order keeps its customer name and every
+  // pelanggan row is removed, or neither happens.
+  //
+  // This replaced a select-then-update-per-row-then-delete sequence run from
+  // here. That version read the pelanggan list unbounded, and PostgREST silently
+  // caps a result set at 1000 rows — so past 1000 customers only the first 1000
+  // had their name copied onto their orders, and the final delete then failed on
+  // the pesanan_pelanggan_id_fkey (a plain FK, no ON DELETE clause) *after* those
+  // name-copying updates had already committed. The operation could therefore
+  // half-complete, leaving ~1000 orders detached from customers that still
+  // existed. It also cost one round-trip per customer.
+  const { error } = await supabase.rpc('clear_all_pelanggan')
   if (error) return { error: error.message }
 
   revalidatePath('/pelanggan')

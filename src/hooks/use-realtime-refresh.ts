@@ -57,5 +57,11 @@ export function useRealtimeRefresh(table: string, filter?: RealtimeRefreshFilter
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
       if (channel) supabase.removeChannel(channel)
     }
+    // Depend on filter's *fields*, not the object. Callers pass an inline
+    // literal (`filter={{ column: 'id', value: pesanan.id }}`), which is a new
+    // identity every render — listing `filter` itself would tear down and
+    // resubscribe the Realtime channel on every render. The fields are the only
+    // parts read above, so this covers every real change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table, filter?.column, filter?.value, router])
 }

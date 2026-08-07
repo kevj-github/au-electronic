@@ -55,6 +55,19 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
     (sum, i) => sum + i.qty * i.harga_satuan,
     0
   )
+
+  /**
+   * Every line must have a name and a usable qty. qty is checked here as well
+   * as in `createPesanan` because `item_pesanan` carries `check (qty > 0)` and
+   * a newly added line starts at qty 0 — so the obvious "add a row, type a
+   * name, hit Simpan" path used to fail at the database. The action is the real
+   * guard; this only stops the button offering an outcome that cannot succeed.
+   */
+  const canSubmit =
+    items.length > 0 &&
+    items.every(
+      (i) => i.nama_barang.trim() !== '' && Number.isInteger(i.qty) && i.qty >= 1
+    )
   const pelangganSuggestions = useMemo(() => {
     const q = namaPelanggan.trim().toLowerCase()
     if (!q || pelangganId) return []
@@ -337,7 +350,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
       <div className="flex gap-2">
         <Button
           type="submit"
-          disabled={loading || items.length === 0 || items.some((i) => !i.nama_barang.trim())}
+          disabled={loading || !canSubmit}
         >
           {loading ? 'Menyimpan...' : 'Simpan Pesanan'}
         </Button>

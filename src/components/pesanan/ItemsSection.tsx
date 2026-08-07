@@ -60,6 +60,37 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
   )
   const [savingPriceId, setSavingPriceId] = useState<string | null>(null)
 
+  // Resync pattern (see ItemChecklistCheckbox / HelperItemChecklist): drop the
+  // local override for any item whose server-revalidated harga_satuan has
+  // changed, so the field shows the new truth.
+  //
+  // Without this the editor was pinned to its mount-time values for good:
+  // `prices` is seeded for every priced item at mount, so `rawPrice`'s
+  // `prices[id] ?? server` never fell through. The detail page mounts
+  // RealtimeRefresh on the pesanan row, so a price saved from another device
+  // pushed a new `items` prop that the field ignored — it kept displaying the
+  // stale number, the order total was computed from it, and blurring the field
+  // wrote that stale number back over the other device's save.
+  //
+  // Only changed ids are dropped, so an edit in progress on a different row
+  // survives. Adjusting state during render (rather than in an effect) is the
+  // React-recommended form and converges: after the update the snapshot
+  // matches, so the branch stops firing.
+  const [prevServerPrices, setPrevServerPrices] = useState<Record<string, number | undefined>>(
+    () => Object.fromEntries(items.map((i) => [i.id, i.harga_satuan])),
+  )
+  const repricedIds = items
+    .filter((i) => prevServerPrices[i.id] !== i.harga_satuan)
+    .map((i) => i.id)
+  if (repricedIds.length > 0) {
+    setPrevServerPrices(Object.fromEntries(items.map((i) => [i.id, i.harga_satuan])))
+    setPrices((prev) => {
+      const next = { ...prev }
+      for (const id of repricedIds) delete next[id]
+      return next
+    })
+  }
+
   // Refs for mobile keyboard navigation (Enter key: qty → nama → save/add)
   const newQtyRef = useRef<HTMLInputElement>(null)
   const newNamaRef = useRef<HTMLInputElement>(null)
@@ -92,7 +123,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     if (value === (item.harga_satuan ?? 0)) return
     setSavingPriceId(item.id)
     setError(null)
-    const result = await updateItemHarga(item.id, pesananId, value)
+    const result = await updateItemHarga(item.id, value)
     setSavingPriceId(null)
     if (result?.error) { setError(result.error); return }
     router.refresh()
@@ -115,7 +146,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     if (!qty || qty < 1) return
     setLoadingId(itemId)
     setError(null)
-    const result = await updateItemDetails(itemId, pesananId, { nama_barang: editState.nama_barang, qty })
+    const result = await updateItemDetails(itemId, { nama_barang: editState.nama_barang, qty })
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
     setEditingId(null)
@@ -125,7 +156,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
   async function confirmDelete(itemId: string) {
     setLoadingId(itemId)
     setError(null)
-    const result = await deleteItemFromPesanan(itemId, pesananId)
+    const result = await deleteItemFromPesanan(itemId)
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
     setDeletingId(null)

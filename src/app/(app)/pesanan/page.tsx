@@ -6,9 +6,21 @@ import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 
 export const metadata: Metadata = { title: 'Pesanan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
-import { OrderList, type PesananWithRelations } from '@/components/pesanan/OrderList'
-import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
+import { OrderList, toOrderRows, type PesananWithRelations } from '@/components/pesanan/OrderList'
 import { Button } from '@/components/ui/button'
+import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
+
+/**
+ * Upper bound on how many orders this page hydrates. PostgREST silently caps a
+ * result set at 1000 rows, so an unbounded fetch would one day start dropping
+ * the oldest orders with no error at all — at the current ~25 orders/week that
+ * is roughly 9 months out. An explicit limit well under the cap, paired with the
+ * exact count below, turns that silent loss into a visible "N dari M" notice.
+ *
+ * OrderList filters, searches and paginates client-side over whatever it is
+ * given, so this is deliberately generous rather than a page size.
+ */
+const PESANAN_LIST_LIMIT = 500
 
 export default async function PesananPage() {
   const [user, pesananLocked] = await Promise.all([
@@ -26,32 +38,39 @@ export default async function PesananPage() {
   // pengiriman, dibuat_oleh and tanggal_pengiriman to the browser even when the
   // UI hides them. Same defense-in-depth rule as the price columns — see the
   // per-role selects in `[id]/page.tsx`.
+  // Embed sources come from lib/pesanan-select — see the rules encoded there.
   const select = isOwner
     ? `*, pelanggan(nama, alamat), ${itemsEmbed(true, 'subtotal, diambil_oleh_helper')}, ${pembayaranEmbed('jumlah')}`
     : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), ${itemsEmbed(false, 'diambil_oleh_helper')}`
 
-  let pesananQuery = supabase.from('pesanan').select(select)
+  // `count: 'exact'` returns the true number of matching rows regardless of the
+  // limit, so the header stays accurate even when the list is capped.
+  let pesananQuery = supabase.from('pesanan').select(select, { count: 'exact' })
 
   if (!isOwner) {
     // Helpers always see all Diproses orders, across all dates — no date filter.
     pesananQuery = pesananQuery.eq('status', 'diproses')
   }
 
-  // Destructure `error`, don't drop it. A failing query returns `data: null`,
-  // which renders as an empty list indistinguishable from "no orders yet" —
-  // that is how a 42501 on a revoked price column showed up as "0 pesanan"
-  // rather than as an error anyone could act on.
-  const { data: pesananList, error: pesananError } = await pesananQuery
+  const { data: pesananList, count: pesananCount } = await pesananQuery
     .order('created_at', { ascending: false })
+    .limit(PESANAN_LIST_LIMIT)
     .returns<PesananWithRelations[]>()
-
-  if (pesananError) throw new Error(`Gagal memuat pesanan: ${pesananError.message}`)
 
   // The helper select above already omits tanggal_pengiriman, so nothing is
   // stripped here — this only fills the field the shared type requires.
   const visiblePesananList = isOwner
     ? (pesananList ?? [])
     : (pesananList ?? []).map((p) => ({ ...p, tanggal_pengiriman: null }))
+
+  // Collapse each order's embedded items/pembayaran into its row view here, on
+  // the server. OrderList only ever reduced them to four numbers per order, so
+  // sending the arrays themselves meant serialising thousands of objects into
+  // the RSC payload to render a handful of totals.
+  const rows = toOrderRows(visiblePesananList, isOwner)
+
+  const totalPesanan = pesananCount ?? rows.length
+  const listTruncated = totalPesanan > rows.length
 
   return (
     <div className="space-y-4">
@@ -60,7 +79,9 @@ export default async function PesananPage() {
         <div>
           <h2 className="text-lg font-semibold">Pesanan</h2>
           <p className="text-sm text-muted-foreground">
-            {pesananList?.length ?? 0} pesanan
+            {totalPesanan} pesanan
+            {listTruncated &&
+              ` — menampilkan ${rows.length} terbaru`}
           </p>
         </div>
         {!isLocked && (
@@ -69,7 +90,7 @@ export default async function PesananPage() {
           </Link>
         )}
       </div>
-      <OrderList pesananList={visiblePesananList} isOwner={isOwner} />
+      <OrderList rows={rows} isOwner={isOwner} />
     </div>
   )
 }

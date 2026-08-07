@@ -1,6 +1,4 @@
--- NOT YET APPLIED LIVE — no Supabase MCP tooling was available in the session
--- that wrote this. Apply it to project pjkddahrjjqblexxhaef before the Colly
--- field on the order detail page can save.
+-- Applied live to project pjkddahrjjqblexxhaef on 2026-08-01.
 --
 -- Number of packages (colly) handed to the courier. Owner-entered, optional, and
 -- printed on the signature line of both documents as "Exp. <pengiriman> ( N colly )".
