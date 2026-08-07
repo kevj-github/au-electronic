@@ -6,7 +6,10 @@ import { getCurrentUser, getPesananLocked } from '@/lib/supabase/request-cache'
 
 export const metadata: Metadata = { title: 'Pesanan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
-import { OrderList, toOrderRows, type PesananWithRelations } from '@/components/pesanan/OrderList'
+import { OrderList } from '@/components/pesanan/OrderList'
+// `toOrderRows` runs during server render, so it must come from the server-safe
+// module, not from the `'use client'` OrderList.
+import { toOrderRows, type PesananWithRelations } from '@/components/pesanan/order-row'
 import { Button } from '@/components/ui/button'
 import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 

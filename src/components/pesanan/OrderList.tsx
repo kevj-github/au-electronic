@@ -5,54 +5,27 @@ import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
-import { formatRupiah, hitungSaldo, orderTotals } from '@/lib/utils'
+import { formatRupiah } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
 import { DeletePesananButton } from './DeletePesananButton'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
-import type { Pelanggan, Pesanan, ItemPesananOwner, PembayaranOwner, StatusPesanan } from '@/lib/types'
+import type { StatusPesanan } from '@/lib/types'
+// Types only — erased at compile time, so importing them from the server-safe
+// module does not drag it into the client bundle. The functions that live there
+// must NOT be imported here: they are called during server render, which is
+// exactly why they no longer sit in this `'use client'` file.
+import type { OrderRow, TagihanState } from './order-row'
 
-/**
- * The server-side shape: a fetched order with its embedded rows still attached.
- *
- * `Omit` first, then re-add — an intersection (`Pesanan & { items: ... }`) does
- * not override, it *adds*, so `items` resolved to `ItemPesanan & Pick<...>` and
- * the type demanded every column while the query selects two. Both list pages
- * select `items(subtotal, diambil_oleh_helper)` and `pembayaran(jumlah)`, and
- * `alamat` is optional because the dashboard asks for `pelanggan(nama)` alone.
- */
-export type PesananWithRelations = Omit<
-  Pesanan,
-  'items' | 'pembayaran' | 'pelanggan'
-> & {
-  items: Array<Partial<Pick<ItemPesananOwner, 'subtotal'>> & Pick<ItemPesananOwner, 'diambil_oleh_helper'>>
-  pembayaran?: Pick<PembayaranOwner, 'jumlah'>[]
-  pelanggan?: (Pick<Pelanggan, 'nama'> & Partial<Pick<Pelanggan, 'alamat'>>) | null
-  tanggal_pengiriman: string | null
-}
-
-/**
- * Exactly the per-order fields the list markup reads — no `items`, no
- * `pembayaran`. Those two are only ever reduced to the four numbers in
- * `OrderRowView`, so shipping the rows themselves to the browser sent hundreds
- * of objects across the RSC boundary to render a couple of totals.
- *
- * Rebuilding the `pelanggan` object field-by-field also drops anything the
- * select didn't ask for, the same defense-in-depth rule the page's column
- * allowlist follows: an omitted field can't leak through the payload.
- */
-export type PesananListItem = Pick<
-  Pesanan,
-  'id' | 'kode_pesanan' | 'status' | 'created_at' | 'nama_pelanggan'
-> & {
-  pelanggan: (Pick<Pelanggan, 'nama'> & { alamat: string | null }) | null
-  tanggal_pengiriman: string | null
-}
-
-export interface OrderRow {
-  p: PesananListItem
-  view: OrderRowView
-}
+// Re-exported so existing importers keep working. Type-only, so this stays a
+// compile-time alias and creates no runtime edge back into the client module.
+export type {
+  PesananWithRelations,
+  PesananListItem,
+  OrderRow,
+  OrderRowView,
+  TagihanState,
+} from './order-row'
 
 interface OrderListProps {
   rows: OrderRow[]
@@ -67,86 +40,6 @@ const statusOptions: Array<{ value: StatusPesanan | 'semua'; label: string }> = 
 ]
 
 const PAGE_SIZE = 10
-
-/**
- * What the Tagihan column should say. Three states, not two: an order whose
- * items have no price yet has sisaTagihan === 0, which would otherwise read as
- * "Lunas" — a false signal that the customer owes nothing. See the same rule on
- * the detail page.
- */
-export type TagihanState =
-  | { kind: 'belum-ada-harga' }
-  | { kind: 'sisa'; amount: number }
-  | { kind: 'lunas' }
-
-export interface OrderRowView {
-  diambilCount: number
-  totalItems: number
-  totalPesanan: number
-  totalDibayar: number
-  sisaTagihan: number
-  tagihan: TagihanState
-}
-
-/**
- * Everything the row markup needs, derived once per order.
- *
- * The mobile card list and the desktop table render the same orders with
- * different markup, and both are always mounted (one is `sm:hidden`, the other
- * `hidden sm:block`) — so this used to be computed twice per render and, more
- * importantly, maintained twice. The Tagihan three-state rule in particular was
- * copy-pasted into both branches, which is exactly how mobile and desktop drift
- * apart. Deriving it here means a change lands in both by construction.
- */
-export function deriveOrderRow(p: PesananWithRelations, isOwner: boolean): OrderRowView {
-  const { totalPesanan, totalDibayar } = isOwner
-    ? orderTotals(p)
-    : { totalPesanan: 0, totalDibayar: 0 }
-  const { sisaTagihan } = hitungSaldo(totalPesanan, totalDibayar)
-
-  const tagihan: TagihanState =
-    totalPesanan === 0 && (p.pembayaran ?? []).length === 0
-      ? { kind: 'belum-ada-harga' }
-      : sisaTagihan > 0
-        ? { kind: 'sisa', amount: sisaTagihan }
-        : { kind: 'lunas' }
-
-  return {
-    diambilCount: p.items.filter((i) => i.diambil_oleh_helper).length,
-    totalItems: p.items.length,
-    totalPesanan,
-    totalDibayar,
-    sisaTagihan,
-    tagihan,
-  }
-}
-
-/**
- * Server-side projection: derive every order's row view and keep only the
- * fields the markup renders. Call this in the Server Component, never in the
- * browser — the whole point is that the embedded `items`/`pembayaran` arrays
- * stay on the server.
- */
-export function toOrderRows(
-  list: PesananWithRelations[],
-  isOwner: boolean
-): OrderRow[] {
-  return list.map((p) => ({
-    p: {
-      id: p.id,
-      kode_pesanan: p.kode_pesanan,
-      status: p.status,
-      created_at: p.created_at,
-      nama_pelanggan: p.nama_pelanggan,
-      // `?? null` because the dashboard's select omits alamat entirely.
-      pelanggan: p.pelanggan
-        ? { nama: p.pelanggan.nama, alamat: p.pelanggan.alamat ?? null }
-        : null,
-      tanggal_pengiriman: p.tanggal_pengiriman,
-    },
-    view: deriveOrderRow(p, isOwner),
-  }))
-}
 
 /**
  * Renders a TagihanState. Shared so the two layouts cannot disagree — they

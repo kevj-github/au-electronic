@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deriveOrderRow, toOrderRows, type PesananWithRelations } from './OrderList'
+import { deriveOrderRow, toOrderRows, type PesananWithRelations } from './order-row'
 
 /**
  * `deriveOrderRow` was extracted because the mobile card list and the desktop
