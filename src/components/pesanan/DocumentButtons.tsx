@@ -79,7 +79,7 @@ export function DocumentButtons({ pesananId, data, belumDicekCount }: DocumentBu
   const [pdfLoading, setPdfLoading] = useState(false)
   const [epsonLoading, setEpsonLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const hasHargaBelumDiisi = data.items.some((item) => item.hargaSatuan <= 0)
+  const hargaBelumDiisiCount = data.items.filter((item) => item.hargaSatuan <= 0).length
 
   // Always pull the latest saved state at generation time so the document never
   // reflects a stale render-time prop (e.g. a delivery date edited moments ago,
@@ -232,10 +232,10 @@ export function DocumentButtons({ pesananId, data, belumDicekCount }: DocumentBu
   return (
     <div>
       <div className="flex flex-wrap gap-2">
-        {hasHargaBelumDiisi && (
+        {hargaBelumDiisiCount > 0 && (
           <p className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
             <AlertTriangle className="size-3.5" />
-            Ada item yang harga satuannya belum diisi.
+            Ada {hargaBelumDiisiCount} item yang harga satuannya belum diisi.
           </p>
         )}
         {belumDicekCount > 0 && (
