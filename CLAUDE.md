@@ -3,7 +3,7 @@
 ## Commands
 
 ```bash
-npm run dev        # Next.js dev server (Turbopack)
+npm run dev        # Next.js dev server (Turbopack, default since Next.js 15+)
 npm run build       # Production build — the only check that catches async/Server Action errors (see below)
 npm run test:run    # Vitest, single run (hermetic — no network)
 npm run lint        # ESLint
