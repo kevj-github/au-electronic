@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { ClipboardList, Search, SearchX } from 'lucide-react'
 import { parseISO, startOfDay, endOfDay } from 'date-fns'
 import { formatRupiah, formatTanggal } from '@/lib/format'
 import { StatusBadge } from './StatusBadge'
 import { DeletePesananButton } from './DeletePesananButton'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
 import type { StatusPesanan } from '@/lib/types'
@@ -120,8 +121,39 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
     [filtered, page],
   )
 
+  const hasActiveFilters = Boolean(query.trim() || dateFrom || dateTo) || status !== 'semua'
+
+  function resetFilters() {
+    setQuery('')
+    setStatus('semua')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  // Nothing in the database at all — distinct from "filters matched nothing"
+  // below, and it needs the opposite advice: there is no filter to relax, so
+  // point at the action that fixes it instead.
   if (rows.length === 0) {
-    return <p className="text-muted-foreground text-sm">Belum ada pesanan.</p>
+    return (
+      <div className="border rounded-lg py-12 px-4 flex flex-col items-center text-center">
+        <ClipboardList className="size-10 text-muted-foreground/50" aria-hidden="true" />
+        <p className="mt-3 font-medium">Belum ada pesanan</p>
+        <p className="mt-1 text-sm text-muted-foreground max-w-xs">
+          {isOwner
+            ? 'Pesanan yang dibuat akan muncul di sini.'
+            : 'Belum ada pesanan yang sedang diproses. Halaman ini akan otomatis diperbarui.'}
+        </p>
+        {/* Owner only. Helpers can be blocked by `pesanan_locked`, and this
+            component is not told about the lock — offering them a button whose
+            only outcome is an error toast is the fail-open UI the create flow
+            already guards against. The page header shows their lock-aware CTA. */}
+        {isOwner && (
+          <Link href="/pesanan/baru" className="mt-4">
+            <Button>+ Pesanan Baru</Button>
+          </Link>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -179,9 +211,18 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
       )}
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground border rounded-lg p-4">
-          Tidak ada pesanan yang cocok. Coba kata kunci lain atau ubah filter.
-        </p>
+        <div className="border rounded-lg py-10 px-4 flex flex-col items-center text-center">
+          <SearchX className="size-9 text-muted-foreground/50" aria-hidden="true" />
+          <p className="mt-3 font-medium">Tidak ada pesanan yang cocok</p>
+          <p className="mt-1 text-sm text-muted-foreground max-w-xs">
+            Coba kata kunci lain, ubah status, atau perluas rentang tanggal.
+          </p>
+          {hasActiveFilters && (
+            <Button variant="outline" className="mt-4" onClick={resetFilters}>
+              Hapus semua filter
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           {/* Mobile: card list */}
