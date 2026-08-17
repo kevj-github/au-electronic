@@ -66,15 +66,31 @@ HARD_STOP_HOURS = 5.0     # 5-hour session limit
 DRY_RUN = False
 NO_COMMIT = False
 SHORT_HOURS = None
+FORCE_COMMIT = False
+
+# Never-touch list: files/paths/areas the agent must never modify
+# (credentials, prod data, deploy/CI config, etc.)
+NEVER_TOUCH_PATTERNS = [
+    ".env", ".env.",
+    ".env.local", ".env.production", ".env.test",
+    "credentials", "secrets", "secrets.env",
+    "deploy", "deploy.sh", "deploy.js",
+    ".github/workflows", "vercel.json", "vercel",
+    "DATABASE_URL", "SUPABASE_URL", "service_role",
+    "node_modules", ".next/", ".git",
+    "billing", "production", "live",
+]
 
 
 def parse_args():
-    global DRY_RUN, NO_COMMIT, SHORT_HOURS
+    global DRY_RUN, NO_COMMIT, SHORT_HOURS, FORCE_COMMIT
     for arg in sys.argv[1:]:
         if arg == "--dry-run":
             DRY_RUN = True
         elif arg == "--no-commit":
             NO_COMMIT = True
+        elif arg == "--force-commit":
+            FORCE_COMMIT = True
         elif arg.startswith("--short-hours="):
             SHORT_HOURS = float(arg.split("=", 1)[1])
 
@@ -203,6 +219,30 @@ def _sanitize_for_llm(text):
     # Remove progress bar block characters (they're not meaningful to the model)
     # Keep the content but strip the bars
     return text
+
+
+def extract_json_from_output(text):
+    """Extract the first valid JSON array or object from Claude's output.
+
+    Handles cases where Claude wraps JSON in fences, adds preamble, or
+    returns JSON alongside prose. Returns the JSON string, or None if
+    no valid JSON found."""
+    if not text:
+        return None
+    # First try: find JSON array
+    for pattern in [
+        r'\[.*?\](?:\s*$|\s*\n)',  # JSON array at end
+        r'\[[\s\S]*\]',             # JSON array greedy
+        r'\{[\s\S]*\}',             # JSON object
+    ]:
+        matches = re.findall(pattern, text)
+        for m in matches:
+            try:
+                parsed = json.loads(m)
+                return m  # return the raw JSON string, not the parsed object
+            except (json.JSONDecodeError, TypeError):
+                continue
+    return None
 
 
 def llm_call(prompt, max_tokens=1024, system=""):
@@ -943,6 +983,7 @@ class AuElectronicCronAgent:
         self.session_id = None
         self.llm_cost = {"prompt": 0, "completion": 0}
         self.completed_items = []
+        self.idea_generation_count = 0  # P0-1: cap idea generation at 2 per session
 
     def log(self, msg):
         log(msg)
@@ -1169,8 +1210,20 @@ class AuElectronicCronAgent:
         while self.within_time() and not self.should_wind_down():
             item = get_next_task(self.backlog)
             if not item:
-                log("  No open tasks in backlog. Session complete.")
-                break
+                # Try to generate new ideas (P0-1) — capped at 2 generations per session
+                if self.idea_generation_count < 2:
+                    log("  Backlog empty. Generating new improvement ideas...")
+                    new_items = self.phase_1b_generate_ideas()
+                    if new_items:
+                        log(f"  Generated {len(new_items)} new idea(s). Returning to task loop.")
+                        self.idea_generation_count += 1
+                        continue  # loop back to pick up the new top-priority item
+                    else:
+                        log("  Idea generation produced no valid items.")
+                        break
+                else:
+                    log("  No open tasks and generation cap reached. Session complete.")
+                    break
 
             log(f"  Working on item #{item.get('id')}: {item.get('title', '')[:60]} (priority: {item.get('priority', 'N/A')})")
 
@@ -1249,6 +1302,162 @@ class AuElectronicCronAgent:
                 self._apply_steering(instr)
 
         log("  Phase 1 complete.")
+
+    def phase_1b_generate_ideas(self):
+        """Phase 1b: Generate new improvement ideas when backlog is empty (P0-1).
+
+        Prompts Claude Code for 3-5 concrete improvement proposals for au-electronic.
+        Each proposal must include: title, rationale, effort (S/M/L), risk
+        (low/med/high), and files/areas it touches.
+
+        Filters against the never-touch list, deprioritizes duplicates of done items,
+        and drops L-effort items if less than 90 minutes remain in the session.
+
+        Returns the list of new items added to the backlog.
+        """
+        log("  Generating improvement ideas from Claude Code...")
+
+        # Calculate remaining time
+        remaining = (self.hard_stop - now_sgt()).total_seconds() / 60  # minutes
+        remaining_str = ""
+        if remaining < 90:
+            remaining_str = f" Less than 90 minutes remain ({remaining:.0f} min), so drop any ideas sized 'L'."
+
+        # Build the generation prompt
+        done_titles = [i.get("title", "") for i in self.completed_items]
+        done_context = ""
+        if done_titles:
+            done_context = f" Items already completed/done: " + "; ".join(done_titles[:5])
+
+        prompt = (
+            f"## Idea Generation: au-electronic improvements\n\n"
+            f"You are an autonomous improvement agent for au-electronic, a Next.js app. "
+            f"The project stack: Next.js 16, React 19, Supabase, Tailwind v4, Vitest, ESLint. "
+            f"Consult CLAUDE.md and AGENTS.md for project conventions.\n\n"
+            f"Generate 3-5 concrete improvement proposals. For EACH, include:\n"
+            f"- title (brief, actionable)\n"
+            f"- rationale (one line)\n"
+            f"- effort (S/M/L)\n"
+            f"- risk (low/med/high)\n"
+            f"- touches (specific files or areas)\n\n"
+            f"Demand a spread across UX, UI, code quality, architecture, performance, and DX — "
+            f"not five variants of one idea.{done_context}{remaining_str}\n\n"
+            f"ALWAYS output ONLY a JSON array, no fences, no preamble. Example:\n"
+            f'[{{"title": "Fix X", "rationale": "Y", "effort": "S", "risk": "low", "touches": "src/z.tsx"}}]\n\n'
+            f"Return the JSON array now:"
+        )
+
+        # Send to Claude and wait for response
+        tmux_send_keys(prompt)
+        tmux_send_enter()
+        output, idle = wait_for_idle(timeout=120 if DRY_RUN else 300)
+
+        if not idle:
+            log("  Claude did not produce an idle state within timeout for idea generation.")
+            return []
+
+        # Extract JSON from Claude's output (strip status bar, box-drawing, etc.)
+        sanitized = _sanitize_for_llm(output)
+        json_text = extract_json_from_output(sanitized)
+
+        if not json_text:
+            log("  Idea generation: Claude did not return parseable JSON. Retrying with LLM...")
+            # Use LLM to extract JSON
+            result, _ = llm_call(
+                f"Extract the JSON array of improvement ideas from this Claude output. "
+                f"Return ONLY the JSON, no prose.\n\nOutput:\n{output[-3000:]}",
+                max_tokens=2048
+            )
+            json_text = extract_json_from_output(result)
+            if not json_text:
+                log("  Could not parse JSON from idea generation. Skipping.")
+                return []
+
+        try:
+            ideas = json.loads(json_text)
+        except (json.JSONDecodeError, TypeError) as e:
+            log(f"  JSON parse error in idea generation: {e}")
+            # Try once more with LLM
+            result, _ = llm_call(
+                f"Fix and return as valid JSON only: {json_text[:2000]}",
+                max_tokens=2048
+            )
+            try:
+                ideas = json.loads(result.strip())
+            except (json.JSONDecodeError, TypeError):
+                log("  Final JSON parse failed. Skipping idea generation.")
+                return []
+
+        if not isinstance(ideas, list):
+            log(f"  Idea generation returned non-array: {type(ideas)}")
+            return []
+
+        # Score, filter, and append to backlog
+        new_items = []
+        next_id = max(b.get("id", 0) for b in self.backlog) + 1 if self.backlog else 1
+        done_titles_lower = [t.lower() for t in done_titles]
+
+        for idea in ideas:
+            if not isinstance(idea, dict):
+                continue
+
+            title = idea.get("title", "").strip()
+            if not title:
+                continue
+
+            # Filter: never-touch list
+            touches = idea.get("touches", "")
+            touches_lower = touches.lower()
+            if any(nt in touches_lower or nt in title.lower() for nt in NEVER_TOUCH_PATTERNS):
+                log(f"  Skipping idea '{title}' — touches never-touch area")
+                continue
+
+            # Filter: duplicates of done items
+            if any(d in title.lower() for d in done_titles_lower):
+                log(f"  Skipping idea '{title}' — duplicates a completed item")
+                continue
+
+            # Filter: drop L-effort if < 90 min remaining
+            effort = idea.get("effort", "").upper().strip()
+            if effort == "L" and remaining < 90:
+                log(f"  Skipping idea '{title}' — effort L but only {remaining:.0f} min left")
+                continue
+
+            # Score: S effort + low risk = highest priority (1), L + high = lowest (5)
+            effort_score = {"S": 0, "M": 1, "L": 2}.get(effort, 1)
+            risk_score = {"low": 0, "med": 1, "high": 2}.get(idea.get("risk", "").lower(), 1)
+            priority = 1 + effort_score + risk_score  # 1-5 scale
+            priority = max(1, min(5, priority))
+
+            new_id = next_id
+            next_id += 1
+
+            new_item = {
+                "id": new_id,
+                "title": title,
+                "priority": priority,
+                "status": "open",
+                "source": "llm-generated",
+                "rationale": idea.get("rationale", ""),
+                "effort": effort,
+                "risk": idea.get("risk", ""),
+                "touches": touches,
+            }
+            self.backlog.append(new_item)
+            new_items.append(new_item)
+            log(f"  Added idea #{new_id}: {title[:60]} (priority {priority}, effort {effort})")
+
+        save_backlog(self.backlog)
+
+        # Send Telegram summary of what was generated
+        if new_items:
+            summary = "💡 **New ideas generated:**\n"
+            for item in new_items:
+                summary += f"- #{item['id']} [{item.get('effort', '?')}]: {item['title'][:80]}\n"
+            summary += f"\nStarted task #{new_items[0]['id']}: {new_items[0]['title'][:80]}"
+            telegram_send_message(summary)
+
+        return new_items
 
     def _interpret_output_for_item(self, item, output):
         """Use LLM to interpret Claude's output and determine task status."""
