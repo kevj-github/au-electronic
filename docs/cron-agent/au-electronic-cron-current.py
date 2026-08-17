@@ -16,6 +16,7 @@ Usage:
     python3 ~/au-electronic-cron.py --dry-run         # acceptance test 1
     python3 ~/au-electronic-cron.py --short-hours=0.17  # ~10min hard-stop test
     python3 ~/au-electronic-cron.py --no-commit        # skip git commit/push/PR
+    python3 ~/au-electronic-cron.py --force-commit     # exercise commit/PR path (bypass dry-run/no-commit gate)
 """
 
 import json
@@ -51,8 +52,8 @@ STEERING_FILE = os.path.join(BASE_DIR, "steering.md")
 UNDELIVERED_FILE = os.path.join(LOGS_DIR, "undelivered.md")
 
 # LLM: shell out to hermes chat CLI (per spec: no external API, no hardcoded key)
+# Model is read from ~/.hermes/config.yaml via load_model_config()
 HERMES_BIN = "hermes"
-MODEL = "poolside/laguna-s-2.1:free"
 
 # Timing
 POLL_INTERVAL = 10  # seconds
@@ -245,13 +246,38 @@ def extract_json_from_output(text):
     return None
 
 
-def llm_call(prompt, max_tokens=1024, system=""):
+def load_model_config():
+    """Read the configured model from Hermes config.
+
+    Falls back to poolside/laguna-s-2.1:free if config is unavailable.
+    Per spec: the model is whatever the Hermes gateway has configured.
+    """
+    config_path = os.path.expanduser("~/.hermes/config.yaml")
+    try:
+        import yaml
+        with open(config_path) as f:
+            cfg = yaml.safe_load(f) or {}
+        model = (cfg.get("model", {}) or {}).get("default", "")
+        if model:
+            return model
+    except Exception:
+        pass
+    return "poolside/laguna-s-2.1:free"
+
+
+def llm_call(prompt, max_tokens=1024, system="", retries=3):
     """Call the configured model via `hermes chat -q`. Returns (text, cost).
+
+    On repeated failure, returns "[LLM FAILED]" so callers can detect
+    the failure and leave tasks in_progress rather than guessing DONE.
 
     cost = {"prompt": N, "completion": N} — best-effort, parsed from the
     session footer that `hermes chat -q` emits; may be zeros if parsing fails.
+
+    Retries with exponential backoff on TimeoutExpired and transient errors.
     """
-    import subprocess, re
+    # Resolve model from config (not hardcoded)
+    model = load_model_config()
 
     full_prompt = prompt
     if system:
@@ -263,36 +289,57 @@ def llm_call(prompt, max_tokens=1024, system=""):
     cmd = [
         HERMES_BIN, "chat", "-q", full_prompt,
         "-Q",  # quiet: suppress banner/spinner, print only final response
-        "-m", MODEL,
+        "-m", model,
     ]
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            env={**os.environ},
-            stdin=subprocess.DEVNULL,
-        )
-        output = result.stdout
-        # Strip the trailing session_id line if present
-        lines = output.rsplit("\n", 1)
-        if lines[-1].strip().startswith("session_id:"):
-            output = lines[0]
-        # Best-effort token parsing from output footer
-        prompt_tokens = 0
-        completion_tokens = 0
-        usage_match = re.search(r"(?:Usage|Cost|tokens)[^\n]*?(\d+)", output, re.IGNORECASE)
-        if usage_match:
-            prompt_tokens = int(usage_match.group(1))
 
-        return output.strip(), {"prompt": prompt_tokens, "completion": completion_tokens}
-    except subprocess.TimeoutExpired:
-        log("  LLM call timed out after 300s")
-        return "[LLM timeout]", {"prompt": 0, "completion": 0}
-    except Exception as e:
-        log(f"  LLM call failed: {e}")
-        return f"[LLM error: {e}]", {"prompt": 0, "completion": 0}
+    last_error = None
+    total_cost = {"prompt": 0, "completion": 0}
+
+    for attempt in range(retries):
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+                env={**os.environ},
+                stdin=subprocess.DEVNULL,
+            )
+            output = result.stdout
+            # Strip the trailing session_id line if present
+            lines = output.rsplit("\n", 1)
+            if lines[-1].strip().startswith("session_id:"):
+                output = lines[0]
+            # Best-effort token parsing from output footer
+            prompt_tokens = 0
+            completion_tokens = 0
+            usage_match = re.search(r"(?:Usage|Cost|tokens)[^\n]*?(\d+)", output, re.IGNORECASE)
+            if usage_match:
+                prompt_tokens = int(usage_match.group(1))
+            total_cost["prompt"] += prompt_tokens
+            total_cost["completion"] += completion_tokens
+
+            return output.strip(), total_cost
+
+        except subprocess.TimeoutExpired:
+            last_error = "timeout"
+            log(f"  LLM call timed out (attempt {attempt + 1}/{retries}) after 300s")
+            if attempt < retries - 1:
+                wait = min(2 ** (attempt + 1), 10)  # 2s, 4s, 8s
+                log(f"  Retrying in {wait}s...")
+                time.sleep(wait)
+        except Exception as e:
+            last_error = str(e)
+            log(f"  LLM call failed (attempt {attempt + 1}/{retries}): {e}")
+            if attempt < retries - 1:
+                wait = min(2 ** (attempt + 1), 10)
+                log(f"  Retrying in {wait}s...")
+                time.sleep(wait)
+
+    # All retries exhausted
+    log(f"  LLM call FAILED after {retries} attempts. Last error: {last_error}")
+    log("  Caller should treat this as a non-DONE result (leave task in_progress).")
+    return "[LLM FAILED]", total_cost
 
 
 # ── tmux operations ─────────────────────────────────────────────────────────────
@@ -804,15 +851,80 @@ def git_sync_main_into_hermes():
         return False
 
 
+def check_build_and_tests():
+    """Run build, lint, and tests to gate PR creation.
+
+    Returns (success: bool, summary: str).
+    Never returns success=True if the project is broken."""
+    log("  Running build/test gate checks...")
+    try:
+        # Lint
+        result = subprocess.run(
+            ["npm", "run", "lint"],
+            capture_output=True, text=True, timeout=120,
+            cwd=PROJECT_DIR
+        )
+        if result.returncode != 0:
+            log(f"  Lint FAILED: {result.stderr[:200]}")
+            return False, f"ESLint failed: {result.stderr.strip()[:200]}"
+
+        # Tests
+        result = subprocess.run(
+            ["npm", "run", "test:run"],
+            capture_output=True, text=True, timeout=180,
+            cwd=PROJECT_DIR
+        )
+        if result.returncode != 0:
+            log(f"  Tests FAILED: {result.stderr[:200]}")
+            return False, f"Tests failed: {result.stderr.strip()[:200]}"
+
+        # Build
+        result = subprocess.run(
+            ["npm", "run", "build"],
+            capture_output=True, text=True, timeout=180,
+            cwd=PROJECT_DIR
+        )
+        if result.returncode != 0:
+            log(f"  Build FAILED: {result.stderr[:200]}")
+            return False, f"Build failed: {result.stderr.strip()[:200]}"
+
+        log("  Build/test gate: ALL PASSED")
+        return True, "Lint + tests + build all passed"
+    except subprocess.TimeoutExpired as e:
+        return False, f"Gate check timed out: {e}"
+    except Exception as e:
+        return False, f"Gate check error: {e}"
+
+
 def git_commit_and_push():
-    """Commit changes on hermes branch and push, open PR to main."""
-    if NO_COMMIT:
-        log("  Skipping commit/push (--no-commit flag)")
-        return
+    """Commit changes on hermes branch, push, and open or update a PR to main.
+
+    P0-4 fixes:
+    - Honors --force-commit to exercise this path without waiting for 05:00.
+    - Gates PR creation on build+tests passing (never open PR on broken branch).
+    - Checks for existing PR before creating; updates it instead of duplicating.
+    - Handles gh failures explicitly with logging and alerting.
+    """
+    if NO_COMMIT and not FORCE_COMMIT:
+        log("  Skipping commit/push (--no-commit flag, use --force-commit to override)")
+        return False, "--no-commit"
+
+    if DRY_RUN and not FORCE_COMMIT:
+        log("  Skipping commit/push (dry-run mode, use --force-commit to override)")
+        return False, "dry-run"
+
+    # Gate: never commit/push if build+tests fail
+    ok, reason = check_build_and_tests()
+    if not ok:
+        log(f"  ABORT: Build/test gate failed — {reason}")
+        log("  NOT committing or pushing. Report will note build failure.")
+        return False, f"gate-failed: {reason}"
+
     log("  Committing and pushing changes...")
     try:
-        # Stage all
+        # Stage all (gitignore excludes node_modules, .next, .env*, etc.)
         subprocess.run(["git", "add", "-A"], capture_output=True, text=True, cwd=PROJECT_DIR)
+
         # Commit
         result = subprocess.run(
             ["git", "commit", "-m", "hermes: daily improvements"],
@@ -820,34 +932,103 @@ def git_commit_and_push():
             cwd=PROJECT_DIR
         )
         if result.returncode != 0:
-            log(f"  Commit may have failed (possibly no changes): {result.stderr.strip()[:200]}")
-            return
+            if "nothing to commit" in result.stderr:
+                log("  No changes to commit.")
+                # Still check for existing PR and update it
+                return _ensure_pr_exists(update_body_only=True)
+            else:
+                log(f"  Commit failed: {result.stderr.strip()[:200]}")
+                return False, f"commit-failed: {result.stderr.strip()[:200]}"
+
+        log("  Committed changes.")
+
         # Push
         push_result = subprocess.run(
             ["git", "push", "-u", "origin", "hermes"],
             capture_output=True, text=True,
             cwd=PROJECT_DIR
         )
-        if push_result.returncode == 0:
-            log("  Pushed hermes branch to origin.")
-        else:
+        if push_result.returncode != 0:
             log(f"  Push failed: {push_result.stderr.strip()[:200]}")
-            return
+            return False, f"push-failed: {push_result.stderr.strip()[:200]}"
 
-        # Open PR
-        pr_result = subprocess.run(
-            ["gh", "pr", "create", "--base", "main", "--head", "hermes",
-             "--title", "hermes: daily improvements",
-             "--body", "Automated daily improvement cycle from hermes-agent cron."],
+        log("  Pushed hermes branch to origin.")
+        return _ensure_pr_exists()
+
+    except Exception as e:
+        log(f"  Git commit/push error: {e}")
+        return False, f"error: {e}"
+
+
+def _ensure_pr_exists(update_body_only: bool = False):
+    """Create or update the hermes → main PR.
+
+    If a PR already exists, update its title and body (covering all unmerged
+    commits, not just today's). If none, create one.
+    Returns (success: bool, message: str)."""
+    # Check for existing open PR
+    pr_check = subprocess.run(
+        ["gh", "pr", "list", "--head", "hermes", "--base", "main", "--state", "open", "--json", "number,title"],
+        capture_output=True, text=True,
+        cwd=PROJECT_DIR
+    )
+
+    if pr_check.returncode != 0:
+        log(f"  gh pr list failed: {pr_check.stderr.strip()[:200]}")
+        log("  WARNING: PR state unknown — branch pushed but PR status unclear.")
+        return False, f"gh-pr-list-failed: {pr_check.stderr.strip()[:200]}"
+
+    try:
+        prs = json.loads(pr_check.stdout)
+    except json.JSONDecodeError:
+        prs = []
+
+    if prs:
+        # PR exists — update it
+        pr_number = prs[0]["number"]
+        log(f"  PR #{pr_number} already exists. Updating title and body...")
+
+        # Get all commits between hermes and main for the body
+        commits_result = subprocess.run(
+            ["git", "log", "--oneline", "main..hermes"],
             capture_output=True, text=True,
             cwd=PROJECT_DIR
         )
-        if pr_result.returncode == 0:
-            log("  PR created: " + pr_result.stdout.strip()[:200])
+        commit_list = commits_result.stdout.strip() if commits_result.returncode == 0 else "(could not retrieve)"
+
+        update_result = subprocess.run(
+            ["gh", "pr", "edit", str(pr_number),
+             "--title", "hermes: daily improvements",
+             "--body", f"Automated daily improvement cycle from hermes-agent cron.\n\nChanges not yet in main:\n```\n{commit_list}\n```"],
+            capture_output=True, text=True,
+            cwd=PROJECT_DIR
+        )
+        if update_result.returncode == 0:
+            log(f"  PR #{pr_number} updated successfully.")
+            return True, f"PR #{pr_number} updated"
         else:
-            log(f"  PR creation note: {pr_result.stderr.strip()[:200]}")
-    except Exception as e:
-        log(f"  Git commit/push error: {e}")
+            log(f"  PR update failed: {update_result.stderr.strip()[:200]}")
+            return False, f"pr-update-failed: {update_result.stderr.strip()[:200]}"
+
+    # No PR — create one
+    pr_result = subprocess.run(
+        ["gh", "pr", "create", "--base", "main", "--head", "hermes",
+         "--title", "hermes: daily improvements",
+         "--body", "Automated daily improvement cycle from hermes-agent cron."],
+        capture_output=True, text=True,
+        cwd=PROJECT_DIR
+    )
+    if pr_result.returncode == 0:
+        pr_url = pr_result.stdout.strip().split("\n")[-1] if pr_result.stdout else "(no URL)"
+        log(f"  PR created: {pr_url[:200]}")
+        return True, f"PR created: {pr_url}"
+    else:
+        # Check if it's "already exists" (race condition)
+        if "already exists" in pr_result.stderr.lower():
+            log(f"  PR already exists (race condition). Use 'gh pr edit' to update it.")
+            return _ensure_pr_exists(update_body_only=True)
+        log(f"  PR creation failed: {pr_result.stderr.strip()[:200]}")
+        return False, f"pr-create-failed: {pr_result.stderr.strip()[:200]}"
 
 
 # ── Backlog operations ─────────────────────────────────────────────────────────
@@ -1036,6 +1217,14 @@ class AuElectronicCronAgent:
 
             # Phase 2: Wind down & context reset
             self.phase_2_wind_down()
+
+            # Commit and push changes, open/update PR (P0-4)
+            # Gated on build+tests; uses --force-commit to run in test mode
+            push_result, push_reason = git_commit_and_push()
+            if push_result:
+                log(f"  Git push/PR: success ({push_reason})")
+            else:
+                log(f"  Git push/PR: skipped ({push_reason})")
 
             # Phase 3: Report
             self.phase_3_report()
@@ -1269,7 +1458,14 @@ class AuElectronicCronAgent:
 
             # Use LLM to verify completion and interpret output
             result = self._verify_completion(item, output)
-            if result.get("status") == "done":
+            if result.get("status") == "needs_retry":
+                # P1-1: LLM failed — leave in_progress, preserve for next session
+                log(f"  Item #{item.get('id')} left in_progress (LLM verification failed).")
+                item["status"] = "in_progress"
+                item["notes"] = item.get("notes", "") + f" Verification failed at {self.session_id}. "
+                save_backlog(self.backlog)
+                continue
+            elif result.get("status") == "done":
                 log(f"  Item #{item.get('id')} marked as DONE.")
                 item["status"] = "done"
                 item["completion_summary"] = result.get("summary", "")
@@ -1495,6 +1691,13 @@ class AuElectronicCronAgent:
         text, cost = llm_call(prompt, max_tokens=512, system="Return ONLY valid JSON. No prose, no markdown.")
         self.llm_cost["prompt"] += cost.get("prompt", 0)
         self.llm_cost["completion"] += cost.get("completion", 0)
+
+        # P1-1: On LLM failure, do NOT guess DONE — leave task in_progress for retry
+        if text == "[LLM FAILED]":
+            log("  LLM verification call failed after retries. Leaving task in_progress.")
+            telegram_send_message(f"⚠️ LLM verification failed for task #{item.get('id')}. Left in_progress for next session.")
+            return {"status": "needs_retry", "reason": "LLM call failed after retries", "summary": "Verification unavailable"}
+
         try:
             result = json.loads(text)
             return result
