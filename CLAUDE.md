@@ -82,3 +82,5 @@ npm run types:check # Fails if database.types.ts has drifted from the live schem
 - **Replace sequential N+1 loops with `Promise.all()` in Server Actions.** Loops like `for (const item of items) { await supabase.update(...) }` do N sequential round-trips. Replace with `await Promise.all(items.map(item => supabase.update(...)))` to run all updates concurrently. Used in `clearAllPelanggan`. If any single update failing should abort the whole operation, check `results.find(r => r.error)` after the `Promise.all`.
 
 <!-- TODO: Next session focus - address the zone so date assertions so that tests pass regardless of machine's local timezone (currently UTC+8-dependent). See backlog #2 on live grants verification. -->
+
+TODO P0-4 verification
