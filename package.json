@@ -2,6 +2,10 @@
   "name": "au-electronic",
   "version": "0.1.0",
   "private": true,
+  "//engines": "Node >= 20.9.0, set by next@16 (its own engines field). Vitest additionally excludes Node 21.x and 23.x, but those are EOL non-LTS lines nobody should be on. CI (.github/workflows/ci.yml) runs Node 20 and Vercel reads engines.node to pick the build runtime, so keep this range simple and in sync when bumping Next.",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
