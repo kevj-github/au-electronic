@@ -36,8 +36,25 @@ export function formatThousandsInput(raw: string): string {
 /** Accepts either an ISO string straight from Supabase or an already-parsed Date. */
 export type DateInput = string | Date
 
+/** `YYYY-MM-DD` with no time part — what a Postgres `date` column serialises to. */
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/**
+ * `new Date('2026-07-16')` is specified to parse a date-only string as UTC
+ * midnight, so anywhere behind UTC it renders as the *previous* day: a
+ * `tanggal_pengiriman` of 2026-07-16 printed "15 Jul 2026" on the invoice and
+ * the ESC/P receipt. A date column carries no time or zone — it means that
+ * calendar day everywhere — so parse it as local midnight and let it survive
+ * formatting unshifted. Strings that do carry a time (`dibayar_pada`,
+ * `created_at`, both timestamptz) are real instants and keep the standard
+ * zone-aware parse.
+ */
 function toDate(value: DateInput): Date {
-  return typeof value === 'string' ? new Date(value) : value
+  if (typeof value !== 'string') return value
+  const dateOnly = DATE_ONLY.exec(value)
+  if (!dateOnly) return new Date(value)
+  const [, year, month, day] = dateOnly
+  return new Date(Number(year), Number(month) - 1, Number(day))
 }
 
 /** Compact Indonesian date, the default for lists and documents (e.g. "5 Agu 2026"). */

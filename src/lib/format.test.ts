@@ -57,6 +57,33 @@ describe('formatTanggal', () => {
   })
 })
 
+describe('date-only strings (Postgres `date` columns)', () => {
+  // Regression: these used to parse as UTC midnight, so every timezone behind
+  // UTC rendered the previous day. Asserting the exact calendar day is what
+  // catches it — the test machine's zone must not change the answer.
+  it('keeps the calendar day for the compact format', () => {
+    expect(formatTanggal('2026-07-16')).toBe('16 Jul 2026')
+    expect(formatTanggal('2026-01-01')).toBe('1 Jan 2026')
+    expect(formatTanggal('2026-12-31')).toBe('31 Des 2026')
+    expect(formatTanggal('2024-02-29')).toBe('29 Feb 2024')
+  })
+
+  it('keeps the calendar day for the long and numeric formats', () => {
+    expect(formatTanggalPanjang('2026-07-16')).toBe('16 Juli 2026')
+    expect(formatTanggalNumerik('2026-07-16')).toBe('16/07/2026')
+  })
+
+  it('round-trips through the date-input value unchanged', () => {
+    expect(formatDateInputValue('2026-07-16')).toBe('2026-07-16')
+    expect(formatDateInputValue('2026-01-01')).toBe('2026-01-01')
+  })
+
+  it('still parses timestamps with a time part as real instants', () => {
+    const withTime = '2026-07-16T09:30:00+07:00'
+    expect(formatTanggal(withTime)).toBe(formatTanggal(new Date(withTime)))
+  })
+})
+
 describe('formatTanggalPanjang', () => {
   it('spells the month out', () => {
     expect(formatTanggalPanjang(new Date(2026, 7, 5))).toBe('5 Agustus 2026')
