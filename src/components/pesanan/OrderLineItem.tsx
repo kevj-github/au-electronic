@@ -1,7 +1,7 @@
 'use client'
 
 import { X } from 'lucide-react'
-import { formatRupiah } from '@/lib/utils'
+import { formatRupiah } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 

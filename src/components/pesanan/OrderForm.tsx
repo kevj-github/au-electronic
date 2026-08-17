@@ -8,7 +8,7 @@ import { OrderLineItem, type LineItem } from './OrderLineItem'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { formatRupiah } from '@/lib/utils'
+import { formatRupiah } from '@/lib/format'
 import type { Pelanggan } from '@/lib/types'
 
 interface OrderFormProps {

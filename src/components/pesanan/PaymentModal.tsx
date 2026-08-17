@@ -5,7 +5,7 @@ import { createPembayaran } from '@/app/(app)/pesanan/[id]/payment-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { formatThousandsInput, parseThousandsInput } from '@/lib/utils'
+import { formatDateInputValue, formatThousandsInput, parseThousandsInput } from '@/lib/format'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { format } from 'date-fns'
 
 interface PaymentModalProps {
   pesananId: string
@@ -99,7 +98,7 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
               id="dibayar_pada"
               name="dibayar_pada"
               type="date"
-              defaultValue={format(new Date(), 'yyyy-MM-dd')}
+              defaultValue={formatDateInputValue(new Date())}
             />
           </div>
           <div className="space-y-2">

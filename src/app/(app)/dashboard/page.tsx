@@ -6,7 +6,7 @@ import { getCurrentUser } from '@/lib/supabase/request-cache'
 export const metadata: Metadata = { title: 'Dashboard' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { DashboardDateFilter } from '@/components/pesanan/DashboardDateFilter'
-import { formatRupiah } from '@/lib/utils'
+import { formatRupiah } from '@/lib/format'
 import { OrderList } from '@/components/pesanan/OrderList'
 // Server-render call site — see the note in components/pesanan/order-row.ts.
 import { toOrderRows, type PesananWithRelations } from '@/components/pesanan/order-row'

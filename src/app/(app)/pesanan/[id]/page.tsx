@@ -14,11 +14,10 @@ import { ItemsSection } from '@/components/pesanan/ItemsSection'
 import { ResetChecklistButton } from '@/components/pesanan/ResetChecklistButton'
 import { buildInvoiceData, type InvoiceData } from '@/lib/invoice-data'
 import { DETAIL_ITEM_COLUMNS, itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
-import { formatRupiah, hitungSaldo } from '@/lib/utils'
+import { hitungSaldo } from '@/lib/utils'
+import { formatRupiah, formatTanggal, formatTanggalPanjang } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Check } from 'lucide-react'
-import { format } from 'date-fns'
-import { id as idLocale } from 'date-fns/locale'
 import type { Pesanan, ItemPesananHelper, ItemPesananOwner, PembayaranOwner, Pelanggan, StatusPesanan } from '@/lib/types'
 import Link from 'next/link'
 
@@ -167,7 +166,7 @@ export default async function PesananDetailPage({
             <StatusBadge status={pesanan.status} />
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            {format(new Date(pesanan.created_at), 'd MMMM yyyy', { locale: idLocale })}
+            {formatTanggalPanjang(pesanan.created_at)}
           </p>
           {isOwner && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5">
@@ -286,7 +285,7 @@ export default async function PesananDetailPage({
               {pembayaranList.map((p) => (
                 <div key={p.id} className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">
-                    {format(new Date(p.dibayar_pada), 'd MMM yyyy', { locale: idLocale })} ·{' '}
+                    {formatTanggal(p.dibayar_pada)} ·{' '}
                     {p.metode}
                     {p.catatan ? ` · ${p.catatan}` : ''}
                   </span>

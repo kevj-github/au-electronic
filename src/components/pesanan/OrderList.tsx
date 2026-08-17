@@ -3,9 +3,8 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
-import { format, parseISO, startOfDay, endOfDay } from 'date-fns'
-import { id as idLocale } from 'date-fns/locale'
-import { formatRupiah } from '@/lib/utils'
+import { parseISO, startOfDay, endOfDay } from 'date-fns'
+import { formatRupiah, formatTanggal } from '@/lib/format'
 import { StatusBadge } from './StatusBadge'
 import { DeletePesananButton } from './DeletePesananButton'
 import { Input } from '@/components/ui/input'
@@ -201,7 +200,7 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
                     )}
                     <div className="flex justify-between items-center mt-2 text-sm">
                       <span className="text-muted-foreground">
-                        {format(new Date(p.created_at), 'd MMM yyyy', { locale: idLocale })}
+                        {formatTanggal(p.created_at)}
                       </span>
                       {isOwner ? (
                         <span className="font-mono font-medium">
@@ -217,7 +216,7 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
                       <p className="text-xs text-muted-foreground mt-1">
                         <span className="font-medium">Pengiriman:</span>{' '}
                         {p.tanggal_pengiriman
-                          ? format(new Date(p.tanggal_pengiriman), 'd MMM yyyy', { locale: idLocale })
+                          ? formatTanggal(p.tanggal_pengiriman)
                           : 'Belum ditentukan'}
                       </p>
                     )}
@@ -268,12 +267,12 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
                         )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {format(new Date(p.created_at), 'd MMM yyyy', { locale: idLocale })}
+                        {formatTanggal(p.created_at)}
                       </td>
                       {isOwner && (
                         <td className="px-4 py-3 text-muted-foreground">
                           {p.tanggal_pengiriman
-                            ? format(new Date(p.tanggal_pengiriman), 'd MMM yyyy', { locale: idLocale })
+                            ? formatTanggal(p.tanggal_pengiriman)
                             : <span className="text-xs italic">Belum ditentukan</span>}
                         </td>
                       )}

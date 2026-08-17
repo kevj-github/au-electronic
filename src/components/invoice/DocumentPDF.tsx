@@ -7,10 +7,8 @@
  */
 /* eslint-disable jsx-a11y/alt-text */
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
-import { formatNumberID } from '@/lib/utils'
+import { formatNumberID, formatTanggal } from '@/lib/format'
 import { shipmentText, type InvoiceData } from '@/lib/invoice-data'
-import { format } from 'date-fns'
-import { id as idLocale } from 'date-fns/locale'
 
 // Wrap long words (item names, column headers) at word boundaries instead of
 // hyphenating mid-word (e.g. avoid "SATU-AN").
@@ -190,10 +188,10 @@ function PageHeader({
 }
 
 export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) {
-  const tanggal = format(new Date(data.tanggal), 'd MMM yyyy', { locale: idLocale })
+  const tanggal = formatTanggal(data.tanggal)
   const pengirimanText = shipmentText(data)
   const tanggalPengiriman = data.tanggalPengiriman
-    ? format(new Date(data.tanggalPengiriman), 'd MMM yyyy', { locale: idLocale })
+    ? formatTanggal(data.tanggalPengiriman)
     : undefined
 
   const chunks: typeof data.items[] = []

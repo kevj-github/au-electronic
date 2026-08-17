@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { format } from 'date-fns'
-import { id as idLocale } from 'date-fns/locale'
+import { formatTanggal } from '@/lib/format'
 import { Printer, Copy, Check, Eye, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatWhatsapp } from '@/components/invoice/whatsapp'
@@ -15,7 +14,7 @@ import type { InvoiceData } from '@/lib/invoice-data'
 // replaced by "-". Mobile browsers name the saved file from this, since they
 // download the blob instead of reading the PDF's embedded title metadata.
 function buildFilename(data: InvoiceData): string {
-  const tanggal = format(new Date(data.tanggal), 'd MMM yyyy', { locale: idLocale })
+  const tanggal = formatTanggal(data.tanggal)
   const base = [data.namaPelanggan, data.alamatPelanggan, tanggal]
     .filter(Boolean)
     .join(' - ')

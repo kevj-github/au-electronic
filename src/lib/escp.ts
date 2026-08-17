@@ -1,6 +1,4 @@
-import { format } from 'date-fns'
-import { id as idLocale } from 'date-fns/locale'
-import { formatNumberID } from '@/lib/utils'
+import { formatNumberID, formatTanggal } from '@/lib/format'
 import { shipmentText, type InvoiceData } from '@/lib/invoice-data'
 
 // ESC/P control codes for the 9-pin Epson LX-310.
@@ -315,9 +313,9 @@ export function buildEscP(input: InvoiceData): string {
     items: input.items.map((i) => ({ ...i, namaBarang: toAscii(i.namaBarang) })),
   }
 
-  const tanggal = format(new Date(data.tanggal), 'd MMM yyyy', { locale: idLocale })
+  const tanggal = formatTanggal(data.tanggal)
   const tanggalPengiriman = data.tanggalPengiriman
-    ? format(new Date(data.tanggalPengiriman), 'd MMM yyyy', { locale: idLocale })
+    ? formatTanggal(data.tanggalPengiriman)
     : 'Belum ditentukan'
 
   const buildHeader = (pageLabel?: string) =>
