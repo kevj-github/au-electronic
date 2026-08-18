@@ -54,6 +54,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "16.2.12",
     "jsdom": "^29.1.1",
+    "json2csv": "^6.0.0-alpha.2",
     "shadcn": "^4.11.0",
     "tailwindcss": "^4",
     "typescript": "^5",
