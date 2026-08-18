@@ -50,3 +50,6 @@ next-env.d.ts
 qa-*.png
 owner-*.png
 create_test_users.mjs
+
+# Local Claude Code settings (permission config for hermes-cron)
+.claude/
