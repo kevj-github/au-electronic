@@ -269,6 +269,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
                         variant="ghost"
                         className="h-7 w-7 p-0"
                         onClick={() => startEdit(item)}
+                        aria-label="Edit item"
                       >
                         <Pencil className="size-3.5" />
                       </Button>
@@ -288,6 +289,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
                             variant="ghost"
                             className="h-7 w-7 p-0"
                             onClick={() => setDeletingId(null)}
+                            aria-label="Batal hapus"
                           >
                             <X className="size-3.5" />
                           </Button>
@@ -298,6 +300,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
                           variant="ghost"
                           className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
                           onClick={() => setDeletingId(item.id)}
+                          aria-label="Hapus item"
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -433,7 +436,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
                       <Button size="sm" onClick={() => saveEdit(item.id)} disabled={loadingId === item.id}>
                         <Check className="size-3.5 mr-1" />Simpan
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                      <Button size="sm" variant="ghost" onClick={cancelEdit} aria-label="Batal edit">
                         <X className="size-3.5" />
                       </Button>
                     </div>
@@ -557,7 +560,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
                       <Button size="sm" onClick={() => saveNewItem()} disabled={loadingId === 'new' || !newItem.nama_barang.trim()}>
                         <Check className="size-3.5 mr-1" />Tambah
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewItem(emptyAdd) }}>
+                      <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewItem(emptyAdd) }} aria-label="Batal tambah barang">
                         <X className="size-3.5" />
                       </Button>
                     </div>

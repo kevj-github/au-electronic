@@ -44,6 +44,7 @@ export function DeletePelangganButton({ pelangganId }: DeletePelangganButtonProp
           className="h-7 w-7 p-0"
           onClick={() => { setConfirming(false); setError(null) }}
           disabled={loading}
+          aria-label="Batal hapus"
         >
           <X className="size-3.5" />
         </Button>
