@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { X } from 'lucide-react'
 import { formatRupiah } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -8,8 +9,8 @@ import { Input } from '@/components/ui/input'
 export interface LineItem {
   id: string   // client-only uuid for React key
   nama_barang: string
-  qty: number
-  harga_satuan: number
+  qty: string
+  harga_satuan: string
 }
 
 interface OrderLineItemProps {
@@ -20,8 +21,8 @@ interface OrderLineItemProps {
   autoFocus?: boolean
 }
 
-export function OrderLineItem({ item, isOwner, onChange, onRemove, autoFocus }: OrderLineItemProps) {
-  const subtotal = item.qty * item.harga_satuan
+function OrderLineItemImpl({ item, isOwner, onChange, onRemove, autoFocus }: OrderLineItemProps) {
+  const subtotal = (parseInt(item.qty, 10) || 0) * (parseInt(item.harga_satuan, 10) || 0)
 
   return (
     <tr className="border-b">
@@ -29,8 +30,8 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove, autoFocus }: 
         <Input
           type="number"
           min="1"
-          value={item.qty || ''}
-          onChange={(e) => onChange(item.id, { qty: parseInt(e.target.value, 10) || 0 })}
+          value={item.qty}
+          onChange={(e) => onChange(item.id, { qty: e.target.value })}
           placeholder="Qty"
           aria-label={`Qty ${item.nama_barang}`}
           className="h-8 text-right"
@@ -50,8 +51,8 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove, autoFocus }: 
         <Input
           type="number"
           min="0"
-          value={item.harga_satuan || ''}
-          onChange={(e) => onChange(item.id, { harga_satuan: parseInt(e.target.value, 10) || 0 })}
+          value={item.harga_satuan}
+          onChange={(e) => onChange(item.id, { harga_satuan: e.target.value })}
           disabled={!isOwner}
           aria-label={`Harga satuan ${item.nama_barang}`}
           className="h-8 text-right font-mono"
@@ -80,3 +81,5 @@ export function OrderLineItem({ item, isOwner, onChange, onRemove, autoFocus }: 
     </tr>
   )
 }
+
+export const OrderLineItem = memo(OrderLineItemImpl)

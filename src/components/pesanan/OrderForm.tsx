@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, X } from 'lucide-react'
 import { createPesanan } from '@/app/(app)/pesanan/actions'
@@ -36,23 +36,23 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
       {
         id: newId,
         nama_barang: '',
-        qty: 0,
-        harga_satuan: 0,
+        qty: '',
+        harga_satuan: '',
       },
     ])
     setLastAddedId(newId)
   }
 
-  function updateItem(id: string, changes: Partial<LineItem>) {
+  const updateItem = useCallback((id: string, changes: Partial<LineItem>) => {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...changes } : i)))
-  }
+  }, [])
 
-  function removeItem(id: string) {
+  const removeItem = useCallback((id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id))
-  }
+  }, [])
 
   const grandTotal = items.reduce(
-    (sum, i) => sum + i.qty * i.harga_satuan,
+    (sum, i) => sum + (parseInt(i.qty, 10) || 0) * (parseInt(i.harga_satuan, 10) || 0),
     0
   )
 
@@ -65,9 +65,10 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
    */
   const canSubmit =
     items.length > 0 &&
-    items.every(
-      (i) => i.nama_barang.trim() !== '' && Number.isInteger(i.qty) && i.qty >= 1
-    )
+    items.every((i) => {
+      const qty = parseInt(i.qty, 10)
+      return i.nama_barang.trim() !== '' && Number.isInteger(qty) && qty >= 1
+    })
   const pelangganSuggestions = useMemo(() => {
     const q = namaPelanggan.trim().toLowerCase()
     if (!q || pelangganId) return []
@@ -102,8 +103,8 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
       tanggal_pengiriman: isOwner ? tanggalPengiriman || null : null,
       items: items.map((i) => ({
         nama_barang: i.nama_barang,
-        qty: i.qty,
-        harga_satuan: i.harga_satuan,
+        qty: parseInt(i.qty, 10) || 0,
+        harga_satuan: parseInt(i.harga_satuan, 10) || 0,
       })),
     })
 
@@ -212,15 +213,15 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
             {/* Mobile: card layout */}
             <div className="sm:hidden space-y-2">
               {items.map((item) => {
-                const subtotal = item.qty * item.harga_satuan
+                const subtotal = (parseInt(item.qty, 10) || 0) * (parseInt(item.harga_satuan, 10) || 0)
                 return (
                   <div key={item.id} className="border rounded-lg p-3 space-y-2">
                     <div className="flex gap-2 items-center">
                       <Input
                         type="number"
                         min="1"
-                        value={item.qty || ''}
-                        onChange={(e) => updateItem(item.id, { qty: parseInt(e.target.value, 10) || 0 })}
+                        value={item.qty}
+                        onChange={(e) => updateItem(item.id, { qty: e.target.value })}
                         placeholder="Qty"
                         className="h-8 w-20 text-sm text-right shrink-0"
                         aria-label="Qty"
@@ -250,8 +251,8 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
                           <Input
                             type="number"
                             min="0"
-                            value={item.harga_satuan || ''}
-                            onChange={(e) => updateItem(item.id, { harga_satuan: parseInt(e.target.value, 10) || 0 })}
+                            value={item.harga_satuan}
+                            onChange={(e) => updateItem(item.id, { harga_satuan: e.target.value })}
                             className="h-8 text-sm text-right font-mono w-full"
                             aria-label="Harga satuan"
                           />
