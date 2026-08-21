@@ -5,6 +5,7 @@
 ```bash
 npm run dev        # Next.js dev server (Turbopack)
 npm run build       # Production build — the only check that catches async/Server Action errors (see below)
+npm run typecheck   # tsc --noEmit, hermetic — no network. Catches most type errors `build` would, but NOT the sync-export-in-'use server'-file class (see below); use as a fast pre-build check, not a `build` replacement
 npm run test:run    # Vitest, single run (hermetic — no network)
 npm run lint        # ESLint
 npm run test:db     # Live DB security posture — real credentials, hits production
@@ -26,7 +27,7 @@ npm run types:check # Fails if database.types.ts has drifted from the live schem
 
 ## Codebase conventions
 
-- **`'use server'` files: every export must be `async`.** A sync helper in a Server Actions file compiles fine under `tsc`/`eslint`/`vitest` but breaks `npm run build` ("Server Actions must be async functions"). Always run `npm run build` before calling Server Action changes done — it's the only check that catches this.
+- **`'use server'` files: every export must be `async`.** A sync helper in a Server Actions file compiles fine under `tsc`/`eslint`/`vitest` — including `npm run typecheck` — but breaks `npm run build` ("Server Actions must be async functions"). Always run `npm run build` before calling Server Action changes done — it's the only check that catches this.
 - **shadcn here uses Base UI (`@base-ui/react`), not Radix** (`components.json` → `"style": "base-nova"`). Composed components take a `render={<Button .../>}` prop instead of `asChild`. Don't hand-write Radix-pattern code from memory — inspect the generated component after `npx shadcn@latest add <name>`.
 - **Owner-gated Server Actions**: use `requireOwner(supabase)` from `src/lib/supabase/require-owner.ts` rather than hand-rolling the auth+role check inline. RLS is the real authorization boundary; this is defense-in-depth.
 - **`<form action={fn}>` requires `fn` to return `void | Promise<void>`.** Actions here return `{ error?: string }` for error surfacing, so form-triggered deletes/mutations need a small client component with an `onClick` handler instead (see `DeletePaymentButton.tsx`).
