@@ -179,11 +179,13 @@ export async function resetChecklist(pesananId: string, target: 'helper' | 'owne
   const supabase = await createClient()
 
   if (target === 'owner') {
-    const ownerError = await requireOwner(supabase)
+    // Owners skip the helper lock but still can't touch a closed order. The
+    // owner check and the status lookup are independent — run concurrently.
+    const [ownerError, active] = await Promise.all([
+      requireOwner(supabase),
+      requireActivePesanan(supabase, pesananId),
+    ])
     if (ownerError) return ownerError
-
-    // Owners skip the helper lock but still can't touch a closed order.
-    const active = await requireActivePesanan(supabase, pesananId)
     if (isGuardError(active)) return active
   } else {
     const active = await requireHelperCanMutatePesanan(supabase, pesananId)
@@ -395,10 +397,12 @@ export async function updateItemHarga(
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
 
-  const ownerError = await requireOwner(supabase)
+  // Owner check and item-status lookup are independent — run them concurrently.
+  const [ownerError, existingItem] = await Promise.all([
+    requireOwner(supabase),
+    requireActivePesananByItem(supabase, itemId),
+  ])
   if (ownerError) return ownerError
-
-  const existingItem = await requireActivePesananByItem(supabase, itemId)
   if (isGuardError(existingItem)) return existingItem
 
   const { error } = await supabase
