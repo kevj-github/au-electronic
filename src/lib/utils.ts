@@ -40,6 +40,11 @@ export function formatNumberID(amount: number): string {
   return amount.toLocaleString('id-ID')
 }
 
+/** Parse a raw qty/harga input string to an integer, defaulting to 0 for blank/invalid input. */
+export function parseIntOrZero(raw: string): number {
+  return parseInt(raw, 10) || 0
+}
+
 /** Strip everything but digits (e.g. "Rp 1.000a" -> "1000", "" -> ""). */
 export function parseThousandsInput(display: string): string {
   return display.replace(/\D/g, '')

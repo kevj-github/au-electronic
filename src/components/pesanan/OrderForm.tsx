@@ -8,7 +8,7 @@ import { OrderLineItem, type LineItem } from './OrderLineItem'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { formatRupiah } from '@/lib/utils'
+import { formatRupiah, parseIntOrZero } from '@/lib/utils'
 import type { Pelanggan } from '@/lib/types'
 
 interface OrderFormProps {
@@ -52,7 +52,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
   }, [])
 
   const grandTotal = items.reduce(
-    (sum, i) => sum + (parseInt(i.qty, 10) || 0) * (parseInt(i.harga_satuan, 10) || 0),
+    (sum, i) => sum + parseIntOrZero(i.qty) * parseIntOrZero(i.harga_satuan),
     0
   )
 
@@ -65,10 +65,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
    */
   const canSubmit =
     items.length > 0 &&
-    items.every((i) => {
-      const qty = parseInt(i.qty, 10)
-      return i.nama_barang.trim() !== '' && Number.isInteger(qty) && qty >= 1
-    })
+    items.every((i) => i.nama_barang.trim() !== '' && parseIntOrZero(i.qty) >= 1)
   const pelangganSuggestions = useMemo(() => {
     const q = namaPelanggan.trim().toLowerCase()
     if (!q || pelangganId) return []
@@ -103,8 +100,8 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
       tanggal_pengiriman: isOwner ? tanggalPengiriman || null : null,
       items: items.map((i) => ({
         nama_barang: i.nama_barang,
-        qty: parseInt(i.qty, 10) || 0,
-        harga_satuan: parseInt(i.harga_satuan, 10) || 0,
+        qty: parseIntOrZero(i.qty),
+        harga_satuan: parseIntOrZero(i.harga_satuan),
       })),
     })
 
@@ -213,7 +210,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
             {/* Mobile: card layout */}
             <div className="sm:hidden space-y-2">
               {items.map((item) => {
-                const subtotal = (parseInt(item.qty, 10) || 0) * (parseInt(item.harga_satuan, 10) || 0)
+                const subtotal = parseIntOrZero(item.qty) * parseIntOrZero(item.harga_satuan)
                 return (
                   <div key={item.id} className="border rounded-lg p-3 space-y-2">
                     <div className="flex gap-2 items-center">

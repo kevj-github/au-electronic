@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import { X } from 'lucide-react'
-import { formatRupiah } from '@/lib/utils'
+import { formatRupiah, parseIntOrZero } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -22,7 +22,7 @@ interface OrderLineItemProps {
 }
 
 function OrderLineItemImpl({ item, isOwner, onChange, onRemove, autoFocus }: OrderLineItemProps) {
-  const subtotal = (parseInt(item.qty, 10) || 0) * (parseInt(item.harga_satuan, 10) || 0)
+  const subtotal = parseIntOrZero(item.qty) * parseIntOrZero(item.harga_satuan)
 
   return (
     <tr className="border-b">
