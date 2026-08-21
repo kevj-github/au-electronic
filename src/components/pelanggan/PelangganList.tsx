@@ -12,12 +12,11 @@ import type { Pelanggan, TipePelanggan } from '@/lib/types'
 
 interface PelangganListProps {
   pelangganList: Pelanggan[]
-  isOwner: boolean
 }
 
 const PAGE_SIZE = 10
 
-export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
+export function PelangganList({ pelangganList }: PelangganListProps) {
   const [query, setQuery] = useState('')
   const [tipe, setTipe] = useState<TipePelanggan | 'semua'>('semua')
   const [page, setPage] = useState(1)
@@ -104,14 +103,12 @@ export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">{p.telepon ?? '—'}</p>
-                {isOwner && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <Link href={`/pelanggan/${p.id}`}>
-                      <Button variant="outline" size="sm">Edit</Button>
-                    </Link>
-                    <DeletePelangganButton pelangganId={p.id} />
-                  </div>
-                )}
+                <div className="flex items-center gap-2 mt-2">
+                  <Link href={`/pelanggan/${p.id}`}>
+                    <Button variant="outline" size="sm">Edit</Button>
+                  </Link>
+                  <DeletePelangganButton pelangganId={p.id} />
+                </div>
               </div>
             ))}
           </div>
@@ -124,7 +121,7 @@ export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
                   <th className="text-left px-4 py-3 font-medium">Nama</th>
                   <th className="text-left px-4 py-3 font-medium">Telepon</th>
                   <th className="text-left px-4 py-3 font-medium">Tipe</th>
-                  {isOwner && <th className="px-4 py-3" />}
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -137,16 +134,14 @@ export function PelangganList({ pelangganList, isOwner }: PelangganListProps) {
                         {p.tipe === 'grosir' ? 'Grosir' : 'Retail'}
                       </Badge>
                     </td>
-                    {isOwner && (
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link href={`/pelanggan/${p.id}`}>
-                            <Button variant="outline" size="sm">Edit</Button>
-                          </Link>
-                          <DeletePelangganButton pelangganId={p.id} />
-                        </div>
-                      </td>
-                    )}
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link href={`/pelanggan/${p.id}`}>
+                          <Button variant="outline" size="sm">Edit</Button>
+                        </Link>
+                        <DeletePelangganButton pelangganId={p.id} />
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

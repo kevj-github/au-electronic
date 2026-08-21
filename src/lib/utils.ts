@@ -10,15 +10,6 @@ export function formatRupiah(amount: number): string {
   return `Rp ${amount.toLocaleString('id-ID')}`
 }
 
-export interface LineItemInput {
-  qty: number
-  harga_satuan: number
-}
-
-export function calcOrderTotal(items: LineItemInput[]): number {
-  return items.reduce((sum, item) => sum + item.qty * item.harga_satuan, 0)
-}
-
 export function hitungSaldo(
   totalPesanan: number,
   totalDibayar: number

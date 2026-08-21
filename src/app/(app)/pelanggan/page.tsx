@@ -32,8 +32,6 @@ export default async function PelangganPage() {
   if (!user) redirect('/login')
   if (user.role !== 'owner') redirect('/pesanan')
 
-  const isOwner = user.role === 'owner'
-
   return (
     <div className="space-y-4">
       <RealtimeRefresh table="pelanggan" />
@@ -46,13 +44,11 @@ export default async function PelangganPage() {
               ` — menampilkan ${pelangganList?.length ?? 0}`}
           </p>
         </div>
-        {isOwner && (
-          <Link href="/pelanggan/baru">
-            <Button>+ Tambah Pelanggan</Button>
-          </Link>
-        )}
+        <Link href="/pelanggan/baru">
+          <Button>+ Tambah Pelanggan</Button>
+        </Link>
       </div>
-      <PelangganList pelangganList={pelangganList ?? []} isOwner={isOwner} />
+      <PelangganList pelangganList={pelangganList ?? []} />
     </div>
   )
 }
