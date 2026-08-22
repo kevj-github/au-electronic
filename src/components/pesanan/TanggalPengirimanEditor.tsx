@@ -6,9 +6,10 @@ import { updateTanggalPengiriman } from '@/app/(app)/pesanan/actions'
 interface TanggalPengirimanEditorProps {
   pesananId: string
   initialValue: string | null
+  locked?: boolean
 }
 
-export function TanggalPengirimanEditor({ pesananId, initialValue }: TanggalPengirimanEditorProps) {
+export function TanggalPengirimanEditor({ pesananId, initialValue, locked }: TanggalPengirimanEditorProps) {
   const [value, setValue] = useState(initialValue ?? '')
   const [saving, setSaving] = useState(false)
 
@@ -26,7 +27,7 @@ export function TanggalPengirimanEditor({ pesananId, initialValue }: TanggalPeng
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onBlur={handleBlur}
-      disabled={saving}
+      disabled={saving || locked}
       className="border rounded-md px-2 py-1 text-sm h-8 disabled:opacity-50"
       aria-label="Tanggal pengiriman"
     />

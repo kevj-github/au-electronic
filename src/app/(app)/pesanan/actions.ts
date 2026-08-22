@@ -279,13 +279,22 @@ export async function deletePesanan(pesananId: string): Promise<{ error?: string
   return {}
 }
 
+// Owner-only, but the `guard_pesanan_write` trigger lets owners bypass the
+// status check entirely — so this app-layer check is the only thing stopping
+// an owner from editing shipping fields on a selesai/dibatalkan order. Same
+// gap class as toggleItemDicekOwner/updateItemHarga; owner check and status
+// lookup are independent, so they run concurrently.
 export async function updateTanggalPengiriman(
   pesananId: string,
   value: string | null
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const ownerError = await requireOwner(supabase)
+  const [ownerError, active] = await Promise.all([
+    requireOwner(supabase),
+    requireActivePesanan(supabase, pesananId),
+  ])
   if (ownerError) return ownerError
+  if (isGuardError(active)) return active
 
   const { error } = await supabase
     .from('pesanan')
@@ -304,8 +313,12 @@ export async function updatePengiriman(
   value: string | null
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const ownerError = await requireOwner(supabase)
+  const [ownerError, active] = await Promise.all([
+    requireOwner(supabase),
+    requireActivePesanan(supabase, pesananId),
+  ])
   if (ownerError) return ownerError
+  if (isGuardError(active)) return active
 
   // Store null instead of an empty string so the signature line stays blank.
   const trimmed = value?.trim()
@@ -330,8 +343,12 @@ export async function updateColly(
   value: number | null
 ): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const ownerError = await requireOwner(supabase)
+  const [ownerError, active] = await Promise.all([
+    requireOwner(supabase),
+    requireActivePesanan(supabase, pesananId),
+  ])
   if (ownerError) return ownerError
+  if (isGuardError(active)) return active
 
   // Anything that isn't a positive whole number is stored as null (blank), so
   // the printed line falls back to the pengiriman name on its own. The DB check

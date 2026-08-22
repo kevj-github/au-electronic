@@ -6,6 +6,7 @@ import { updateColly } from '@/app/(app)/pesanan/actions'
 interface CollyEditorProps {
   pesananId: string
   initialValue: number | null
+  locked?: boolean
 }
 
 /**
@@ -17,7 +18,7 @@ interface CollyEditorProps {
  * which re-renders the field as "0" and makes the next mobile keystroke append
  * instead of replace.
  */
-export function CollyEditor({ pesananId, initialValue }: CollyEditorProps) {
+export function CollyEditor({ pesananId, initialValue, locked }: CollyEditorProps) {
   const [value, setValue] = useState(initialValue ? String(initialValue) : '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,7 +47,7 @@ export function CollyEditor({ pesananId, initialValue }: CollyEditorProps) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={handleBlur}
-        disabled={saving}
+        disabled={saving || locked}
         placeholder="mis. 3"
         className="border rounded-md px-2 py-1 text-sm h-8 w-20 disabled:opacity-50"
         aria-label="Colly"
