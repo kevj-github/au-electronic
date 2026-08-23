@@ -23,6 +23,16 @@ export function CollyEditor({ pesananId, initialValue, locked }: CollyEditorProp
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Drop the stale mount-time value when RealtimeRefresh pushes a fresh
+  // initialValue from another device's save — a useState initialiser only
+  // runs once, so without this the field (and a later blur) would keep
+  // comparing against a value no longer on the server.
+  const [prevInitialValue, setPrevInitialValue] = useState(initialValue)
+  if (initialValue !== prevInitialValue) {
+    setPrevInitialValue(initialValue)
+    setValue(initialValue ? String(initialValue) : '')
+  }
+
   async function handleBlur() {
     const parsed = parseInt(value, 10)
     const next = Number.isFinite(parsed) && parsed > 0 ? parsed : null

@@ -18,6 +18,16 @@ export function PengirimanEditor({ pesananId, initialValue, locked }: Pengiriman
   const [value, setValue] = useState(initialValue ?? '')
   const [saving, setSaving] = useState(false)
 
+  // Drop the stale mount-time value when RealtimeRefresh pushes a fresh
+  // initialValue from another device's save — a useState initialiser only
+  // runs once, so without this the field (and a later blur) would keep
+  // comparing against a value no longer on the server.
+  const [prevInitialValue, setPrevInitialValue] = useState(initialValue)
+  if (initialValue !== prevInitialValue) {
+    setPrevInitialValue(initialValue)
+    setValue(initialValue ?? '')
+  }
+
   async function handleBlur() {
     const next = value.trim() || null
     if (next === (initialValue ?? null)) return
