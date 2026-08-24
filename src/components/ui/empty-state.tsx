@@ -1,5 +1,5 @@
 interface EmptyStateProps {
-  message: string
+  message: string;
 }
 
 export function EmptyState({ message }: EmptyStateProps) {
@@ -7,5 +7,5 @@ export function EmptyState({ message }: EmptyStateProps) {
     <p className="text-sm text-muted-foreground border rounded-lg p-4">
       {message}
     </p>
-  )
+  );
 }
