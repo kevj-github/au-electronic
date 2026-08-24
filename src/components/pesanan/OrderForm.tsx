@@ -8,6 +8,7 @@ import { OrderLineItem, OrderLineItemCard, type LineItem } from './OrderLineItem
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -305,9 +306,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           )}
 
           {items.length === 0 && (
-            <p className="text-sm text-muted-foreground border rounded-lg p-4">
-              Belum ada barang. Klik &quot;Tambah Barang&quot; untuk menambahkan.
-            </p>
+            <EmptyState message='Belum ada barang. Klik "Tambah Barang" untuk menambahkan.' />
           )}
         </div>
 
