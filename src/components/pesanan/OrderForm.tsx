@@ -2,9 +2,9 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, X } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { createPesanan } from '@/app/(app)/pesanan/actions'
-import { OrderLineItem, type LineItem } from './OrderLineItem'
+import { OrderLineItem, OrderLineItemCard, type LineItem } from './OrderLineItem'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -209,62 +209,16 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           <>
             {/* Mobile: card layout */}
             <div className="sm:hidden space-y-2">
-              {items.map((item) => {
-                const subtotal = parseIntOrZero(item.qty) * parseIntOrZero(item.harga_satuan)
-                return (
-                  <div key={item.id} className="border rounded-lg p-3 space-y-2">
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.qty}
-                        onChange={(e) => updateItem(item.id, { qty: e.target.value })}
-                        placeholder="Qty"
-                        className="h-8 w-20 text-sm text-right shrink-0"
-                        aria-label="Qty"
-                        autoFocus={item.id === lastAddedId}
-                      />
-                      <Input
-                        value={item.nama_barang}
-                        onChange={(e) => updateItem(item.id, { nama_barang: e.target.value })}
-                        placeholder="Nama barang..."
-                        className="h-8 text-sm flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 shrink-0"
-                        onClick={() => removeItem(item.id)}
-                        aria-label="Hapus barang"
-                      >
-                        <X className="size-4" />
-                      </Button>
-                    </div>
-                    <div className="flex gap-2 items-start">
-                      <div className="space-y-0.5 flex-1">
-                        <p className="text-xs text-muted-foreground">Harga Satuan</p>
-                        {isOwner ? (
-                          <Input
-                            type="number"
-                            min="0"
-                            value={item.harga_satuan}
-                            onChange={(e) => updateItem(item.id, { harga_satuan: e.target.value })}
-                            className="h-8 text-sm text-right font-mono w-full"
-                            aria-label="Harga satuan"
-                          />
-                        ) : (
-                          <p className="text-xs text-muted-foreground pt-2">Diisi oleh pemilik nanti</p>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-xs text-right text-muted-foreground">
-                      Subtotal:{' '}
-                      <span className="font-mono font-medium text-foreground">{formatRupiah(subtotal)}</span>
-                    </p>
-                  </div>
-                )
-              })}
+              {items.map((item) => (
+                <OrderLineItemCard
+                  key={item.id}
+                  item={item}
+                  isOwner={isOwner}
+                  onChange={updateItem}
+                  onRemove={removeItem}
+                  autoFocus={item.id === lastAddedId}
+                />
+              ))}
               <div className="text-right text-sm font-medium pr-1">
                 Total:{' '}
                 <span className="font-mono font-semibold">{formatRupiah(grandTotal)}</span>
