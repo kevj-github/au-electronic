@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
+import { EmptyState } from '@/components/ui/empty-state'
 import { DeletePelangganButton } from './DeletePelangganButton'
 import { useSearchable } from '@/hooks/use-searchable'
 import { usePagedList } from '@/hooks/use-paged-list'
@@ -73,9 +74,7 @@ export function PelangganList({ pelangganList }: PelangganListProps) {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground border rounded-lg p-4">
-          Tidak ada pelanggan yang cocok. Coba kata kunci lain atau ubah filter.
-        </p>
+        <EmptyState message="Tidak ada pelanggan yang cocok. Coba kata kunci lain atau ubah filter." />
       ) : (
         <>
           {/* Mobile: card list */}

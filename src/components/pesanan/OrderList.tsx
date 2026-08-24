@@ -10,6 +10,7 @@ import { StatusBadge } from './StatusBadge'
 import { DeletePesananButton } from './DeletePesananButton'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useSearchable } from '@/hooks/use-searchable'
 import { usePagedList } from '@/hooks/use-paged-list'
 import type { StatusPesanan } from '@/lib/types'
@@ -169,9 +170,7 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
       )}
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground border rounded-lg p-4">
-          Tidak ada pesanan yang cocok. Coba kata kunci lain atau ubah filter.
-        </p>
+        <EmptyState message="Tidak ada pesanan yang cocok. Coba kata kunci lain atau ubah filter." />
       ) : (
         <>
           {/* Mobile: card list */}
