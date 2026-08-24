@@ -1,11 +1,11 @@
 interface EmptyStateProps {
-  message: string;
+  message: string
 }
 
 export function EmptyState({ message }: EmptyStateProps) {
   return (
-    <p className="text-sm text-muted-foreground border rounded-lg p-4">
+    <p className='text-sm text-muted-foreground border rounded-lg p-4'>
       {message}
     </p>
-  );
+  )
 }
