@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
 import { DeletePelangganButton } from './DeletePelangganButton'
+import { useSearchable } from '@/hooks/use-searchable'
+import { usePagedList } from '@/hooks/use-paged-list'
 import type { Pelanggan, TipePelanggan } from '@/lib/types'
 
 interface PelangganListProps {
@@ -19,45 +21,29 @@ const PAGE_SIZE = 10
 export function PelangganList({ pelangganList }: PelangganListProps) {
   const [query, setQuery] = useState('')
   const [tipe, setTipe] = useState<TipePelanggan | 'semua'>('semua')
-  const [page, setPage] = useState(1)
 
-  /**
-   * Lowercased once per customer instead of three times per customer per
-   * keystroke. Keyed on the list alone so typing reuses it. NUL separators keep
-   * a query from matching across the nama/telepon/alamat boundaries.
-   */
-  const searchable = useMemo(
-    () =>
-      pelangganList.map((p) => ({
-        p,
-        haystack: `${p.nama}\u0000${p.telepon ?? ''}\u0000${p.alamat ?? ''}`.toLowerCase(),
-      })),
-    [pelangganList],
+  // NUL separators keep a query from matching across the
+  // nama/telepon/alamat boundaries.
+  const searchable = useSearchable(
+    pelangganList,
+    (p) => `${p.nama}\u0000${p.telepon ?? ''}\u0000${p.alamat ?? ''}`,
   )
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return searchable
-      .filter(({ p, haystack }) => {
+      .filter(({ item: p, haystack }) => {
         if (tipe !== 'semua' && p.tipe !== tipe) return false
         return !q || haystack.includes(q)
       })
-      .map(({ p }) => p)
+      .map(({ item }) => item)
   }, [searchable, query, tipe])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-
-  // Reset to the first page whenever the filters change. This adjusts state
-  // during render (React's recommended pattern) rather than in an effect —
-  // an effect would commit the stale page first, then cascade a second render.
-  const filterKey = JSON.stringify([query, tipe])
-  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
-  if (prevFilterKey !== filterKey) {
-    setPrevFilterKey(filterKey)
-    setPage(1)
-  }
-
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const { totalPages, pageRows: paged, page, setPage } = usePagedList(
+    filtered,
+    PAGE_SIZE,
+    JSON.stringify([query, tipe]),
+  )
 
   if (pelangganList.length === 0) {
     return <p className="text-muted-foreground text-sm">Belum ada pelanggan.</p>

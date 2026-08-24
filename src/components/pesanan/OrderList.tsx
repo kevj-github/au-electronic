@@ -10,6 +10,8 @@ import { StatusBadge } from './StatusBadge'
 import { DeletePesananButton } from './DeletePesananButton'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
+import { useSearchable } from '@/hooks/use-searchable'
+import { usePagedList } from '@/hooks/use-paged-list'
 import type { StatusPesanan } from '@/lib/types'
 // Types only — erased at compile time, so importing them from the server-safe
 // module does not drag it into the client bundle. The functions that live there
@@ -61,24 +63,21 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
   )
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [page, setPage] = useState(1)
 
   /**
-   * Search text and timestamp, lowercased and parsed once per order rather than
-   * once per order *per keystroke*. Keyed on `rows` alone, so typing reuses it.
+   * Search text, lowercased once per order rather than once per order *per
+   * keystroke*. Joined with NUL, which cannot appear in a typed query, so a
+   * match can never span the boundary. That keeps the original "kode matches
+   * OR nama matches" semantics rather than quietly widening them.
    */
-  const searchable = useMemo(
-    () =>
-      rows.map((row) => ({
-        row,
-        // Joined with NUL, which cannot appear in a typed query, so a match can
-        // never span the boundary. That keeps the original "kode matches OR
-        // nama matches" semantics rather than quietly widening them.
-        haystack: `${row.p.kode_pesanan}\u0000${
-          row.p.pelanggan?.nama ?? row.p.nama_pelanggan ?? ''
-        }`.toLowerCase(),
-        createdAt: parseISO(row.p.created_at).getTime(),
-      })),
+  const searchable = useSearchable(
+    rows,
+    (row) => `${row.p.kode_pesanan}\u0000${row.p.pelanggan?.nama ?? row.p.nama_pelanggan ?? ''}`,
+  )
+
+  // Parsed once per order rather than once per order per keystroke.
+  const createdAtByRow = useMemo(
+    () => new Map(rows.map((row) => [row.p.id, parseISO(row.p.created_at).getTime()])),
     [rows],
   )
 
@@ -91,34 +90,24 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
     const toMs = dateTo ? endOfDay(parseISO(dateTo)).getTime() : null
 
     return searchable
-      .filter(({ row: { p }, haystack, createdAt }) => {
+      .filter(({ item: row, haystack }) => {
+        const { p } = row
         if (status !== 'semua' && p.status !== status) return false
+        const createdAt = createdAtByRow.get(p.id)!
         if (fromMs !== null && createdAt < fromMs) return false
         if (toMs !== null && createdAt > toMs) return false
         // The NUL separator keeps a match from spanning kode and nama.
         return !q || haystack.includes(q)
       })
-      .map(({ row }) => row)
-  }, [searchable, query, status, dateFrom, dateTo])
+      .map(({ item }) => item)
+  }, [searchable, createdAtByRow, query, status, dateFrom, dateTo])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-
-  // Reset to the first page whenever the filters change. This adjusts state
-  // during render (React's recommended pattern) rather than in an effect —
-  // an effect would commit the stale page first, then cascade a second render.
-  const filterKey = JSON.stringify([query, status, dateFrom, dateTo])
-  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
-  if (prevFilterKey !== filterKey) {
-    setPrevFilterKey(filterKey)
-    setPage(1)
-  }
-
-  // The row views are already derived (server-side, in `toOrderRows`), so this
-  // is just the page slice. Memoized so both layouts read the same array
-  // identity rather than a fresh one per render.
-  const pageRows = useMemo(
-    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filtered, page],
+  // The row views are already derived (server-side, in `toOrderRows`), so
+  // pagination is just the page slice.
+  const { totalPages, pageRows, page, setPage } = usePagedList(
+    filtered,
+    PAGE_SIZE,
+    JSON.stringify([query, status, dateFrom, dateTo]),
   )
 
   if (rows.length === 0) {
