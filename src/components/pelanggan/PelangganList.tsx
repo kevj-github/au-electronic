@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
+import { FilterBar } from '@/components/ui/filter-bar'
 import { DeletePelangganButton } from './DeletePelangganButton'
 import { useSearchable } from '@/hooks/use-searchable'
 import { usePagedList } from '@/hooks/use-paged-list'
@@ -18,6 +17,12 @@ interface PelangganListProps {
 }
 
 const PAGE_SIZE = 10
+
+const tipeOptions: Array<{ value: TipePelanggan | 'semua'; label: string }> = [
+  { value: 'semua', label: 'Semua tipe' },
+  { value: 'retail', label: 'Retail' },
+  { value: 'grosir', label: 'Grosir' },
+]
 
 export function PelangganList({ pelangganList }: PelangganListProps) {
   const [query, setQuery] = useState('')
@@ -55,26 +60,14 @@ export function PelangganList({ pelangganList }: PelangganListProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari nama, telepon, atau alamat..."
-            className="pl-9"
-          />
-        </div>
-        <select
-          value={tipe}
-          onChange={(e) => setTipe(e.target.value as TipePelanggan | 'semua')}
-          className="border rounded-md px-3 py-2 text-sm"
-        >
-          <option value="semua">Semua tipe</option>
-          <option value="retail">Retail</option>
-          <option value="grosir">Grosir</option>
-        </select>
-      </div>
+      <FilterBar
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Cari nama, telepon, atau alamat..."
+        selectValue={tipe}
+        onSelectChange={setTipe}
+        selectOptions={tipeOptions}
+      />
 
       {filtered.length === 0 ? (
         <EmptyState message="Tidak ada pelanggan yang cocok. Coba kata kunci lain atau ubah filter." />

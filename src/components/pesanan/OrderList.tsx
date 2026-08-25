@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 import { formatRupiah } from '@/lib/utils'
@@ -11,6 +10,7 @@ import { DeletePesananButton } from './DeletePesananButton'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
+import { FilterBar } from '@/components/ui/filter-bar'
 import { useSearchable } from '@/hooks/use-searchable'
 import { usePagedList } from '@/hooks/use-paged-list'
 import type { StatusPesanan } from '@/lib/types'
@@ -128,30 +128,14 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
     <div className="space-y-3">
       {isOwner && (
         <>
-          <div className="flex gap-2 flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Cari kode pesanan atau nama pelanggan..."
-                className="pl-9"
-              />
-            </div>
-            <select
-              value={status}
-              onChange={(e) =>
-                setStatus(e.target.value as StatusPesanan | 'semua')
-              }
-              className="border rounded-md px-3 py-2 text-sm"
-            >
-              {statusOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FilterBar
+            searchValue={query}
+            onSearchChange={setQuery}
+            searchPlaceholder="Cari kode pesanan atau nama pelanggan..."
+            selectValue={status}
+            onSelectChange={setStatus}
+            selectOptions={statusOptions}
+          />
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground">Tanggal:</span>
             <Input
