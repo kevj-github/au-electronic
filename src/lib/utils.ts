@@ -10,15 +10,6 @@ export function formatRupiah(amount: number): string {
   return `Rp ${amount.toLocaleString('id-ID')}`
 }
 
-export interface LineItemInput {
-  qty: number
-  harga_satuan: number
-}
-
-export function calcOrderTotal(items: LineItemInput[]): number {
-  return items.reduce((sum, item) => sum + item.qty * item.harga_satuan, 0)
-}
-
 export function hitungSaldo(
   totalPesanan: number,
   totalDibayar: number
@@ -38,6 +29,11 @@ export function hitungSaldo(
 /** Dot-grouped Indonesian number, no currency prefix (e.g. 1000000 -> "1.000.000"). */
 export function formatNumberID(amount: number): string {
   return amount.toLocaleString('id-ID')
+}
+
+/** Parse a raw qty/harga input string to an integer, defaulting to 0 for blank/invalid input. */
+export function parseIntOrZero(raw: string): number {
+  return parseInt(raw, 10) || 0
 }
 
 /** Strip everything but digits (e.g. "Rp 1.000a" -> "1000", "" -> ""). */

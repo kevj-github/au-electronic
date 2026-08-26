@@ -18,12 +18,19 @@ export async function registerOwner(formData: FormData): Promise<{ error?: strin
   const adminClient = createAdminClient()
 
   // Bootstrap-only: once any account exists, registration closes and
-  // further accounts must be created by the owner via /pengaturan.
+  // further accounts must be created by the owner via /pengaturan. This is
+  // the only thing standing between a public, unauthenticated route and
+  // minting an extra `owner` account, so it must fail closed. `count` is
+  // typed `number | null` even on success (it comes from the response's
+  // content-range header, not a payload field) — treating a null count the
+  // same as "not zero" means an unreadable count blocks registration instead
+  // of silently allowing it through. Same bug class as `deleteHelper` in
+  // pengaturan/actions.ts (see CLAUDE.md).
   const { count, error: countError } = await adminClient
     .from('users')
     .select('id', { count: 'exact', head: true })
   if (countError) return { error: countError.message }
-  if (count && count > 0) {
+  if (count === null || count > 0) {
     return { error: 'Registrasi ditutup. Hubungi pemilik untuk dibuatkan akun.' }
   }
 

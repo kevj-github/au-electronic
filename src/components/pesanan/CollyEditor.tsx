@@ -6,6 +6,7 @@ import { updateColly } from '@/app/(app)/pesanan/actions'
 interface CollyEditorProps {
   pesananId: string
   initialValue: number | null
+  locked?: boolean
 }
 
 /**
@@ -17,10 +18,20 @@ interface CollyEditorProps {
  * which re-renders the field as "0" and makes the next mobile keystroke append
  * instead of replace.
  */
-export function CollyEditor({ pesananId, initialValue }: CollyEditorProps) {
+export function CollyEditor({ pesananId, initialValue, locked }: CollyEditorProps) {
   const [value, setValue] = useState(initialValue ? String(initialValue) : '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Drop the stale mount-time value when RealtimeRefresh pushes a fresh
+  // initialValue from another device's save — a useState initialiser only
+  // runs once, so without this the field (and a later blur) would keep
+  // comparing against a value no longer on the server.
+  const [prevInitialValue, setPrevInitialValue] = useState(initialValue)
+  if (initialValue !== prevInitialValue) {
+    setPrevInitialValue(initialValue)
+    setValue(initialValue ? String(initialValue) : '')
+  }
 
   async function handleBlur() {
     const parsed = parseInt(value, 10)
@@ -46,7 +57,7 @@ export function CollyEditor({ pesananId, initialValue }: CollyEditorProps) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={handleBlur}
-        disabled={saving}
+        disabled={saving || locked}
         placeholder="mis. 3"
         className="border rounded-md px-2 py-1 text-sm h-8 w-20 disabled:opacity-50"
         aria-label="Colly"

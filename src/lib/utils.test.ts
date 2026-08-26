@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcOrderTotal, formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals } from './utils'
+import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals } from './utils'
 
 describe('formatRupiah', () => {
   it('formats zero', () => {
@@ -37,20 +37,6 @@ describe('hitungSaldo', () => {
       sisaTagihan: 0,
       statusPembayaran: 'lunas',
     })
-  })
-})
-
-describe('calcOrderTotal', () => {
-  it('sums subtotals across line items', () => {
-    const items = [
-      { qty: 5, harga_satuan: 150000 },
-      { qty: 10, harga_satuan: 45000 },
-    ]
-    expect(calcOrderTotal(items)).toBe(1200000)
-  })
-
-  it('returns 0 for empty items', () => {
-    expect(calcOrderTotal([])).toBe(0)
   })
 })
 

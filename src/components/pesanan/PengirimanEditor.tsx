@@ -6,6 +6,7 @@ import { updatePengiriman } from '@/app/(app)/pesanan/actions'
 interface PengirimanEditorProps {
   pesananId: string
   initialValue: string | null
+  locked?: boolean
 }
 
 /**
@@ -13,9 +14,19 @@ interface PengirimanEditorProps {
  * The saved value is written on the "Penerima," signature line of both the PDF
  * and the Epson receipt. Saves on blur, like TanggalPengirimanEditor.
  */
-export function PengirimanEditor({ pesananId, initialValue }: PengirimanEditorProps) {
+export function PengirimanEditor({ pesananId, initialValue, locked }: PengirimanEditorProps) {
   const [value, setValue] = useState(initialValue ?? '')
   const [saving, setSaving] = useState(false)
+
+  // Drop the stale mount-time value when RealtimeRefresh pushes a fresh
+  // initialValue from another device's save — a useState initialiser only
+  // runs once, so without this the field (and a later blur) would keep
+  // comparing against a value no longer on the server.
+  const [prevInitialValue, setPrevInitialValue] = useState(initialValue)
+  if (initialValue !== prevInitialValue) {
+    setPrevInitialValue(initialValue)
+    setValue(initialValue ?? '')
+  }
 
   async function handleBlur() {
     const next = value.trim() || null
@@ -31,7 +42,7 @@ export function PengirimanEditor({ pesananId, initialValue }: PengirimanEditorPr
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onBlur={handleBlur}
-      disabled={saving}
+      disabled={saving || locked}
       placeholder="mis. Expedisi Jaya"
       className="border rounded-md px-2 py-1 text-sm h-8 disabled:opacity-50"
       aria-label="Pengiriman"

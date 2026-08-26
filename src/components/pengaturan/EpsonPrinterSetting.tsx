@@ -19,6 +19,16 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Drop the stale mount-time value when RealtimeRefresh (mounted on this page
+  // for the `users` table) pushes a fresh `name` prop from another device's
+  // save — a useState initialiser only runs once, so without this the field
+  // keeps showing the old printer name and a later Simpan click reverts it.
+  const [prevInitialName, setPrevInitialName] = useState(initialName)
+  if (initialName !== prevInitialName) {
+    setPrevInitialName(initialName)
+    setName(initialName)
+  }
+
   async function handleDetect() {
     setError(null)
     setStatus(null)

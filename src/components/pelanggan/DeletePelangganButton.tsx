@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Trash2, X } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { deletePelanggan } from '@/app/(app)/pelanggan/actions'
 import { Button } from '@/components/ui/button'
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 
 interface DeletePelangganButtonProps {
   pelangganId: string
@@ -12,54 +12,22 @@ interface DeletePelangganButtonProps {
 
 export function DeletePelangganButton({ pelangganId }: DeletePelangganButtonProps) {
   const router = useRouter()
-  const [confirming, setConfirming] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  async function handleDelete() {
-    setLoading(true)
-    setError(null)
-    const result = await deletePelanggan(pelangganId)
-    setLoading(false)
-    if (result?.error) { setError(result.error); return }
-    router.refresh()
-  }
-
-  if (confirming) {
-    return (
-      <div className="flex items-center gap-1 shrink-0">
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        <Button
-          size="sm"
-          variant="destructive"
-          className="h-7 px-2 text-xs"
-          onClick={handleDelete}
-          disabled={loading}
-        >
-          {loading ? '...' : 'Hapus'}
-        </Button>
+  return (
+    <ConfirmDeleteButton
+      renderTrigger={
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 w-7 p-0"
-          onClick={() => { setConfirming(false); setError(null) }}
-          disabled={loading}
-        >
-          <X className="size-3.5" />
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <Button
-      size="sm"
-      variant="ghost"
-      className="h-7 w-7 p-0 text-red-400 hover:text-red-600 shrink-0"
-      onClick={() => setConfirming(true)}
-      aria-label="Hapus pelanggan"
-    >
-      <Trash2 className="size-3.5" />
-    </Button>
+          className="h-7 w-7 p-0 text-red-400 hover:text-red-600 shrink-0"
+          aria-label="Hapus pelanggan"
+        />
+      }
+      triggerLabel={<Trash2 className="size-3.5" />}
+      title="Hapus pelanggan?"
+      description="Data pelanggan akan dihapus. Pesanan yang terkait akan tetap ada dengan nama pelanggan tersimpan."
+      action={() => deletePelanggan(pelangganId)}
+      onSuccess={() => router.refresh()}
+    />
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Pencil, Trash2, Plus, X, Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   addItemToPesanan,
@@ -9,22 +8,19 @@ import {
   deleteItemFromPesanan,
   updateItemHarga,
 } from '@/app/(app)/pesanan/actions'
-import { ItemChecklistCheckbox } from './ItemChecklistCheckbox'
-import { HelperItemChecklist } from './HelperItemChecklist'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { formatRupiah, formatThousandsInput, parseThousandsInput } from '@/lib/utils'
-
-interface SectionItem {
-  id: string
-  nama_barang: string
-  qty: number
-  jumlah_diambil: number
-  dicek_oleh_owner?: boolean
-  // Price fields are only present for owners (helpers never receive them).
-  harga_satuan?: number
-  subtotal?: number
-}
+import { ItemRowMobile } from './ItemRowMobile'
+import { ItemRowDesktop } from './ItemRowDesktop'
+import { AddItemFormMobile } from './AddItemFormMobile'
+import { AddItemFormDesktop } from './AddItemFormDesktop'
+import { formatRupiah, parseThousandsInput } from '@/lib/utils'
+import {
+  emptyAdd,
+  numPrice,
+  rawPrice,
+  subtotalOf,
+  type EditState,
+  type SectionItem,
+} from './itemsSectionShared'
 
 interface ItemsSectionProps {
   pesananId: string
@@ -34,13 +30,6 @@ interface ItemsSectionProps {
   // Owner can edit prices inline; false on locked orders (read-only display).
   priceEditable: boolean
 }
-
-interface EditState {
-  nama_barang: string
-  qty: string
-}
-
-const emptyAdd: EditState = { nama_barang: '', qty: '' }
 
 export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditable }: ItemsSectionProps) {
   const router = useRouter()
@@ -100,16 +89,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  function rawPrice(item: SectionItem): string {
-    return prices[item.id] ?? (item.harga_satuan && item.harga_satuan > 0 ? String(item.harga_satuan) : '')
-  }
-  function numPrice(item: SectionItem): number {
-    return parseInt(rawPrice(item) || '0', 10) || 0
-  }
-  function subtotalOf(item: SectionItem): number {
-    return item.qty * numPrice(item)
-  }
-  const grandTotal = items.reduce((sum, i) => sum + subtotalOf(i), 0)
+  const grandTotal = items.reduce((sum, i) => sum + subtotalOf(i, prices), 0)
 
   function setPrice(id: string, value: string) {
     setPrices((prev) => ({ ...prev, [id]: parseThousandsInput(value) }))
@@ -119,7 +99,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
   // Save on blur, but only when the value actually changed from the saved one —
   // avoids a redundant round-trip every time the field loses focus.
   async function savePrice(item: SectionItem) {
-    const value = numPrice(item)
+    const value = numPrice(item, prices)
     if (value === (item.harga_satuan ?? 0)) return
     setSavingPriceId(item.id)
     setError(null)
@@ -192,149 +172,33 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
       {/* Mobile: card list */}
       <div className="space-y-2 sm:hidden">
         {items.map((item) => (
-          <div key={item.id} className="border rounded-lg p-3">
-            {editingId === item.id ? (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    ref={editQtyRef}
-                    type="number"
-                    min="1"
-                    value={editState.qty}
-                    onChange={(e) => setEditState((s) => ({ ...s, qty: e.target.value }))}
-                    className="h-8 w-20 text-sm text-right"
-                    aria-label="Qty"
-                    enterKeyHint="next"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); editNamaRef.current?.focus() }
-                    }}
-                  />
-                  <Input
-                    ref={editNamaRef}
-                    value={editState.nama_barang}
-                    onChange={(e) => setEditState((s) => ({ ...s, nama_barang: e.target.value }))}
-                    placeholder="Nama barang"
-                    className="h-8 text-sm flex-1"
-                    enterKeyHint="done"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); void saveEdit(item.id) }
-                    }}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => saveEdit(item.id)} disabled={loadingId === item.id}>
-                    <Check className="size-3.5 mr-1" />Simpan
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={cancelEdit}>
-                    <X className="size-3.5 mr-1" />Batal
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-start gap-2">
-                  {/* Owner's checkbox — front, owner only */}
-                  {isOwner && (
-                    <div className="pt-0.5">
-                      <ItemChecklistCheckbox
-                        itemId={item.id}
-                        checked={item.dicek_oleh_owner ?? false}
-                        kind="owner"
-                        label="Dicek pemilik"
-                        showLabel={false}
-                        disabled={isLocked}
-                      />
-                    </div>
-                  )}
-
-                  {/* Qty and Nama */}
-                  <p className="text-sm font-medium flex-1 min-w-0 break-words pt-0.5">
-                    {item.qty}× {item.nama_barang}
-                  </p>
-
-                  {/* Helper's checklist — back */}
-                  <HelperItemChecklist
-                    itemId={item.id}
-                    qty={item.qty}
-                    jumlahDiambil={item.jumlah_diambil}
-                    disabled={isLocked}
-                  />
-
-                  {/* Edit / Delete */}
-                  {!isLocked && (
-                    <div className="flex gap-1 shrink-0">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => startEdit(item)}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      {deletingId === item.id ? (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => confirmDelete(item.id)}
-                            disabled={loadingId === item.id}
-                          >
-                            Hapus
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0"
-                            onClick={() => setDeletingId(null)}
-                          >
-                            <X className="size-3.5" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
-                          onClick={() => setDeletingId(item.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Price + subtotal — owner only */}
-                {isOwner && (
-                  <div className="mt-2 pt-2 border-t space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">Harga Satuan</span>
-                      {priceEditable ? (
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          value={formatThousandsInput(rawPrice(item))}
-                          onChange={(e) => setPrice(item.id, e.target.value)}
-                          onBlur={() => savePrice(item)}
-                          disabled={savingPriceId === item.id}
-                          className="h-8 w-32 text-right font-mono text-sm"
-                          aria-label={`Harga satuan ${item.nama_barang}`}
-                        />
-                      ) : (
-                        <span className="font-mono text-sm">{formatRupiah(numPrice(item))}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">Subtotal</span>
-                      <span className="font-mono text-sm font-medium">{formatRupiah(subtotalOf(item))}</span>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+          <ItemRowMobile
+            key={item.id}
+            item={item}
+            isOwner={isOwner}
+            isLocked={isLocked}
+            priceEditable={priceEditable}
+            isEditing={editingId === item.id}
+            editState={editState}
+            editQtyRef={editQtyRef}
+            editNamaRef={editNamaRef}
+            onEditQtyChange={(value) => setEditState((s) => ({ ...s, qty: value }))}
+            onEditNamaChange={(value) => setEditState((s) => ({ ...s, nama_barang: value }))}
+            onSaveEdit={() => saveEdit(item.id)}
+            onCancelEdit={cancelEdit}
+            isDeleting={deletingId === item.id}
+            onStartEdit={() => startEdit(item)}
+            onStartDelete={() => setDeletingId(item.id)}
+            onCancelDelete={() => setDeletingId(null)}
+            onConfirmDelete={() => confirmDelete(item.id)}
+            isLoading={loadingId === item.id}
+            rawPriceValue={rawPrice(item, prices)}
+            numPriceValue={numPrice(item, prices)}
+            subtotalValue={subtotalOf(item, prices)}
+            isSavingPrice={savingPriceId === item.id}
+            onPriceChange={(value) => setPrice(item.id, value)}
+            onPriceBlur={() => savePrice(item)}
+          />
         ))}
 
         {/* Order total — owner only */}
@@ -347,51 +211,18 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
 
         {/* Add item form — mobile */}
         {!isLocked && (
-          addingNew ? (
-            <div className="border rounded-lg p-3 space-y-2">
-              <div className="flex gap-2">
-                <Input
-                  ref={newQtyRef}
-                  type="number"
-                  min="1"
-                  value={newItem.qty}
-                  onChange={(e) => setNewItem((s) => ({ ...s, qty: e.target.value }))}
-                  placeholder="Qty"
-                  className="h-8 w-20 text-sm text-right"
-                  aria-label="Qty"
-                  enterKeyHint="next"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); newNamaRef.current?.focus() }
-                  }}
-                />
-                <Input
-                  ref={newNamaRef}
-                  value={newItem.nama_barang}
-                  onChange={(e) => setNewItem((s) => ({ ...s, nama_barang: e.target.value }))}
-                  placeholder="Nama barang"
-                  className="h-8 text-sm flex-1"
-                  enterKeyHint="go"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); void saveNewItem(true) }
-                  }}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => saveNewItem()} disabled={loadingId === 'new' || !newItem.nama_barang.trim()}>
-                  <Check className="size-3.5 mr-1" />Tambah
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewItem(emptyAdd) }}>
-                  <X className="size-3.5 mr-1" />Batal
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <Button variant="outline" size="sm" className="w-full" onClick={() => setAddingNew(true)}>
-              <Plus className="size-4 mr-1.5" />
-              Tambah Barang
-            </Button>
-          )
+          <AddItemFormMobile
+            addingNew={addingNew}
+            newItem={newItem}
+            newQtyRef={newQtyRef}
+            newNamaRef={newNamaRef}
+            onQtyChange={(value) => setNewItem((s) => ({ ...s, qty: value }))}
+            onNamaChange={(value) => setNewItem((s) => ({ ...s, nama_barang: value }))}
+            onSave={saveNewItem}
+            onCancel={() => { setAddingNew(false); setNewItem(emptyAdd) }}
+            onStartAdding={() => setAddingNew(true)}
+            isSaving={loadingId === 'new'}
+          />
         )}
       </div>
 
@@ -411,172 +242,49 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
           </thead>
           <tbody className="divide-y">
             {items.map((item) => (
-              <tr key={item.id}>
-                {editingId === item.id ? (
-                  <td className="px-4 py-2" colSpan={totalCols}>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={editState.qty}
-                        onChange={(e) => setEditState((s) => ({ ...s, qty: e.target.value }))}
-                        className="h-8 w-20 text-sm text-right"
-                        aria-label="Qty"
-                        autoFocus
-                      />
-                      <Input
-                        value={editState.nama_barang}
-                        onChange={(e) => setEditState((s) => ({ ...s, nama_barang: e.target.value }))}
-                        className="h-8 text-sm flex-1 min-w-[160px]"
-                        placeholder="Nama barang"
-                      />
-                      <Button size="sm" onClick={() => saveEdit(item.id)} disabled={loadingId === item.id}>
-                        <Check className="size-3.5 mr-1" />Simpan
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={cancelEdit}>
-                        <X className="size-3.5" />
-                      </Button>
-                    </div>
-                  </td>
-                ) : (
-                  <>
-                    {isOwner && (
-                      <td className="px-3 py-2 text-center align-middle">
-                        <ItemChecklistCheckbox
-                          itemId={item.id}
-                          checked={item.dicek_oleh_owner ?? false}
-                          kind="owner"
-                          label="Dicek pemilik"
-                          showLabel={false}
-                          disabled={isLocked}
-                        />
-                      </td>
-                    )}
-                    <td className="px-4 py-2 text-right align-middle">{item.qty}</td>
-                    <td className="px-4 py-2 align-middle">{item.nama_barang}</td>
-                    {isOwner && (
-                      <td className="px-4 py-2 text-right align-middle">
-                        {priceEditable ? (
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            value={formatThousandsInput(rawPrice(item))}
-                            onChange={(e) => setPrice(item.id, e.target.value)}
-                            onBlur={() => savePrice(item)}
-                            disabled={savingPriceId === item.id}
-                            className="h-8 w-36 ml-auto text-right font-mono text-sm"
-                            aria-label={`Harga satuan ${item.nama_barang}`}
-                          />
-                        ) : (
-                          <span className="font-mono">{formatRupiah(numPrice(item))}</span>
-                        )}
-                      </td>
-                    )}
-                    {isOwner && (
-                      <td className="px-4 py-2 text-right align-middle font-mono">{formatRupiah(subtotalOf(item))}</td>
-                    )}
-                    <td className="px-3 py-2 text-center align-middle">
-                      <HelperItemChecklist
-                        itemId={item.id}
-                        qty={item.qty}
-                        jumlahDiambil={item.jumlah_diambil}
-                        disabled={isLocked}
-                      />
-                    </td>
-                    {!isLocked && (
-                      <td className="px-4 py-2 align-middle">
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() => startEdit(item)}
-                            className="p-1 rounded hover:bg-gray-100 text-muted-foreground hover:text-foreground"
-                            aria-label="Edit item"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
-                          {deletingId === item.id ? (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                className="h-6 px-1.5 text-xs"
-                                onClick={() => confirmDelete(item.id)}
-                                disabled={loadingId === item.id}
-                              >
-                                Hapus?
-                              </Button>
-                              <button
-                                type="button"
-                                onClick={() => setDeletingId(null)}
-                                className="p-1 rounded hover:bg-gray-100 text-muted-foreground"
-                                aria-label="Batal hapus"
-                              >
-                                <X className="size-3.5" />
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setDeletingId(item.id)}
-                              className="p-1 rounded hover:bg-gray-100 text-red-400 hover:text-red-600"
-                              aria-label="Hapus item"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    )}
-                  </>
-                )}
-              </tr>
+              <ItemRowDesktop
+                key={item.id}
+                item={item}
+                isOwner={isOwner}
+                isLocked={isLocked}
+                priceEditable={priceEditable}
+                isEditing={editingId === item.id}
+                editState={editState}
+                totalCols={totalCols}
+                editQtyRef={editQtyRef}
+                onEditQtyChange={(value) => setEditState((s) => ({ ...s, qty: value }))}
+                onEditNamaChange={(value) => setEditState((s) => ({ ...s, nama_barang: value }))}
+                onSaveEdit={() => saveEdit(item.id)}
+                onCancelEdit={cancelEdit}
+                isDeleting={deletingId === item.id}
+                onStartEdit={() => startEdit(item)}
+                onStartDelete={() => setDeletingId(item.id)}
+                onCancelDelete={() => setDeletingId(null)}
+                onConfirmDelete={() => confirmDelete(item.id)}
+                isLoading={loadingId === item.id}
+                rawPriceValue={rawPrice(item, prices)}
+                numPriceValue={numPrice(item, prices)}
+                subtotalValue={subtotalOf(item, prices)}
+                isSavingPrice={savingPriceId === item.id}
+                onPriceChange={(value) => setPrice(item.id, value)}
+                onPriceBlur={() => savePrice(item)}
+              />
             ))}
 
             {/* Add item row — desktop */}
             {!isLocked && (
-              addingNew ? (
-                <tr>
-                  <td className="px-4 py-2" colSpan={totalCols}>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={newItem.qty}
-                        onChange={(e) => setNewItem((s) => ({ ...s, qty: e.target.value }))}
-                        placeholder="Qty"
-                        className="h-8 w-20 text-sm text-right"
-                        aria-label="Qty"
-                        autoFocus
-                      />
-                      <Input
-                        value={newItem.nama_barang}
-                        onChange={(e) => setNewItem((s) => ({ ...s, nama_barang: e.target.value }))}
-                        className="h-8 text-sm flex-1 min-w-[160px]"
-                        placeholder="Nama barang baru..."
-                      />
-                      <Button size="sm" onClick={() => saveNewItem()} disabled={loadingId === 'new' || !newItem.nama_barang.trim()}>
-                        <Check className="size-3.5 mr-1" />Tambah
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewItem(emptyAdd) }}>
-                        <X className="size-3.5" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                <tr>
-                  <td colSpan={totalCols} className="px-4 py-2">
-                    <button
-                      type="button"
-                      onClick={() => setAddingNew(true)}
-                      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-                    >
-                      <Plus className="size-3.5" />
-                      Tambah barang
-                    </button>
-                  </td>
-                </tr>
-              )
+              <AddItemFormDesktop
+                addingNew={addingNew}
+                newItem={newItem}
+                newQtyRef={newQtyRef}
+                totalCols={totalCols}
+                onQtyChange={(value) => setNewItem((s) => ({ ...s, qty: value }))}
+                onNamaChange={(value) => setNewItem((s) => ({ ...s, nama_barang: value }))}
+                onSave={() => saveNewItem()}
+                onCancel={() => { setAddingNew(false); setNewItem(emptyAdd) }}
+                onStartAdding={() => setAddingNew(true)}
+                isSaving={loadingId === 'new'}
+              />
             )}
           </tbody>
           {/* Order total — owner only */}

@@ -14,6 +14,17 @@ export function PesananLockToggle({ locked: initialLocked }: PesananLockTogglePr
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Drop the stale mount-time value when RealtimeRefresh (mounted on this page
+  // for the `users` table) pushes a fresh `locked` prop from another device's
+  // toggle — a useState initialiser only runs once, so without this the
+  // button keeps showing a stale locked/unlocked state until this component's
+  // own toggle happens to overwrite it.
+  const [prevInitialLocked, setPrevInitialLocked] = useState(initialLocked)
+  if (initialLocked !== prevInitialLocked) {
+    setPrevInitialLocked(initialLocked)
+    setLocked(initialLocked)
+  }
+
   async function handleToggle() {
     setLoading(true)
     setError(null)

@@ -176,6 +176,7 @@ export default async function PesananDetailPage({
                 <TanggalPengirimanEditor
                   pesananId={pesanan.id}
                   initialValue={pesanan.tanggal_pengiriman}
+                  locked={statusLocked}
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -183,11 +184,12 @@ export default async function PesananDetailPage({
                 <PengirimanEditor
                   pesananId={pesanan.id}
                   initialValue={pesanan.pengiriman}
+                  locked={statusLocked}
                 />
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Colly:</span>
-                <CollyEditor pesananId={pesanan.id} initialValue={pesanan.colly} />
+                <CollyEditor pesananId={pesanan.id} initialValue={pesanan.colly} locked={statusLocked} />
               </div>
             </div>
           )}

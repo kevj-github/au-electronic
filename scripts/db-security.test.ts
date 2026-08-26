@@ -123,28 +123,24 @@ describe('price columns are masked from every client-facing role', () => {
   })
 })
 
+const OWNER_VIEWS = ['item_pesanan_owner', 'pembayaran_owner', 'pesanan_unpaid_owner']
+
 describe('the owner-gated views', () => {
-  it.each(['item_pesanan_owner', 'pembayaran_owner'])('%s exists', (view) => {
+  it.each(OWNER_VIEWS)('%s exists', (view) => {
     expect(posture.owner_views[view]).toBeDefined()
   })
 
-  it.each(['item_pesanan_owner', 'pembayaran_owner'])(
-    '%s re-checks current_user_role() = owner itself',
-    (view) => {
-      // These views bypass RLS by design, so their own predicate is the only
-      // thing between a helper and every price in the database.
-      expect(posture.owner_views[view].rechecks_owner).toBe(true)
-    },
-  )
+  it.each(OWNER_VIEWS)('%s re-checks current_user_role() = owner itself', (view) => {
+    // These views bypass RLS by design, so their own predicate is the only
+    // thing between a helper and every price in the database.
+    expect(posture.owner_views[view].rechecks_owner).toBe(true)
+  })
 
-  it.each(['item_pesanan_owner', 'pembayaran_owner'])(
-    '%s does not run as the invoker',
-    (view) => {
-      // security_invoker = true would subject the view to the same revoke it
-      // exists to work around, breaking the owner's reads entirely.
-      expect(posture.owner_views[view].security_invoker).toBe(false)
-    },
-  )
+  it.each(OWNER_VIEWS)('%s does not run as the invoker', (view) => {
+    // security_invoker = true would subject the view to the same revoke it
+    // exists to work around, breaking the owner's reads entirely.
+    expect(posture.owner_views[view].security_invoker).toBe(false)
+  })
 })
 
 describe('realtime publication', () => {

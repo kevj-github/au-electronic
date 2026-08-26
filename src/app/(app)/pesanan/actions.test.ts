@@ -148,6 +148,22 @@ describe('owner-gated actions refuse non-owners before touching the database', (
   })
 })
 
+describe('shipping-field actions refuse a closed order even for the owner', () => {
+  // The DB write-guard trigger lets owners bypass the status check entirely,
+  // so this app-layer check is the only thing enforcing it for these fields.
+  it.each([
+    ['updateTanggalPengiriman', (a: Awaited<ReturnType<typeof actions>>) => a.updateTanggalPengiriman('p1', '2026-08-20')],
+    ['updatePengiriman', (a: Awaited<ReturnType<typeof actions>>) => a.updatePengiriman('p1', 'Bus')],
+    ['updateColly', (a: Awaited<ReturnType<typeof actions>>) => a.updateColly('p1', 3)],
+  ])('%s', async (_name, call) => {
+    requireActivePesanan.mockResolvedValue(GUARD_ERROR)
+
+    expect(await call(await actions())).toEqual(GUARD_ERROR)
+    expect(ops).toHaveLength(0)
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+})
+
 // ---- value normalisation ---------------------------------------------------
 
 describe('updateColly normalises anything that is not a positive whole number to null', () => {
