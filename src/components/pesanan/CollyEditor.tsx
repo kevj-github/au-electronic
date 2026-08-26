@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { updateColly } from '@/app/(app)/pesanan/actions'
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
 
 interface CollyEditorProps {
   pesananId: string
@@ -19,19 +20,11 @@ interface CollyEditorProps {
  * instead of replace.
  */
 export function CollyEditor({ pesananId, initialValue, locked }: CollyEditorProps) {
-  const [value, setValue] = useState(initialValue ? String(initialValue) : '')
+  const [value, setValue] = usePropSyncedState(initialValue, (v) =>
+    v ? String(v) : '',
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // Drop the stale mount-time value when RealtimeRefresh pushes a fresh
-  // initialValue from another device's save — a useState initialiser only
-  // runs once, so without this the field (and a later blur) would keep
-  // comparing against a value no longer on the server.
-  const [prevInitialValue, setPrevInitialValue] = useState(initialValue)
-  if (initialValue !== prevInitialValue) {
-    setPrevInitialValue(initialValue)
-    setValue(initialValue ? String(initialValue) : '')
-  }
 
   async function handleBlur() {
     const parsed = parseInt(value, 10)
