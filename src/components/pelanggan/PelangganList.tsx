@@ -1,13 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Pagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FilterBar } from '@/components/ui/filter-bar'
-import { DeletePelangganButton } from './DeletePelangganButton'
+import { PelangganRowCard, PelangganRowTableRow } from './PelangganListRow'
 import { useSearchable } from '@/hooks/use-searchable'
 import { usePagedList } from '@/hooks/use-paged-list'
 import type { Pelanggan, TipePelanggan } from '@/lib/types'
@@ -76,27 +73,7 @@ export function PelangganList({ pelangganList }: PelangganListProps) {
           {/* Mobile: card list */}
           <div className="space-y-2 sm:hidden">
             {paged.map((p) => (
-              <div key={p.id} className="border rounded-lg p-3">
-                <div className="flex justify-between items-start">
-                  <p className="font-medium text-sm">{p.nama}</p>
-                  <Badge
-                    variant={p.tipe === 'grosir' ? 'default' : 'secondary'}
-                  >
-                    {p.tipe === 'grosir' ? 'Grosir' : 'Retail'}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {p.telepon ?? '—'}
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Link href={`/pelanggan/${p.id}`}>
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                  </Link>
-                  <DeletePelangganButton pelangganId={p.id} />
-                </div>
-              </div>
+              <PelangganRowCard key={p.id} p={p} />
             ))}
           </div>
 
@@ -113,29 +90,7 @@ export function PelangganList({ pelangganList }: PelangganListProps) {
               </thead>
               <tbody className="divide-y">
                 {paged.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{p.nama}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {p.telepon ?? '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        variant={p.tipe === 'grosir' ? 'default' : 'secondary'}
-                      >
-                        {p.tipe === 'grosir' ? 'Grosir' : 'Retail'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/pelanggan/${p.id}`}>
-                          <Button variant="outline" size="sm">
-                            Edit
-                          </Button>
-                        </Link>
-                        <DeletePelangganButton pelangganId={p.id} />
-                      </div>
-                    </td>
-                  </tr>
+                  <PelangganRowTableRow key={p.id} p={p} />
                 ))}
               </tbody>
             </table>
