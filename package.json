@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run check:server-actions",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check:server-actions": "node scripts/check-server-actions.mjs",
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
