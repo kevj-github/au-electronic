@@ -12,11 +12,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import type { ActionResult } from '@/lib/action-result'
 
 interface ClearAllButtonProps {
   label: string
   description: string
-  action: () => Promise<{ error?: string } | undefined>
+  action: () => Promise<ActionResult | undefined>
 }
 
 export function ClearAllButton({ label, description, action }: ClearAllButtonProps) {

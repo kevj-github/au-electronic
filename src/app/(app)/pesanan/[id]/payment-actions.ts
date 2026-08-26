@@ -3,12 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
+import type { ActionResult } from '@/lib/action-result'
 import type { MetodePembayaran } from '@/lib/types'
 
 export async function createPembayaran(
   pesananId: string,
   formData: FormData
-): Promise<{ error?: string }> {
+): Promise<ActionResult> {
   const supabase = await createClient()
 
   const ownerError = await requireOwner(supabase)
@@ -44,7 +45,7 @@ export async function createPembayaran(
   return {}
 }
 
-export async function deletePembayaran(pembayaranId: string): Promise<{ error?: string }> {
+export async function deletePembayaran(pembayaranId: string): Promise<ActionResult> {
   const supabase = await createClient()
 
   const ownerError = await requireOwner(supabase)

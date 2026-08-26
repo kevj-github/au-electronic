@@ -4,8 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
+import type { ActionResult } from '@/lib/action-result'
 
-export async function deletePelanggan(pelangganId: string): Promise<{ error?: string }> {
+export async function deletePelanggan(pelangganId: string): Promise<ActionResult> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
@@ -30,12 +31,10 @@ export async function deletePelanggan(pelangganId: string): Promise<{ error?: st
 }
 
 // Returns undefined on success rather than `{}` — the happy path ends in
-// `redirect()`, which throws. Declared rather than inferred, like every other
-// action here: an inferred union silently narrows the moment a branch returns a
-// guard's result instead of a literal (see CLAUDE.md).
+// `redirect()`, which throws.
 export async function upsertPelanggan(
   formData: FormData
-): Promise<{ error?: string } | undefined> {
+): Promise<ActionResult | undefined> {
   const supabase = await createClient()
 
   const ownerError = await requireOwner(supabase)

@@ -4,9 +4,10 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireOwner } from '@/lib/supabase/require-owner'
+import type { ActionResult } from '@/lib/action-result'
 import type { User } from '@/lib/types'
 
-export async function createUser(formData: FormData): Promise<{ error?: string }> {
+export async function createUser(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient()
 
   const ownerError = await requireOwner(supabase)
@@ -52,7 +53,7 @@ export async function createUser(formData: FormData): Promise<{ error?: string }
   return {}
 }
 
-export async function deleteHelper(userId: string): Promise<{ error?: string }> {
+export async function deleteHelper(userId: string): Promise<ActionResult> {
   const supabase = await createClient()
 
   const ownerError = await requireOwner(supabase)
@@ -81,7 +82,7 @@ export async function deleteHelper(userId: string): Promise<{ error?: string }> 
   return {}
 }
 
-export async function clearAllPesanan(): Promise<{ error?: string }> {
+export async function clearAllPesanan(): Promise<ActionResult> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
@@ -94,7 +95,7 @@ export async function clearAllPesanan(): Promise<{ error?: string }> {
   return {}
 }
 
-export async function clearAllPelanggan(): Promise<{ error?: string }> {
+export async function clearAllPelanggan(): Promise<ActionResult> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
@@ -118,7 +119,7 @@ export async function clearAllPelanggan(): Promise<{ error?: string }> {
   return {}
 }
 
-export async function setPesananLocked(locked: boolean): Promise<{ error?: string }> {
+export async function setPesananLocked(locked: boolean): Promise<ActionResult> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
@@ -141,7 +142,7 @@ export async function setPesananLocked(locked: boolean): Promise<{ error?: strin
   return {}
 }
 
-export async function updateEpsonPrinterName(name: string): Promise<{ error?: string }> {
+export async function updateEpsonPrinterName(name: string): Promise<ActionResult> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
@@ -163,7 +164,7 @@ export async function updateEpsonPrinterName(name: string): Promise<{ error?: st
   return {}
 }
 
-export async function getEpsonPrinterName(): Promise<{ name: string; error?: string }> {
+export async function getEpsonPrinterName(): Promise<ActionResult<{ name: string }>> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return { name: '', error: ownerError.error }

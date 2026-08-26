@@ -12,6 +12,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import type { ActionResult } from '@/lib/action-result'
 
 interface ConfirmDeleteButtonProps {
   /** The element used as the trigger (a `Button` or plain `<button>`), styled by the caller — only its onClick/aria wiring is taken over. */
@@ -21,7 +22,7 @@ interface ConfirmDeleteButtonProps {
   title: string
   description: string
   confirmLabel?: string
-  action: () => Promise<{ error?: string } | undefined>
+  action: () => Promise<ActionResult | undefined>
   /** Called after a successful delete, e.g. `router.refresh()`. */
   onSuccess?: () => void
 }

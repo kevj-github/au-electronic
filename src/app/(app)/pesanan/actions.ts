@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
+import type { ActionResult } from '@/lib/action-result'
 import { buildInvoiceData, type InvoiceData, type InvoiceSource } from '@/lib/invoice-data'
 import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
 import {
@@ -30,13 +31,9 @@ export interface CreatePesananInput {
   }>
 }
 
-// Declared rather than inferred: TypeScript only synthesises the implicit
-// `pesananId?: undefined` / `error?: undefined` members when every return is a
-// fresh object literal, so returning a guard's result would otherwise narrow the
-// union and break `result.error` at the call site.
 export async function createPesanan(
   input: CreatePesananInput
-): Promise<{ error?: string; pesananId?: string }> {
+): Promise<ActionResult<{ pesananId?: string }>> {
   const supabase = await createClient()
 
   const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -105,7 +102,7 @@ export async function createPesanan(
 export async function updateStatusPesanan(
   pesananId: string,
   status: StatusPesanan
-): Promise<{ error?: string }> {
+): Promise<ActionResult> {
   const supabase = await createClient()
 
   const ownerError = await requireOwner(supabase)
@@ -136,7 +133,7 @@ export async function updateStatusPesanan(
 // `diambil_oleh_helper` is a generated column derived from `jumlah_diambil`.
 //
 // Clamped to [0, qty] here using the DB-fetched qty, never a client-supplied one.
-export async function setItemJumlahDiambil(itemId: string, jumlah: number): Promise<{ error?: string }> {
+export async function setItemJumlahDiambil(itemId: string, jumlah: number): Promise<ActionResult> {
   const supabase = await createClient()
 
   const info = await requireHelperCanMutateItem(supabase, itemId)
@@ -154,7 +151,7 @@ export async function setItemJumlahDiambil(itemId: string, jumlah: number): Prom
   return {}
 }
 
-export async function toggleItemDicekOwner(itemId: string, value: boolean): Promise<{ error?: string }> {
+export async function toggleItemDicekOwner(itemId: string, value: boolean): Promise<ActionResult> {
   const supabase = await createClient()
 
   // Owner check and item-status lookup are independent — run them concurrently.
@@ -175,7 +172,7 @@ export async function toggleItemDicekOwner(itemId: string, value: boolean): Prom
   return {}
 }
 
-export async function resetChecklist(pesananId: string, target: 'helper' | 'owner'): Promise<{ error?: string }> {
+export async function resetChecklist(pesananId: string, target: 'helper' | 'owner'): Promise<ActionResult> {
   const supabase = await createClient()
 
   if (target === 'owner') {
@@ -210,7 +207,7 @@ export interface AddItemInput {
   qty: number
 }
 
-export async function addItemToPesanan(pesananId: string, item: AddItemInput): Promise<{ error?: string }> {
+export async function addItemToPesanan(pesananId: string, item: AddItemInput): Promise<ActionResult> {
   const supabase = await createClient()
 
   const active = await requireHelperCanMutatePesanan(supabase, pesananId)
@@ -234,7 +231,7 @@ export async function addItemToPesanan(pesananId: string, item: AddItemInput): P
 export async function updateItemDetails(
   itemId: string,
   changes: { nama_barang: string; qty: number }
-): Promise<{ error?: string }> {
+): Promise<ActionResult> {
   const supabase = await createClient()
 
   const existingItem = await requireHelperCanMutateItem(supabase, itemId)
@@ -250,7 +247,7 @@ export async function updateItemDetails(
   return {}
 }
 
-export async function deleteItemFromPesanan(itemId: string): Promise<{ error?: string }> {
+export async function deleteItemFromPesanan(itemId: string): Promise<ActionResult> {
   const supabase = await createClient()
 
   const existingItem = await requireHelperCanMutateItem(supabase, itemId)
@@ -266,7 +263,7 @@ export async function deleteItemFromPesanan(itemId: string): Promise<{ error?: s
   return {}
 }
 
-export async function deletePesanan(pesananId: string): Promise<{ error?: string }> {
+export async function deletePesanan(pesananId: string): Promise<ActionResult> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
@@ -287,7 +284,7 @@ export async function deletePesanan(pesananId: string): Promise<{ error?: string
 export async function updateTanggalPengiriman(
   pesananId: string,
   value: string | null
-): Promise<{ error?: string }> {
+): Promise<ActionResult> {
   const supabase = await createClient()
   const [ownerError, active] = await Promise.all([
     requireOwner(supabase),
@@ -311,7 +308,7 @@ export async function updateTanggalPengiriman(
 export async function updatePengiriman(
   pesananId: string,
   value: string | null
-): Promise<{ error?: string }> {
+): Promise<ActionResult> {
   const supabase = await createClient()
   const [ownerError, active] = await Promise.all([
     requireOwner(supabase),
@@ -341,7 +338,7 @@ export async function updatePengiriman(
 export async function updateColly(
   pesananId: string,
   value: number | null
-): Promise<{ error?: string }> {
+): Promise<ActionResult> {
   const supabase = await createClient()
   const [ownerError, active] = await Promise.all([
     requireOwner(supabase),
@@ -376,7 +373,7 @@ export async function updateColly(
  */
 export async function getInvoiceData(
   pesananId: string
-): Promise<{ data?: InvoiceData; error?: string }> {
+): Promise<ActionResult<{ data?: InvoiceData }>> {
   const supabase = await createClient()
 
   // Run the owner check and the data fetch concurrently to shave a round-trip
@@ -411,7 +408,7 @@ export async function getInvoiceData(
 export async function updateItemHarga(
   itemId: string,
   harga_satuan: number
-): Promise<{ error?: string }> {
+): Promise<ActionResult> {
   const supabase = await createClient()
 
   // Owner check and item-status lookup are independent — run them concurrently.
