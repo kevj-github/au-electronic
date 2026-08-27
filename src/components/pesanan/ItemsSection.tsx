@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   addItemToPesanan,
@@ -91,15 +91,27 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
 
   const grandTotal = items.reduce((sum, i) => sum + subtotalOf(i, prices), 0)
 
-  function setPrice(id: string, value: string) {
+  // Mirrors of fast-changing state, kept in sync post-commit via effects (never
+  // written during render — React's rules-of-hooks lint forbids that) so the
+  // callbacks below can read a fresh value at call time without taking it as a
+  // dependency. A dependency here would give every row a new function
+  // reference on every keystroke in any single row, defeating ItemRowMobile/
+  // ItemRowDesktop's memo() for the whole list (see the memo notes on those
+  // components for the render-count regression this fixes).
+  const pricesRef = useRef(prices)
+  useEffect(() => { pricesRef.current = prices }, [prices])
+  const editStateRef = useRef(editState)
+  useEffect(() => { editStateRef.current = editState }, [editState])
+
+  const setPrice = useCallback((id: string, value: string) => {
     setPrices((prev) => ({ ...prev, [id]: parseThousandsInput(value) }))
     setError(null)
-  }
+  }, [])
 
   // Save on blur, but only when the value actually changed from the saved one —
   // avoids a redundant round-trip every time the field loses focus.
-  async function savePrice(item: SectionItem) {
-    const value = numPrice(item, prices)
+  const savePrice = useCallback(async (item: SectionItem) => {
+    const value = numPrice(item, pricesRef.current)
     if (value === (item.harga_satuan ?? 0)) return
     setSavingPriceId(item.id)
     setError(null)
@@ -107,33 +119,34 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     setSavingPriceId(null)
     if (result?.error) { setError(result.error); return }
     router.refresh()
-  }
+  }, [router])
 
-  function startEdit(item: SectionItem) {
+  const startEdit = useCallback((item: SectionItem) => {
     setEditingId(item.id)
     setEditState({ nama_barang: item.nama_barang, qty: String(item.qty) })
     setError(null)
-  }
+  }, [])
 
-  function cancelEdit() {
+  const cancelEdit = useCallback(() => {
     setEditingId(null)
     setError(null)
-  }
+  }, [])
 
-  async function saveEdit(itemId: string) {
-    if (!editState.nama_barang.trim()) return
-    const qty = parseInt(editState.qty, 10)
+  const saveEdit = useCallback(async (itemId: string) => {
+    const s = editStateRef.current
+    if (!s.nama_barang.trim()) return
+    const qty = parseInt(s.qty, 10)
     if (!qty || qty < 1) return
     setLoadingId(itemId)
     setError(null)
-    const result = await updateItemDetails(itemId, { nama_barang: editState.nama_barang, qty })
+    const result = await updateItemDetails(itemId, { nama_barang: s.nama_barang, qty })
     setLoadingId(null)
     if (result?.error) { setError(result.error); return }
     setEditingId(null)
     router.refresh()
-  }
+  }, [router])
 
-  async function confirmDelete(itemId: string) {
+  const confirmDelete = useCallback(async (itemId: string) => {
     setLoadingId(itemId)
     setError(null)
     const result = await deleteItemFromPesanan(itemId)
@@ -141,7 +154,17 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     if (result?.error) { setError(result.error); return }
     setDeletingId(null)
     router.refresh()
-  }
+  }, [router])
+
+  const onEditQtyChange = useCallback((value: string) => {
+    setEditState((s) => ({ ...s, qty: value }))
+  }, [])
+
+  const onEditNamaChange = useCallback((value: string) => {
+    setEditState((s) => ({ ...s, nama_barang: value }))
+  }, [])
+
+  const cancelDelete = useCallback(() => setDeletingId(null), [])
 
   async function saveNewItem(keepAdding = false) {
     if (!newItem.nama_barang.trim()) return
@@ -179,25 +202,25 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
             isLocked={isLocked}
             priceEditable={priceEditable}
             isEditing={editingId === item.id}
-            editState={editState}
+            editState={editingId === item.id ? editState : emptyAdd}
             editQtyRef={editQtyRef}
             editNamaRef={editNamaRef}
-            onEditQtyChange={(value) => setEditState((s) => ({ ...s, qty: value }))}
-            onEditNamaChange={(value) => setEditState((s) => ({ ...s, nama_barang: value }))}
-            onSaveEdit={() => saveEdit(item.id)}
+            onEditQtyChange={onEditQtyChange}
+            onEditNamaChange={onEditNamaChange}
+            onSaveEdit={saveEdit}
             onCancelEdit={cancelEdit}
             isDeleting={deletingId === item.id}
-            onStartEdit={() => startEdit(item)}
-            onStartDelete={() => setDeletingId(item.id)}
-            onCancelDelete={() => setDeletingId(null)}
-            onConfirmDelete={() => confirmDelete(item.id)}
+            onStartEdit={startEdit}
+            onStartDelete={setDeletingId}
+            onCancelDelete={cancelDelete}
+            onConfirmDelete={confirmDelete}
             isLoading={loadingId === item.id}
             rawPriceValue={rawPrice(item, prices)}
             numPriceValue={numPrice(item, prices)}
             subtotalValue={subtotalOf(item, prices)}
             isSavingPrice={savingPriceId === item.id}
-            onPriceChange={(value) => setPrice(item.id, value)}
-            onPriceBlur={() => savePrice(item)}
+            onPriceChange={setPrice}
+            onPriceBlur={savePrice}
           />
         ))}
 
@@ -249,25 +272,25 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
                 isLocked={isLocked}
                 priceEditable={priceEditable}
                 isEditing={editingId === item.id}
-                editState={editState}
+                editState={editingId === item.id ? editState : emptyAdd}
                 totalCols={totalCols}
                 editQtyRef={editQtyRef}
-                onEditQtyChange={(value) => setEditState((s) => ({ ...s, qty: value }))}
-                onEditNamaChange={(value) => setEditState((s) => ({ ...s, nama_barang: value }))}
-                onSaveEdit={() => saveEdit(item.id)}
+                onEditQtyChange={onEditQtyChange}
+                onEditNamaChange={onEditNamaChange}
+                onSaveEdit={saveEdit}
                 onCancelEdit={cancelEdit}
                 isDeleting={deletingId === item.id}
-                onStartEdit={() => startEdit(item)}
-                onStartDelete={() => setDeletingId(item.id)}
-                onCancelDelete={() => setDeletingId(null)}
-                onConfirmDelete={() => confirmDelete(item.id)}
+                onStartEdit={startEdit}
+                onStartDelete={setDeletingId}
+                onCancelDelete={cancelDelete}
+                onConfirmDelete={confirmDelete}
                 isLoading={loadingId === item.id}
                 rawPriceValue={rawPrice(item, prices)}
                 numPriceValue={numPrice(item, prices)}
                 subtotalValue={subtotalOf(item, prices)}
                 isSavingPrice={savingPriceId === item.id}
-                onPriceChange={(value) => setPrice(item.id, value)}
-                onPriceBlur={() => savePrice(item)}
+                onPriceChange={setPrice}
+                onPriceBlur={savePrice}
               />
             ))}
 

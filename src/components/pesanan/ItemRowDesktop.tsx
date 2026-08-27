@@ -1,6 +1,6 @@
 'use client'
 
-import type { RefObject } from 'react'
+import { memo, type RefObject } from 'react'
 import { Pencil, Trash2, X, Check } from 'lucide-react'
 import { ItemChecklistCheckbox } from './ItemChecklistCheckbox'
 import { HelperItemChecklist } from './HelperItemChecklist'
@@ -20,23 +20,23 @@ interface ItemRowDesktopProps {
   editQtyRef: RefObject<HTMLInputElement | null>
   onEditQtyChange: (value: string) => void
   onEditNamaChange: (value: string) => void
-  onSaveEdit: () => void
+  onSaveEdit: (id: string) => void
   onCancelEdit: () => void
   isDeleting: boolean
-  onStartEdit: () => void
-  onStartDelete: () => void
+  onStartEdit: (item: SectionItem) => void
+  onStartDelete: (id: string) => void
   onCancelDelete: () => void
-  onConfirmDelete: () => void
+  onConfirmDelete: (id: string) => void
   isLoading: boolean
   rawPriceValue: string
   numPriceValue: number
   subtotalValue: number
   isSavingPrice: boolean
-  onPriceChange: (value: string) => void
-  onPriceBlur: () => void
+  onPriceChange: (id: string, value: string) => void
+  onPriceBlur: (item: SectionItem) => void
 }
 
-export function ItemRowDesktop({
+function ItemRowDesktopImpl({
   item,
   isOwner,
   isLocked,
@@ -83,7 +83,7 @@ export function ItemRowDesktop({
               className="h-8 text-sm flex-1 min-w-[160px]"
               placeholder="Nama barang"
             />
-            <Button size="sm" onClick={onSaveEdit} disabled={isLoading}>
+            <Button size="sm" onClick={() => onSaveEdit(item.id)} disabled={isLoading}>
               <Check className="size-3.5 mr-1" />Simpan
             </Button>
             <Button size="sm" variant="ghost" onClick={onCancelEdit} aria-label="Batal edit">
@@ -118,8 +118,8 @@ export function ItemRowDesktop({
               type="text"
               inputMode="numeric"
               value={formatThousandsInput(rawPriceValue)}
-              onChange={(e) => onPriceChange(e.target.value)}
-              onBlur={onPriceBlur}
+              onChange={(e) => onPriceChange(item.id, e.target.value)}
+              onBlur={() => onPriceBlur(item)}
               disabled={isSavingPrice}
               className="h-8 w-36 ml-auto text-right font-mono text-sm"
               aria-label={`Harga satuan ${item.nama_barang}`}
@@ -145,7 +145,7 @@ export function ItemRowDesktop({
           <div className="flex gap-1">
             <button
               type="button"
-              onClick={onStartEdit}
+              onClick={() => onStartEdit(item)}
               className="p-1 rounded hover:bg-gray-100 text-muted-foreground hover:text-foreground"
               aria-label="Edit item"
             >
@@ -157,7 +157,7 @@ export function ItemRowDesktop({
                   size="sm"
                   variant="destructive"
                   className="h-6 px-1.5 text-xs"
-                  onClick={onConfirmDelete}
+                  onClick={() => onConfirmDelete(item.id)}
                   disabled={isLoading}
                 >
                   Hapus?
@@ -174,7 +174,7 @@ export function ItemRowDesktop({
             ) : (
               <button
                 type="button"
-                onClick={onStartDelete}
+                onClick={() => onStartDelete(item.id)}
                 className="p-1 rounded hover:bg-gray-100 text-red-400 hover:text-red-600"
                 aria-label="Hapus item"
               >
@@ -187,3 +187,8 @@ export function ItemRowDesktop({
     </tr>
   )
 }
+
+// All callback props are stable across ItemsSection re-renders (see the
+// pricesRef/editStateRef notes there), so a shallow prop compare correctly
+// skips every row untouched by the edit that triggered the re-render.
+export const ItemRowDesktop = memo(ItemRowDesktopImpl)
