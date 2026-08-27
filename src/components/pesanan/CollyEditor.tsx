@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { updateColly } from '@/app/(app)/pesanan/actions'
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
+import { setErrorFromResult } from '@/lib/action-result'
 
 interface CollyEditorProps {
   pesananId: string
@@ -37,7 +38,7 @@ export function CollyEditor({ pesananId, initialValue, locked }: CollyEditorProp
     // Surfaced rather than swallowed: a silently dropped save looks identical to
     // a value that saved fine but never prints.
     const result = await updateColly(pesananId, next)
-    if (result.error) setError(result.error)
+    setErrorFromResult(result, setError)
     setSaving(false)
   }
 

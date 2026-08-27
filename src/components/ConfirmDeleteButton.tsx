@@ -12,7 +12,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import type { ActionResult } from '@/lib/action-result'
+import { setErrorFromResult, type ActionResult } from '@/lib/action-result'
 
 interface ConfirmDeleteButtonProps {
   /** The element used as the trigger (a `Button` or plain `<button>`), styled by the caller — only its onClick/aria wiring is taken over. */
@@ -57,10 +57,7 @@ export function ConfirmDeleteButton({
     setError(null)
     const result = await action()
     setLoading(false)
-    if (result?.error) {
-      setError(result.error)
-      return
-    }
+    if (setErrorFromResult(result, setError)) return
     setOpen(false)
     onSuccess?.()
   }

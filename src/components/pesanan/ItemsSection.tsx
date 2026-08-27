@@ -13,6 +13,7 @@ import { ItemRowDesktop } from './ItemRowDesktop'
 import { AddItemFormMobile } from './AddItemFormMobile'
 import { AddItemFormDesktop } from './AddItemFormDesktop'
 import { formatRupiah, parseThousandsInput } from '@/lib/utils'
+import { setErrorFromResult } from '@/lib/action-result'
 import {
   emptyAdd,
   numPrice,
@@ -129,7 +130,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     setError(null)
     const result = await action()
     markBusy(false)
-    if (result?.error) { setError(result.error); return }
+    if (setErrorFromResult(result, setError)) return
     onSuccess?.()
     router.refresh()
   }, [router])

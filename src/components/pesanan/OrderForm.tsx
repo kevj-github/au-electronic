@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { formatRupiah, parseIntOrZero } from '@/lib/utils'
+import { setErrorFromResult } from '@/lib/action-result'
 import type { Pelanggan } from '@/lib/types'
 
 interface OrderFormProps {
@@ -157,11 +158,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
       })),
     })
 
-    if (result.error) {
-      setError(result.error)
-      setLoading(false)
-      return
-    }
+    if (setErrorFromResult(result, setError)) { setLoading(false); return }
 
     router.push(`/pesanan/${result.pesananId}`)
   }

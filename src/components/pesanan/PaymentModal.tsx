@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatThousandsInput, parseThousandsInput } from '@/lib/utils'
+import { setErrorFromResult } from '@/lib/action-result'
 import {
   Dialog,
   DialogContent,
@@ -51,13 +52,8 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
     setError(null)
 
     const result = await createPembayaran(pesananId, new FormData(e.currentTarget))
-    if (result.error) {
-      setError(result.error)
-      setLoading(false)
-    } else {
-      setOpen(false)
-      setLoading(false)
-    }
+    if (!setErrorFromResult(result, setError)) setOpen(false)
+    setLoading(false)
   }
 
   return (

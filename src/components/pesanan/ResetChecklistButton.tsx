@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { setErrorFromResult } from '@/lib/action-result'
 
 interface ResetChecklistButtonProps {
   pesananId: string
@@ -38,11 +39,7 @@ export function ResetChecklistButton({
     setLoading(true)
     setError(null)
     const result = await resetChecklist(pesananId, target)
-    if (result?.error) {
-      setError(result.error)
-      setLoading(false)
-      return
-    }
+    if (setErrorFromResult(result, setError)) { setLoading(false); return }
     setLoading(false)
     setOpen(false)
   }

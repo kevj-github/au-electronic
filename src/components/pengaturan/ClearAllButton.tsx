@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import type { ActionResult } from '@/lib/action-result'
+import { setErrorFromResult, type ActionResult } from '@/lib/action-result'
 
 interface ClearAllButtonProps {
   label: string
@@ -36,7 +36,7 @@ export function ClearAllButton({ label, description, action }: ClearAllButtonPro
     setError(null)
     const result = await action()
     setLoading(false)
-    if (result?.error) { setError(result.error); return }
+    if (setErrorFromResult(result, setError)) return
     setOpen(false)
     setStep(1)
   }

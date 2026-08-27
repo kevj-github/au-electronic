@@ -5,6 +5,7 @@ import { createUser } from '@/app/(app)/pengaturan/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { setErrorFromResult } from '@/lib/action-result'
 
 export function AddHelperForm() {
   const [loading, setLoading] = useState(false)
@@ -17,13 +18,8 @@ export function AddHelperForm() {
     setError(null)
 
     const result = await createUser(new FormData(e.currentTarget))
-    if (result.error) {
-      setError(result.error)
-      setLoading(false)
-    } else {
-      formRef.current?.reset()
-      setLoading(false)
-    }
+    if (!setErrorFromResult(result, setError)) formRef.current?.reset()
+    setLoading(false)
   }
 
   return (

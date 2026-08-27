@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Lock, Unlock } from 'lucide-react'
 import { setPesananLocked } from '@/app/(app)/pengaturan/actions'
 import { Button } from '@/components/ui/button'
+import { setErrorFromResult } from '@/lib/action-result'
 
 interface PesananLockToggleProps {
   locked: boolean
@@ -30,11 +31,7 @@ export function PesananLockToggle({ locked: initialLocked }: PesananLockTogglePr
     setError(null)
     const next = !locked
     const result = await setPesananLocked(next)
-    if (result?.error) {
-      setError(result.error)
-    } else {
-      setLocked(next)
-    }
+    if (!setErrorFromResult(result, setError)) setLocked(next)
     setLoading(false)
   }
 

@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { setErrorFromResult } from '@/lib/action-result'
 import type { StatusPesanan } from '@/lib/types'
 
 interface StatusTransitionButtonsProps {
@@ -65,10 +66,7 @@ function ConfirmStatusButton({
     setError(null)
     const result = await updateStatusPesanan(pesananId, status)
     setLoading(false)
-    if (result?.error) {
-      setError(result.error)
-      return
-    }
+    if (setErrorFromResult(result, setError)) return
     setOpen(false)
   }
 

@@ -6,6 +6,7 @@ import { updateEpsonPrinterName } from '@/app/(app)/pengaturan/actions'
 import { connectQz } from '@/lib/qz'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { setErrorFromResult } from '@/lib/action-result'
 
 interface EpsonPrinterSettingProps {
   name: string
@@ -49,8 +50,7 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
     setStatus(null)
     setSaving(true)
     const result = await updateEpsonPrinterName(name)
-    if (result?.error) setError(result.error)
-    else setStatus('Tersimpan.')
+    if (!setErrorFromResult(result, setError)) setStatus('Tersimpan.')
     setSaving(false)
   }
 

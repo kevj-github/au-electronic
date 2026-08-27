@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { upsertPelanggan } from '@/app/(app)/pelanggan/actions'
 import { Button } from '@/components/ui/button'
+import { setErrorFromResult } from '@/lib/action-result'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Pelanggan } from '@/lib/types'
@@ -29,10 +30,7 @@ export function PelangganForm({ pelanggan }: PelangganFormProps) {
     setLoading(true)
     setError(null)
     const result = await upsertPelanggan(fd)
-    if (result?.error) {
-      setError(result.error)
-      setLoading(false)
-    }
+    if (setErrorFromResult(result, setError)) setLoading(false)
   }
 
   return (
