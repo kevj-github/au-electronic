@@ -114,22 +114,40 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     setError(null)
   }, [])
 
+  // Shared shape behind every mutation below: mark busy, clear the error,
+  // await the Server Action, clear busy, bail out on error (keeping it
+  // visible), otherwise run the caller's success side effect and refresh.
+  // `markBusy` is a callback rather than a fixed id shape because savePrice's
+  // busy state is a Set keyed by item id (see savingPriceIds above) while the
+  // others share one `loadingId` — both fit `(busy: boolean) => void`.
+  const runAction = useCallback(async (
+    markBusy: (busy: boolean) => void,
+    action: () => Promise<{ error?: string } | undefined>,
+    onSuccess?: () => void,
+  ) => {
+    markBusy(true)
+    setError(null)
+    const result = await action()
+    markBusy(false)
+    if (result?.error) { setError(result.error); return }
+    onSuccess?.()
+    router.refresh()
+  }, [router])
+
   // Save on blur, but only when the value actually changed from the saved one —
   // avoids a redundant round-trip every time the field loses focus.
   const savePrice = useCallback(async (item: SectionItem) => {
     const value = numPrice(item, pricesRef.current)
     if (value === (item.harga_satuan ?? 0)) return
-    setSavingPriceIds((prev) => new Set(prev).add(item.id))
-    setError(null)
-    const result = await updateItemHarga(item.id, value)
-    setSavingPriceIds((prev) => {
-      const next = new Set(prev)
-      next.delete(item.id)
-      return next
-    })
-    if (result?.error) { setError(result.error); return }
-    router.refresh()
-  }, [router])
+    await runAction(
+      (busy) => setSavingPriceIds((prev) => {
+        const next = new Set(prev)
+        if (busy) next.add(item.id); else next.delete(item.id)
+        return next
+      }),
+      () => updateItemHarga(item.id, value),
+    )
+  }, [runAction])
 
   const startEdit = useCallback((item: SectionItem) => {
     setEditingId(item.id)
@@ -147,24 +165,20 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     if (!s.nama_barang.trim()) return
     const qty = parseInt(s.qty, 10)
     if (!qty || qty < 1) return
-    setLoadingId(itemId)
-    setError(null)
-    const result = await updateItemDetails(itemId, { nama_barang: s.nama_barang, qty })
-    setLoadingId(null)
-    if (result?.error) { setError(result.error); return }
-    setEditingId(null)
-    router.refresh()
-  }, [router])
+    await runAction(
+      (busy) => setLoadingId(busy ? itemId : null),
+      () => updateItemDetails(itemId, { nama_barang: s.nama_barang, qty }),
+      () => setEditingId(null),
+    )
+  }, [runAction])
 
   const confirmDelete = useCallback(async (itemId: string) => {
-    setLoadingId(itemId)
-    setError(null)
-    const result = await deleteItemFromPesanan(itemId)
-    setLoadingId(null)
-    if (result?.error) { setError(result.error); return }
-    setDeletingId(null)
-    router.refresh()
-  }, [router])
+    await runAction(
+      (busy) => setLoadingId(busy ? itemId : null),
+      () => deleteItemFromPesanan(itemId),
+      () => setDeletingId(null),
+    )
+  }, [runAction])
 
   const onEditQtyChange = useCallback((value: string) => {
     setEditState((s) => ({ ...s, qty: value }))
@@ -180,18 +194,18 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     if (!newItem.nama_barang.trim()) return
     const qty = parseInt(newItem.qty, 10)
     if (!qty || qty < 1) return
-    setLoadingId('new')
-    setError(null)
-    const result = await addItemToPesanan(pesananId, { nama_barang: newItem.nama_barang, qty })
-    setLoadingId(null)
-    if (result?.error) { setError(result.error); return }
-    setNewItem(emptyAdd)
-    if (!keepAdding) {
-      setAddingNew(false)
-    } else {
-      setTimeout(() => newQtyRef.current?.focus(), 0)
-    }
-    router.refresh()
+    await runAction(
+      (busy) => setLoadingId(busy ? 'new' : null),
+      () => addItemToPesanan(pesananId, { nama_barang: newItem.nama_barang, qty }),
+      () => {
+        setNewItem(emptyAdd)
+        if (!keepAdding) {
+          setAddingNew(false)
+        } else {
+          setTimeout(() => newQtyRef.current?.focus(), 0)
+        }
+      },
+    )
   }
 
   // colSpan for edit/add rows. Owner adds 3 extra cols (checkbox + harga + subtotal);
