@@ -39,7 +39,7 @@ export const PelangganRowCard = memo(PelangganRowCardImpl)
 
 function PelangganRowTableRowImpl({ p }: PelangganListRowProps) {
   return (
-    <tr className="hover:bg-gray-50">
+    <tr className="hover:bg-muted">
       <td className="px-4 py-3 font-medium">{p.nama}</td>
       <td className="px-4 py-3 text-muted-foreground">
         {p.telepon ?? '—'}

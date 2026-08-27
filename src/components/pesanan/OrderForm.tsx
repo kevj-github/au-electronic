@@ -268,7 +268,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
               {/* Desktop: table */}
               <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm border rounded-lg overflow-hidden min-w-[560px]">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-muted border-b">
                     <tr>
                       <th className="text-right px-3 py-2 font-medium w-24">Qty</th>
                       <th className="text-left px-3 py-2 font-medium">Nama Barang</th>
@@ -289,7 +289,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
                       />
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-50 border-t">
+                  <tfoot className="bg-muted border-t">
                     <tr>
                       <td colSpan={3} className="px-3 py-2 text-right font-medium">
                         Total

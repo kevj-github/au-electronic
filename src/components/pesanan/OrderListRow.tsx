@@ -39,7 +39,7 @@ function OrderRowCardImpl({
   isOwner,
 }: OrderListRowProps) {
   return (
-    <div className="border rounded-lg p-3 flex gap-2 items-start hover:bg-gray-50">
+    <div className="border rounded-lg p-3 flex gap-2 items-start hover:bg-muted">
       <Link href={`/pesanan/${p.id}`} className="flex-1 min-w-0 block">
         <div className="flex justify-between items-start gap-2">
           <span className="font-mono text-sm text-primary">
@@ -97,7 +97,7 @@ function OrderRowTableRowImpl({
   isOwner,
 }: OrderListRowProps) {
   return (
-    <tr className="hover:bg-gray-50">
+    <tr className="hover:bg-muted">
       <td className="px-4 py-3">
         <Link
           href={`/pesanan/${p.id}`}

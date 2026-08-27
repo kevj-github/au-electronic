@@ -80,7 +80,7 @@ export function PelangganList({ pelangganList }: PelangganListProps) {
           {/* Desktop: table */}
           <div className="hidden sm:block border rounded-lg overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-muted border-b">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium">Nama</th>
                   <th className="text-left px-4 py-3 font-medium">Telepon</th>

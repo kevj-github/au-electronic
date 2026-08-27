@@ -146,7 +146,7 @@ function ItemRowDesktopImpl({
             <button
               type="button"
               onClick={() => onStartEdit(item)}
-              className="p-1 rounded hover:bg-gray-100 text-muted-foreground hover:text-foreground"
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
               aria-label="Edit item"
             >
               <Pencil className="size-3.5" />
@@ -165,7 +165,7 @@ function ItemRowDesktopImpl({
                 <button
                   type="button"
                   onClick={onCancelDelete}
-                  className="p-1 rounded hover:bg-gray-100 text-muted-foreground"
+                  className="p-1 rounded hover:bg-muted text-muted-foreground"
                   aria-label="Batal hapus"
                 >
                   <X className="size-3.5" />
@@ -175,7 +175,7 @@ function ItemRowDesktopImpl({
               <button
                 type="button"
                 onClick={() => onStartDelete(item.id)}
-                className="p-1 rounded hover:bg-gray-100 text-red-400 hover:text-red-600"
+                className="p-1 rounded hover:bg-muted text-red-400 hover:text-red-600"
                 aria-label="Hapus item"
               >
                 <Trash2 className="size-3.5" />

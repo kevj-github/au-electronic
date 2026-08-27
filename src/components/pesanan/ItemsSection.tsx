@@ -248,7 +248,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
 
         {/* Order total — owner only */}
         {isOwner && items.length > 0 && (
-          <div className="flex items-center justify-between px-3 py-2 border rounded-lg bg-gray-50">
+          <div className="flex items-center justify-between px-3 py-2 border rounded-lg bg-muted">
             <span className="text-sm font-medium">Total</span>
             <span className="font-mono text-sm font-semibold">{formatRupiah(grandTotal)}</span>
           </div>
@@ -274,7 +274,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
       {/* Desktop: table */}
       <div className="hidden sm:block border rounded-lg overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-muted border-b">
             <tr>
               {isOwner && <th className="w-10 px-3 py-2"></th>}
               <th className="text-right px-4 py-2 font-medium w-16">Qty</th>
@@ -312,7 +312,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
           </tbody>
           {/* Order total — owner only */}
           {isOwner && items.length > 0 && (
-            <tfoot className="border-t bg-gray-50">
+            <tfoot className="border-t bg-muted">
               <tr>
                 <td className="px-4 py-2 text-right font-medium" colSpan={4}>Total</td>
                 <td className="px-4 py-2 text-right font-mono font-semibold">{formatRupiah(grandTotal)}</td>

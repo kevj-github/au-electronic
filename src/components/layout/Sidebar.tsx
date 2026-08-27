@@ -41,7 +41,7 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
       )}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-64 bg-white border-r flex flex-col transition-transform duration-200 md:static md:translate-x-0 md:w-56',
+          'fixed inset-y-0 left-0 z-40 w-64 bg-sidebar border-r flex flex-col transition-transform duration-200 md:static md:translate-x-0 md:w-56',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -53,7 +53,7 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
           <button
             type="button"
             onClick={onClose}
-            className="md:hidden p-1 text-slate-500 hover:text-slate-900"
+            className="md:hidden p-1 text-muted-foreground hover:text-foreground"
             aria-label="Tutup menu"
           >
             <X className="size-5" />
@@ -75,7 +75,7 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
                     'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
                     active
                       ? 'bg-primary/10 text-primary'
-                      : 'text-slate-600 hover:bg-slate-50'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   )}
                 >
                   <Icon className="size-4" />
