@@ -188,6 +188,40 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
   // base 3 = qty + nama + helper; edit column only when unlocked.
   const totalCols = (isOwner ? 3 : 0) + 3 + (!isLocked ? 1 : 0)
 
+  // Every prop ItemRowMobile and ItemRowDesktop have in common, computed once
+  // per item instead of duplicated across both `.map()` blocks below. Callers
+  // spread this (never pass it as a single object prop) and add their one
+  // layout-specific prop (editNamaRef / totalCols) — spreading unpacks it back
+  // into the same individual values each row already received, so this changes
+  // nothing about which props reach memo()'s shallow compare.
+  function buildRowProps(item: SectionItem) {
+    return {
+      item,
+      isOwner,
+      isLocked,
+      priceEditable,
+      isEditing: editingId === item.id,
+      editState: editingId === item.id ? editState : emptyAdd,
+      editQtyRef,
+      onEditQtyChange,
+      onEditNamaChange,
+      onSaveEdit: saveEdit,
+      onCancelEdit: cancelEdit,
+      isDeleting: deletingId === item.id,
+      onStartEdit: startEdit,
+      onStartDelete: setDeletingId,
+      onCancelDelete: cancelDelete,
+      onConfirmDelete: confirmDelete,
+      isLoading: loadingId === item.id,
+      rawPriceValue: rawPrice(item, prices),
+      numPriceValue: numPrice(item, prices),
+      subtotalValue: subtotalOf(item, prices),
+      isSavingPrice: savingPriceId === item.id,
+      onPriceChange: setPrice,
+      onPriceBlur: savePrice,
+    }
+  }
+
   return (
     <div className="space-y-3">
       {error && <p className="text-sm text-red-500">{error}</p>}
@@ -197,30 +231,8 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
         {items.map((item) => (
           <ItemRowMobile
             key={item.id}
-            item={item}
-            isOwner={isOwner}
-            isLocked={isLocked}
-            priceEditable={priceEditable}
-            isEditing={editingId === item.id}
-            editState={editingId === item.id ? editState : emptyAdd}
-            editQtyRef={editQtyRef}
+            {...buildRowProps(item)}
             editNamaRef={editNamaRef}
-            onEditQtyChange={onEditQtyChange}
-            onEditNamaChange={onEditNamaChange}
-            onSaveEdit={saveEdit}
-            onCancelEdit={cancelEdit}
-            isDeleting={deletingId === item.id}
-            onStartEdit={startEdit}
-            onStartDelete={setDeletingId}
-            onCancelDelete={cancelDelete}
-            onConfirmDelete={confirmDelete}
-            isLoading={loadingId === item.id}
-            rawPriceValue={rawPrice(item, prices)}
-            numPriceValue={numPrice(item, prices)}
-            subtotalValue={subtotalOf(item, prices)}
-            isSavingPrice={savingPriceId === item.id}
-            onPriceChange={setPrice}
-            onPriceBlur={savePrice}
           />
         ))}
 
@@ -267,30 +279,8 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
             {items.map((item) => (
               <ItemRowDesktop
                 key={item.id}
-                item={item}
-                isOwner={isOwner}
-                isLocked={isLocked}
-                priceEditable={priceEditable}
-                isEditing={editingId === item.id}
-                editState={editingId === item.id ? editState : emptyAdd}
+                {...buildRowProps(item)}
                 totalCols={totalCols}
-                editQtyRef={editQtyRef}
-                onEditQtyChange={onEditQtyChange}
-                onEditNamaChange={onEditNamaChange}
-                onSaveEdit={saveEdit}
-                onCancelEdit={cancelEdit}
-                isDeleting={deletingId === item.id}
-                onStartEdit={startEdit}
-                onStartDelete={setDeletingId}
-                onCancelDelete={cancelDelete}
-                onConfirmDelete={confirmDelete}
-                isLoading={loadingId === item.id}
-                rawPriceValue={rawPrice(item, prices)}
-                numPriceValue={numPrice(item, prices)}
-                subtotalValue={subtotalOf(item, prices)}
-                isSavingPrice={savingPriceId === item.id}
-                onPriceChange={setPrice}
-                onPriceBlur={savePrice}
               />
             ))}
 
