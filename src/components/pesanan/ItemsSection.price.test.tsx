@@ -15,13 +15,13 @@ import { ItemsSection } from './ItemsSection'
  * `ItemChecklistCheckbox` and `HelperItemChecklist` already do.
  */
 
-const updateItemHarga = vi.fn(async () => ({}) as { error?: string })
+const updateItemHarga = vi.fn<(id: string, harga: number) => Promise<{ error?: string }>>()
 
 vi.mock('@/app/(app)/pesanan/actions', () => ({
   addItemToPesanan: vi.fn(async () => ({})),
   updateItemDetails: vi.fn(async () => ({})),
   deleteItemFromPesanan: vi.fn(async () => ({})),
-  updateItemHarga: (...a: unknown[]) => updateItemHarga(...(a as [])),
+  updateItemHarga: (...a: unknown[]) => updateItemHarga(...(a as [id: string, harga: number])),
   toggleItemDicekOwner: vi.fn(async () => ({})),
   setItemJumlahDiambil: vi.fn(async () => ({})),
 }))
@@ -157,7 +157,7 @@ describe('concurrent saves on different rows', () => {
   it('keeps a slow row disabled while a second row saves and finishes first', async () => {
     const user = userEvent.setup()
     let resolveA: (value: { error?: string }) => void = () => {}
-    updateItemHarga.mockImplementation((id: unknown) => {
+    updateItemHarga.mockImplementation((id) => {
       if (id === 'a') return new Promise((resolve) => { resolveA = resolve })
       return Promise.resolve({})
     })
