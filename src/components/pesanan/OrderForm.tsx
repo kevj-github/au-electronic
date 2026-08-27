@@ -102,9 +102,22 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
    * name, hit Simpan" path used to fail at the database. The action is the real
    * guard; this only stops the button offering an outcome that cannot succeed.
    */
-  const canSubmit =
-    items.length > 0 &&
-    items.every((i) => i.nama_barang.trim() !== '' && parseIntOrZero(i.qty) >= 1)
+  const hasEmptyName = items.some((i) => i.nama_barang.trim() === '')
+  const hasInvalidQty = items.some((i) => parseIntOrZero(i.qty) < 1)
+  const canSubmit = items.length > 0 && !hasEmptyName && !hasInvalidQty
+
+  // Surfaced next to the Simpan button so a disabled state isn't a dead end —
+  // see canSubmit's rationale above for why qty is checked client-side too.
+  const disabledReason =
+    items.length === 0
+      ? 'Tambahkan minimal satu barang sebelum menyimpan.'
+      : hasEmptyName && hasInvalidQty
+        ? 'Isi nama dan jumlah (qty) untuk setiap barang.'
+        : hasEmptyName
+          ? 'Isi nama barang untuk setiap baris.'
+          : hasInvalidQty
+            ? 'Isi jumlah (qty) minimal 1 untuk setiap baris.'
+            : null
   const pelangganSuggestions = useMemo(() => {
     const q = namaPelanggan.trim().toLowerCase()
     if (!q || pelangganId) return []
@@ -337,16 +350,21 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        <div className="flex gap-2">
-          <Button
-            type="submit"
-            disabled={loading || !canSubmit}
-          >
-            {loading ? 'Menyimpan...' : 'Simpan Pesanan'}
-          </Button>
-          <Button type="button" variant="outline" onClick={handleBatal}>
-            Batal
-          </Button>
+        <div className="space-y-1.5">
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              disabled={loading || !canSubmit}
+            >
+              {loading ? 'Menyimpan...' : 'Simpan Pesanan'}
+            </Button>
+            <Button type="button" variant="outline" onClick={handleBatal}>
+              Batal
+            </Button>
+          </div>
+          {!loading && isDirty && disabledReason && (
+            <p className="text-sm text-muted-foreground">{disabledReason}</p>
+          )}
         </div>
       </form>
 
