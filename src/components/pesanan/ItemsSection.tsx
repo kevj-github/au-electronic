@@ -47,7 +47,13 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
         .map((i) => [i.id, i.harga_satuan && i.harga_satuan > 0 ? String(i.harga_satuan) : ''])
     )
   )
-  const [savingPriceId, setSavingPriceId] = useState<string | null>(null)
+  // A Set, not a single id: tracking only the most recently started save meant
+  // that starting a second row's save (e.g. tabbing through several price
+  // fields quickly) cleared the first row's "saving" flag while its own
+  // request was still in flight — re-enabling that field's input before its
+  // round trip actually finished, which could let a second edit fire for the
+  // same row while the first was still pending.
+  const [savingPriceIds, setSavingPriceIds] = useState<Set<string>>(() => new Set())
 
   // Resync pattern (see ItemChecklistCheckbox / HelperItemChecklist): drop the
   // local override for any item whose server-revalidated harga_satuan has
@@ -113,10 +119,14 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
   const savePrice = useCallback(async (item: SectionItem) => {
     const value = numPrice(item, pricesRef.current)
     if (value === (item.harga_satuan ?? 0)) return
-    setSavingPriceId(item.id)
+    setSavingPriceIds((prev) => new Set(prev).add(item.id))
     setError(null)
     const result = await updateItemHarga(item.id, value)
-    setSavingPriceId(null)
+    setSavingPriceIds((prev) => {
+      const next = new Set(prev)
+      next.delete(item.id)
+      return next
+    })
     if (result?.error) { setError(result.error); return }
     router.refresh()
   }, [router])
@@ -216,7 +226,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
       rawPriceValue: rawPrice(item, prices),
       numPriceValue: numPrice(item, prices),
       subtotalValue: subtotalOf(item, prices),
-      isSavingPrice: savingPriceId === item.id,
+      isSavingPrice: savingPriceIds.has(item.id),
       onPriceChange: setPrice,
       onPriceBlur: savePrice,
     }

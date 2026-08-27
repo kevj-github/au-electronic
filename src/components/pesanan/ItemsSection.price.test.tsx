@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ItemsSection } from './ItemsSection'
 
@@ -150,6 +150,50 @@ describe('price entry', () => {
 
     // qty 3 x 1000
     expect(screen.getAllByText('Rp 3.000').length).toBeGreaterThan(0)
+  })
+})
+
+describe('concurrent saves on different rows', () => {
+  it('keeps a slow row disabled while a second row saves and finishes first', async () => {
+    const user = userEvent.setup()
+    let resolveA: (value: { error?: string }) => void = () => {}
+    updateItemHarga.mockImplementation((id: unknown) => {
+      if (id === 'a') return new Promise((resolve) => { resolveA = resolve })
+      return Promise.resolve({})
+    })
+
+    render(
+      <ItemsSection
+        pesananId="p1"
+        items={[
+          item({ id: 'a', harga_satuan: 1000 }),
+          { ...item({ id: 'b', harga_satuan: 2000 }), nama_barang: 'Saklar' },
+        ]}
+        isOwner
+        isLocked={false}
+        priceEditable
+      />
+    )
+
+    // Row a's save starts and hangs (server hasn't responded yet).
+    await user.clear(priceField('Kabel'))
+    await user.type(priceField('Kabel'), '1500')
+    await user.tab()
+    expect(priceField('Kabel')).toBeDisabled()
+
+    // Row b's save starts and completes while row a is still in flight.
+    await user.clear(priceField('Saklar'))
+    await user.type(priceField('Saklar'), '2500')
+    await user.tab()
+    expect(priceField('Saklar')).not.toBeDisabled()
+
+    // Row a's own request hasn't resolved yet, so it must still be disabled —
+    // a single shared "which row is saving" id would have wrongly cleared this
+    // the moment row b's save started, since starting b overwrote it.
+    expect(priceField('Kabel')).toBeDisabled()
+
+    resolveA({})
+    await waitFor(() => expect(priceField('Kabel')).not.toBeDisabled())
   })
 })
 
