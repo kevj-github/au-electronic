@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useResetOnOpen } from '@/hooks/use-reset-on-open'
 import { createPembayaran } from '@/app/(app)/pesanan/[id]/payment-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,7 +33,6 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [jumlahRaw, setJumlahRaw] = useState(String(sisaTagihan > 0 ? sisaTagihan : ''))
 
   // Re-seed the prefill every time the dialog opens rather than only at mount.
   //
@@ -43,15 +43,12 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
   // order. (A full payment unmounts the component, so only the partial flow —
   // the one `bayar_sebagian` exists for — was exposed.)
   //
-  // Keyed on the open transition, not on `sisaTagihan`, so a balance change
-  // arriving via Realtime while the dialog is open cannot clobber what the
-  // owner is currently typing. Adjusting state during render is the
-  // React-recommended form and converges: `prevOpen` matches immediately after.
-  const [prevOpen, setPrevOpen] = useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) setJumlahRaw(String(sisaTagihan > 0 ? sisaTagihan : ''))
-  }
+  // useResetOnOpen keys the reset on the open transition, not on `sisaTagihan`
+  // itself, so a balance change arriving via Realtime while the dialog is open
+  // cannot clobber what the owner is currently typing.
+  const [jumlahRaw, setJumlahRaw] = useResetOnOpen(open, () =>
+    String(sisaTagihan > 0 ? sisaTagihan : '')
+  )
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
