@@ -10,6 +10,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
@@ -34,6 +41,21 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
 
   const [pelangganId, setPelangganId] = useState<string>('')
   const [namaPelanggan, setNamaPelanggan] = useState('')
+
+  // Single source of truth for the picker's display label per pelanggan, so
+  // SelectItem's popup text and SelectValue's trigger text (which Base UI does
+  // not derive from rendered children — it shows the raw value unless given an
+  // explicit label) can't drift apart.
+  const pelangganLabel = useCallback(
+    (p: Pelanggan) =>
+      `${p.nama}${p.alamat ? ` — ${p.alamat}` : ''} (${p.tipe === 'grosir' ? 'Grosir' : 'Retail'})`,
+    []
+  )
+  const pelangganLabelsById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of pelangganList) map.set(p.id, pelangganLabel(p))
+    return map
+  }, [pelangganList, pelangganLabel])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [catatan, setCatatan] = useState('')
   const [tanggalPengiriman, setTanggalPengiriman] = useState('')
@@ -171,24 +193,30 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           <h3 className="font-medium">Pelanggan</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Pilih dari daftar</Label>
-              <select
+              <Label htmlFor="pelanggan-id">Pilih dari daftar</Label>
+              <Select
                 value={pelangganId}
-                onChange={(e) => {
-                  setPelangganId(e.target.value)
-                  if (e.target.value) setNamaPelanggan('')
+                onValueChange={(value) => {
+                  setPelangganId(value ?? '')
+                  if (value) setNamaPelanggan('')
                 }}
-                className="w-full border rounded-md px-3 py-2 text-sm"
               >
-                <option value="">— Pilih pelanggan —</option>
-                {pelangganList.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nama}
-                    {p.alamat ? ` — ${p.alamat}` : ''} (
-                    {p.tipe === 'grosir' ? 'Grosir' : 'Retail'})
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="pelanggan-id" className="w-full">
+                  <SelectValue>
+                    {(value: string) =>
+                      value ? (pelangganLabelsById.get(value) ?? value) : '— Pilih pelanggan —'
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">— Pilih pelanggan —</SelectItem>
+                  {pelangganList.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {pelangganLabelsById.get(p.id)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Atau ketik nama langsung</Label>

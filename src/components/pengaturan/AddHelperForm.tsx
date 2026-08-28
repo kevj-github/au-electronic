@@ -5,6 +5,13 @@ import { createUser } from '@/app/(app)/pengaturan/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { setErrorFromResult } from '@/lib/action-result'
 
 export function AddHelperForm() {
@@ -44,15 +51,19 @@ export function AddHelperForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="role">Role</Label>
-        <select
-          id="role"
+        <Select
           name="role"
           defaultValue="helper"
-          className="w-full border rounded-md px-3 py-2 text-sm"
+          items={{ helper: 'Helper', owner: 'Owner' }}
         >
-          <option value="helper">Helper</option>
-          <option value="owner">Owner</option>
-        </select>
+          <SelectTrigger id="role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="helper">Helper</SelectItem>
+            <SelectItem value="owner">Owner</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={loading}>

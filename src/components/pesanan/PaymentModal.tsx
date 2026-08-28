@@ -82,7 +82,12 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="metode">Metode Pembayaran</Label>
-            <Select name="metode" defaultValue="tunai" required>
+            <Select
+              name="metode"
+              defaultValue="tunai"
+              items={{ tunai: 'Tunai', transfer: 'Transfer', lainnya: 'Lainnya' }}
+              required
+            >
               <SelectTrigger id="metode">
                 <SelectValue />
               </SelectTrigger>

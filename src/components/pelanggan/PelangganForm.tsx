@@ -7,6 +7,13 @@ import { Button } from '@/components/ui/button'
 import { setErrorFromResult } from '@/lib/action-result'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { Pelanggan } from '@/lib/types'
 
 interface PelangganFormProps {
@@ -57,15 +64,19 @@ export function PelangganForm({ pelanggan }: PelangganFormProps) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="tipe">Tipe Pelanggan</Label>
-        <select
-          id="tipe"
+        <Select
           name="tipe"
           defaultValue={pelanggan?.tipe ?? 'retail'}
-          className="w-full border rounded-md px-3 py-2 text-sm"
+          items={{ retail: 'Retail (B2B)', grosir: 'Grosir (B2C)' }}
         >
-          <option value="retail">Retail (B2B)</option>
-          <option value="grosir">Grosir (B2C)</option>
-        </select>
+          <SelectTrigger id="tipe">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="retail">Retail (B2B)</SelectItem>
+            <SelectItem value="grosir">Grosir (B2C)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
