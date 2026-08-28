@@ -48,18 +48,19 @@ export async function createPembayaran(
 export async function deletePembayaran(pembayaranId: string): Promise<ActionResult> {
   const supabase = await createClient()
 
-  const ownerError = await requireOwner(supabase)
-  if (ownerError) return ownerError
-
+  // requireOwner and the payment lookup are independent — run them concurrently.
   // Derive the parent pesanan from the payment row rather than trusting a
   // client-supplied id — the same rule the item actions follow. Here it decides
   // which path gets revalidated, so a stale value would refresh the wrong page.
-  const { data: pembayaran } = await supabase
-    .from('pembayaran')
-    .select('pesanan_id')
-    .eq('id', pembayaranId)
-    .single<{ pesanan_id: string }>()
-
+  const [ownerError, { data: pembayaran }] = await Promise.all([
+    requireOwner(supabase),
+    supabase
+      .from('pembayaran')
+      .select('pesanan_id')
+      .eq('id', pembayaranId)
+      .single<{ pesanan_id: string }>(),
+  ])
+  if (ownerError) return ownerError
   if (!pembayaran) return { error: 'Pembayaran tidak ditemukan.' }
 
   const { error } = await supabase.from('pembayaran').delete().eq('id', pembayaranId)
