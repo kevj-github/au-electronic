@@ -5,6 +5,13 @@ import { createPembayaran } from '@/app/(app)/pesanan/[id]/payment-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatThousandsInput, parseThousandsInput } from '@/lib/utils'
 import { setErrorFromResult } from '@/lib/action-result'
 import {
@@ -78,16 +85,16 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="metode">Metode Pembayaran</Label>
-            <select
-              id="metode"
-              name="metode"
-              className="w-full border rounded-md px-3 py-2 text-sm"
-              required
-            >
-              <option value="tunai">Tunai</option>
-              <option value="transfer">Transfer</option>
-              <option value="lainnya">Lainnya</option>
-            </select>
+            <Select name="metode" defaultValue="tunai" required>
+              <SelectTrigger id="metode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tunai">Tunai</SelectItem>
+                <SelectItem value="transfer">Transfer</SelectItem>
+                <SelectItem value="lainnya">Lainnya</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="dibayar_pada">Tanggal Bayar</Label>
