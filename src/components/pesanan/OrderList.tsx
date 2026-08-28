@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { parseISO, startOfDay, endOfDay } from 'date-fns'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -133,16 +134,17 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
               aria-label="Sampai tanggal"
             />
             {(dateFrom || dateTo) && (
-              <button
+              <Button
                 type="button"
+                variant="link"
                 onClick={() => {
                   setDateFrom('')
                   setDateTo('')
                 }}
-                className="text-xs text-muted-foreground hover:text-foreground underline"
+                className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground underline"
               >
                 Reset
-              </button>
+              </Button>
             )}
           </div>
         </>

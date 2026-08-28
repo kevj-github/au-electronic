@@ -169,4 +169,18 @@ describe('OrderList date filtering', () => {
 
     expect(visibleCodes()).toEqual(['AU.2026.09.00003'])
   })
+
+  it('clears the date range via Reset', async () => {
+    const user = userEvent.setup()
+    render(<OrderList rows={dated} isOwner />)
+
+    await setDates('2026-08-01', '2026-08-31')
+    expect(visibleCodes()).toEqual(['AU.2026.08.00002'])
+
+    await user.click(screen.getByRole('button', { name: 'Reset' }))
+
+    expect(screen.getByLabelText('Dari tanggal')).toHaveValue('')
+    expect(screen.getByLabelText('Sampai tanggal')).toHaveValue('')
+    expect(visibleCodes()).toHaveLength(3)
+  })
 })
