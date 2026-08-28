@@ -5,26 +5,18 @@ import { Lock, Unlock } from 'lucide-react'
 import { setPesananLocked } from '@/app/(app)/pengaturan/actions'
 import { Button } from '@/components/ui/button'
 import { setErrorFromResult } from '@/lib/action-result'
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
 
 interface PesananLockToggleProps {
   locked: boolean
 }
 
 export function PesananLockToggle({ locked: initialLocked }: PesananLockToggleProps) {
-  const [locked, setLocked] = useState(initialLocked)
+  // RealtimeRefresh (mounted on this page for the `users` table) can push a
+  // fresh `locked` prop from another device's toggle — resync to it.
+  const [locked, setLocked] = usePropSyncedState(initialLocked, (v) => v)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // Drop the stale mount-time value when RealtimeRefresh (mounted on this page
-  // for the `users` table) pushes a fresh `locked` prop from another device's
-  // toggle — a useState initialiser only runs once, so without this the
-  // button keeps showing a stale locked/unlocked state until this component's
-  // own toggle happens to overwrite it.
-  const [prevInitialLocked, setPrevInitialLocked] = useState(initialLocked)
-  if (initialLocked !== prevInitialLocked) {
-    setPrevInitialLocked(initialLocked)
-    setLocked(initialLocked)
-  }
 
   async function handleToggle() {
     setLoading(true)

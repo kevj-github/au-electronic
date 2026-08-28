@@ -7,28 +7,21 @@ import { connectQz } from '@/lib/qz'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { setErrorFromResult } from '@/lib/action-result'
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
 
 interface EpsonPrinterSettingProps {
   name: string
 }
 
 export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingProps) {
-  const [name, setName] = useState(initialName)
+  // RealtimeRefresh (mounted on this page for the `users` table) can push a
+  // fresh `name` prop from another device's save — resync to it.
+  const [name, setName] = usePropSyncedState(initialName, (v) => v)
   const [printers, setPrinters] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [detecting, setDetecting] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  // Drop the stale mount-time value when RealtimeRefresh (mounted on this page
-  // for the `users` table) pushes a fresh `name` prop from another device's
-  // save — a useState initialiser only runs once, so without this the field
-  // keeps showing the old printer name and a later Simpan click reverts it.
-  const [prevInitialName, setPrevInitialName] = useState(initialName)
-  if (initialName !== prevInitialName) {
-    setPrevInitialName(initialName)
-    setName(initialName)
-  }
 
   async function handleDetect() {
     setError(null)
