@@ -12,11 +12,14 @@ export async function createPembayaran(
 ): Promise<ActionResult> {
   const supabase = await createClient()
 
-  const ownerError = await requireOwner(supabase)
+  // requireOwner and the auth lookup are independent — run them concurrently,
+  // as deletePembayaran below already does. authUser is still needed for
+  // dicatat_oleh; requireOwner already rejects anonymous callers.
+  const [ownerError, { data: { user: authUser } }] = await Promise.all([
+    requireOwner(supabase),
+    supabase.auth.getUser(),
+  ])
   if (ownerError) return ownerError
-
-  // Still needed for dicatat_oleh; requireOwner already rejected anonymous callers.
-  const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
   const jumlah = Number(formData.get('jumlah'))
