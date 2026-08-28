@@ -45,7 +45,7 @@ export function PelangganForm({ pelanggan }: PelangganFormProps) {
           aria-invalid={namaError ? true : undefined}
           onChange={() => namaError && setNamaError(null)}
         />
-        {namaError && <p className="text-sm text-red-500">{namaError}</p>}
+        {namaError && <p className="text-sm text-destructive">{namaError}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="telepon">Nomor Telepon</Label>
@@ -67,7 +67,7 @@ export function PelangganForm({ pelanggan }: PelangganFormProps) {
           <option value="grosir">Grosir (B2C)</option>
         </select>
       </div>
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
         <Button type="submit" disabled={loading}>
           {loading ? 'Menyimpan...' : 'Simpan'}

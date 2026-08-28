@@ -106,7 +106,7 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
             <Label htmlFor="catatan">Catatan (opsional)</Label>
             <Input id="catatan" name="catatan" placeholder="Catatan..." />
           </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Batal

@@ -54,7 +54,7 @@ export function AddHelperForm() {
           <option value="owner">Owner</option>
         </select>
       </div>
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={loading}>
         {loading ? 'Menyimpan...' : 'Tambah Akun'}
       </Button>

@@ -306,7 +306,7 @@ export default async function PesananDetailPage({
               totalPesanan === 0 && pembayaranList.length === 0
                 ? 'text-muted-foreground text-sm font-normal'
                 : sisaTagihan === 0
-                  ? 'text-green-600 inline-flex items-center gap-1'
+                  ? 'text-success inline-flex items-center gap-1'
                   : 'font-mono'
             }>
               {totalPesanan === 0 && pembayaranList.length === 0 ? (

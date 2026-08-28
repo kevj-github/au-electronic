@@ -36,7 +36,7 @@ export function PesananLockToggle({ locked: initialLocked }: PesananLockTogglePr
             ? 'Helper tidak dapat membuat pesanan baru saat ini.'
             : 'Helper dapat membuat pesanan baru.'}
         </p>
-        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        {error && <p className="text-xs text-destructive mt-1">{error}</p>}
       </div>
       <Button
         type="button"

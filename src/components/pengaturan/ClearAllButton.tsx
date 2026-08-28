@@ -69,7 +69,7 @@ export function ClearAllButton({ label, description, action }: ClearAllButtonPro
                 Apakah Anda benar-benar yakin?
               </AlertDialogDescription>
             </AlertDialogHeader>
-            {error && <p className="text-sm text-red-500 px-1">{error}</p>}
+            {error && <p className="text-sm text-destructive px-1">{error}</p>}
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setStep(1)} disabled={loading}>
                 Batal

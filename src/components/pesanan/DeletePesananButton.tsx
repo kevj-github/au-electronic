@@ -19,7 +19,7 @@ export function DeletePesananButton({ pesananId }: DeletePesananButtonProps) {
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 w-7 p-0 text-red-400 hover:text-red-600 shrink-0"
+          className="h-7 w-7 p-0 text-destructive/70 hover:text-destructive shrink-0"
           aria-label="Hapus pesanan"
         />
       }

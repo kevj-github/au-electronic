@@ -23,7 +23,7 @@ function TagihanText({ tagihan }: { tagihan: TagihanState }) {
     )
   }
   if (tagihan.kind === 'sisa') return <>{formatRupiah(tagihan.amount)}</>
-  return <span className="text-green-600 font-medium">Lunas</span>
+  return <span className="text-success font-medium">Lunas</span>
 }
 
 interface OrderListRowProps {

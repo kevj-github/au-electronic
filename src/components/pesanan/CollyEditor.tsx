@@ -56,7 +56,7 @@ export function CollyEditor({ pesananId, initialValue, locked }: CollyEditorProp
         className="border rounded-md px-2 py-1 text-sm h-8 w-20 disabled:opacity-50"
         aria-label="Colly"
       />
-      {error && <span className="text-xs text-red-500">{error}</span>}
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </>
   )
 }

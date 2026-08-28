@@ -175,7 +175,7 @@ function ItemRowDesktopImpl({
               <button
                 type="button"
                 onClick={() => onStartDelete(item.id)}
-                className="p-1 rounded hover:bg-muted text-red-400 hover:text-red-600"
+                className="p-1 rounded hover:bg-muted text-destructive/70 hover:text-destructive"
                 aria-label="Hapus item"
               >
                 <Trash2 className="size-3.5" />

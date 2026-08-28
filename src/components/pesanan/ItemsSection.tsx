@@ -249,7 +249,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
 
   return (
     <div className="space-y-3">
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {/* Mobile: card list */}
       <div className="space-y-2 sm:hidden">

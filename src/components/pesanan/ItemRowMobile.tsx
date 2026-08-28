@@ -169,7 +169,7 @@ function ItemRowMobileImpl({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                    className="h-7 w-7 p-0 text-destructive hover:text-destructive/80"
                     onClick={() => onStartDelete(item.id)}
                     aria-label="Hapus item"
                   >

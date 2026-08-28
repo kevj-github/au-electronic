@@ -275,7 +275,7 @@ export function DocumentButtons({ pesananId, data, belumDicekCount }: DocumentBu
           {copying ? 'Disalin!' : 'Copy WhatsApp'}
         </Button>
       </div>
-      {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+      {error && <p className="text-sm text-destructive mt-2">{error}</p>}
     </div>
   )
 }

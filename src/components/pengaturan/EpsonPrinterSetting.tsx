@@ -89,8 +89,8 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
           ))}
         </div>
       )}
-      {status && <p className="text-xs text-green-600">{status}</p>}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {status && <p className="text-xs text-success">{status}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )
 }

@@ -71,7 +71,7 @@ function OrderLineItemImpl({ item, isOwner, onChange, onRemove, autoFocus }: Ord
           type="button"
           variant="ghost"
           size="sm"
-          className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
+          className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
           onClick={() => onRemove(item.id)}
           aria-label={`Hapus ${item.nama_barang}`}
         >
@@ -111,7 +111,7 @@ function OrderLineItemCardImpl({ item, isOwner, onChange, onRemove, autoFocus }:
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 shrink-0"
+          className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 shrink-0"
           onClick={() => onRemove(item.id)}
           aria-label={`Hapus ${item.nama_barang}`}
         >

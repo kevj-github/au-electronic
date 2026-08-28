@@ -113,7 +113,7 @@ export default async function DashboardPage({
         </div>
         <div className="border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">Total Piutang</p>
-          <p className="text-2xl font-semibold mt-1 text-red-600">
+          <p className="text-2xl font-semibold mt-1 text-destructive">
             {formatRupiah(totalPiutang)}
           </p>
         </div>

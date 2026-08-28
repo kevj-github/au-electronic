@@ -345,7 +345,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           </div>
         )}
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="space-y-1.5">
           <div className="flex gap-2">

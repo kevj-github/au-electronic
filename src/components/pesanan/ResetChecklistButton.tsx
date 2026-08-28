@@ -63,7 +63,7 @@ export function ResetChecklistButton({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {error && <span className="text-xs text-red-500">{error}</span>}
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </span>
   )
 }

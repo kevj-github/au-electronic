@@ -88,7 +88,7 @@ function ConfirmStatusButton({
           <AlertDialogTitle>{copy.title}</AlertDialogTitle>
           <AlertDialogDescription>{copy.description}</AlertDialogDescription>
         </AlertDialogHeader>
-        {error && <p className="text-sm text-red-500 px-1">{error}</p>}
+        {error && <p className="text-sm text-destructive px-1">{error}</p>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>Batal</AlertDialogCancel>
           <Button
