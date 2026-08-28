@@ -23,7 +23,14 @@ const pelangganList: Pelanggan[] = [
   },
 ]
 
-describe('OrderForm pelanggan select reopen (debug)', () => {
+/**
+ * Pins the pelanggan Select's reopen behavior — a second open/close cycle was
+ * suspected to be broken (aria-expanded stuck at "false" after a close), but
+ * extensive retesting across ~10 jsdom repros (bare Select, inside a Dialog,
+ * the real PaymentModal and OrderForm instances) could not reproduce it. See
+ * memory `project_select_reopen_bug.md` for the full investigation.
+ */
+describe('OrderForm pelanggan select reopen', () => {
   it('reopens after a pick, with waitFor on close first', async () => {
     const user = userEvent.setup()
     render(<OrderForm pelangganList={pelangganList} isOwner />)

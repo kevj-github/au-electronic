@@ -47,14 +47,8 @@ describe('OrderForm pelanggan select', () => {
     expect(namaField).toBeDisabled()
   })
 
-  // A second open/select cycle on the same Select instance (e.g. reopening to
-  // pick "— Pilih pelanggan —" again) could not be made to pass in this jsdom
-  // environment — the trigger's aria-expanded stays "false" on the second
-  // click regardless of how it was closed (Escape, item pick, no selection at
-  // all), reproduced even in a minimal Select with no app code involved. Not
-  // yet established whether this is a real Base UI Select limitation or a
-  // jsdom/floating-ui environment gap (ResizeObserver/IntersectionObserver
-  // polyfills did not fix it). See memory for the investigation so far —
-  // needs a real-browser check before trusting either the component or a test
-  // for this path.
+  // A second open/select cycle on this Select instance is covered separately
+  // in OrderForm.pelanggan-select-reopen.test.tsx — a reopen was suspected to
+  // be broken but could not be reproduced; see that file and memory
+  // `project_select_reopen_bug.md` for the investigation.
 })
