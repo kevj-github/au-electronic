@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { createPesanan } from '@/app/(app)/pesanan/order-lifecycle-actions'
@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { formatRupiah, parseIntOrZero } from '@/lib/utils'
 import { setErrorFromResult } from '@/lib/action-result'
+import { usePelangganAutocomplete } from '@/hooks/use-pelanggan-autocomplete'
 import type { Pelanggan } from '@/lib/types'
 
 interface OrderFormProps {
@@ -39,24 +40,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const [pelangganId, setPelangganId] = useState<string>('')
-  const [namaPelanggan, setNamaPelanggan] = useState('')
-
-  // Single source of truth for the picker's display label per pelanggan, so
-  // SelectItem's popup text and SelectValue's trigger text (which Base UI does
-  // not derive from rendered children — it shows the raw value unless given an
-  // explicit label) can't drift apart.
-  const pelangganLabel = useCallback(
-    (p: Pelanggan) =>
-      `${p.nama}${p.alamat ? ` — ${p.alamat}` : ''} (${p.tipe === 'grosir' ? 'Grosir' : 'Retail'})`,
-    []
-  )
-  const pelangganLabelsById = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const p of pelangganList) map.set(p.id, pelangganLabel(p))
-    return map
-  }, [pelangganList, pelangganLabel])
-  const [showSuggestions, setShowSuggestions] = useState(false)
+  const pelanggan = usePelangganAutocomplete(pelangganList)
   const [catatan, setCatatan] = useState('')
   const [tanggalPengiriman, setTanggalPengiriman] = useState('')
   const [items, setItems] = useState<LineItem[]>([])
@@ -65,8 +49,8 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
 
   const isDirty =
     items.length > 0 ||
-    namaPelanggan.trim() !== '' ||
-    pelangganId !== '' ||
+    pelanggan.namaPelanggan.trim() !== '' ||
+    pelanggan.pelangganId !== '' ||
     catatan.trim() !== '' ||
     tanggalPengiriman !== ''
 
@@ -141,36 +125,17 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           : hasInvalidQty
             ? 'Isi jumlah (qty) minimal 1 untuk setiap baris.'
             : null
-  const pelangganSuggestions = useMemo(() => {
-    const q = namaPelanggan.trim().toLowerCase()
-    if (!q || pelangganId) return []
-
-    return pelangganList
-      .filter((p) => p.nama.toLowerCase().includes(q))
-      .sort((a, b) => {
-        const aStarts = a.nama.toLowerCase().startsWith(q) ? 0 : 1
-        const bStarts = b.nama.toLowerCase().startsWith(q) ? 0 : 1
-        return aStarts - bStarts || a.nama.localeCompare(b.nama)
-      })
-      .slice(0, 8)
-  }, [namaPelanggan, pelangganId, pelangganList])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const namaInput = namaPelanggan.trim()
-    const matchedPelanggan = !pelangganId
-      ? pelangganList.find(
-          (p) => p.nama.trim().toLowerCase() === namaInput.toLowerCase()
-        )
-      : null
-    const resolvedPelangganId = pelangganId || matchedPelanggan?.id || null
+    const { pelanggan_id, nama_pelanggan } = pelanggan.resolve()
 
     const result = await createPesanan({
-      pelanggan_id: resolvedPelangganId,
-      nama_pelanggan: resolvedPelangganId ? null : namaInput || null,
+      pelanggan_id,
+      nama_pelanggan,
       catatan: catatan || null,
       tanggal_pengiriman: isOwner ? tanggalPengiriman || null : null,
       items: items.map((i) => ({
@@ -194,17 +159,11 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="pelanggan-id">Pilih dari daftar</Label>
-              <Select
-                value={pelangganId}
-                onValueChange={(value) => {
-                  setPelangganId(value ?? '')
-                  if (value) setNamaPelanggan('')
-                }}
-              >
+              <Select value={pelanggan.pelangganId} onValueChange={pelanggan.selectPelanggan}>
                 <SelectTrigger id="pelanggan-id" className="w-full">
                   <SelectValue>
                     {(value: string) =>
-                      value ? (pelangganLabelsById.get(value) ?? value) : '— Pilih pelanggan —'
+                      value ? pelanggan.labelFor(value) : '— Pilih pelanggan —'
                     }
                   </SelectValue>
                 </SelectTrigger>
@@ -212,7 +171,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
                   <SelectItem value="">— Pilih pelanggan —</SelectItem>
                   {pelangganList.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {pelangganLabelsById.get(p.id)}
+                      {pelanggan.labelFor(p.id)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -222,37 +181,25 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
               <Label>Atau ketik nama langsung</Label>
               <div className="relative">
                 <Input
-                  value={namaPelanggan}
-                  onChange={(e) => {
-                    setNamaPelanggan(e.target.value)
-                    if (e.target.value) {
-                      setPelangganId('')
-                      setShowSuggestions(true)
-                    } else {
-                      setShowSuggestions(false)
-                    }
-                  }}
-                  onFocus={() => {
-                    if (namaPelanggan.trim()) setShowSuggestions(true)
-                  }}
-                  onBlur={() => setShowSuggestions(false)}
+                  value={pelanggan.namaPelanggan}
+                  onChange={(e) => pelanggan.onNamaPelangganChange(e.target.value)}
+                  onFocus={pelanggan.onNamaPelangganFocus}
+                  onBlur={pelanggan.onNamaPelangganBlur}
                   placeholder="Nama pelanggan baru..."
-                  disabled={!!pelangganId}
+                  disabled={!!pelanggan.pelangganId}
                   autoComplete="off"
                 />
 
-                {showSuggestions && pelangganSuggestions.length > 0 && (
+                {pelanggan.showSuggestions && pelanggan.suggestions.length > 0 && (
                   <div className="absolute z-20 mt-1 w-full rounded-md border bg-background shadow-md">
                     <ul className="max-h-56 overflow-auto py-1">
-                      {pelangganSuggestions.map((p) => (
+                      {pelanggan.suggestions.map((p) => (
                         <li key={p.id}>
                           <button
                             type="button"
                             onMouseDown={(e) => {
                               e.preventDefault()
-                              setPelangganId(p.id)
-                              setNamaPelanggan('')
-                              setShowSuggestions(false)
+                              pelanggan.selectSuggestion(p)
                             }}
                             className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
                           >
