@@ -12,7 +12,7 @@ import type { Pelanggan } from '@/lib/types'
  * to an empty pelangganId (re-enabling the free-text field).
  */
 
-vi.mock('@/app/(app)/pesanan/actions', () => ({
+vi.mock('@/app/(app)/pesanan/order-lifecycle-actions', () => ({
   createPesanan: vi.fn(async () => ({ pesananId: 'p1' })),
 }))
 

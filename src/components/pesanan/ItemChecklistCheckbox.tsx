@@ -2,7 +2,7 @@
 
 import { memo, useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
-import { toggleItemDicekOwner } from '@/app/(app)/pesanan/actions'
+import { toggleItemDicekOwner } from '@/app/(app)/pesanan/item-mutation-actions'
 
 interface ItemChecklistCheckboxProps {
   itemId: string

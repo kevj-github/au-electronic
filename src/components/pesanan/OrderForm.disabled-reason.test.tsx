@@ -10,7 +10,7 @@ import { OrderForm } from './OrderForm'
  * since both layouts render the same fields with the same labels.
  */
 
-vi.mock('@/app/(app)/pesanan/actions', () => ({
+vi.mock('@/app/(app)/pesanan/order-lifecycle-actions', () => ({
   createPesanan: vi.fn(async () => ({ pesananId: 'p1' })),
 }))
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { updatePengiriman } from '@/app/(app)/pesanan/actions'
+import { updatePengiriman } from '@/app/(app)/pesanan/order-lifecycle-actions'
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
 
 interface PengirimanEditorProps {

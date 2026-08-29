@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { OrderForm } from './OrderForm'
 import type { Pelanggan } from '@/lib/types'
 
-vi.mock('@/app/(app)/pesanan/actions', () => ({
+vi.mock('@/app/(app)/pesanan/order-lifecycle-actions', () => ({
   createPesanan: vi.fn(async () => ({ pesananId: 'p1' })),
 }))
 

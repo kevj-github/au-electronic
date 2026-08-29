@@ -32,7 +32,7 @@ vi.mock('@/components/ui/input', () => ({
   },
 }))
 
-vi.mock('@/app/(app)/pesanan/actions', () => ({
+vi.mock('@/app/(app)/pesanan/order-lifecycle-actions', () => ({
   createPesanan: vi.fn(async () => ({ pesananId: 'p1' })),
 }))
 

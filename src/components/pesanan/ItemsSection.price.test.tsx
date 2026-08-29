@@ -17,7 +17,7 @@ import { ItemsSection } from './ItemsSection'
 
 const updateItemHarga = vi.fn<(id: string, harga: number) => Promise<{ error?: string }>>()
 
-vi.mock('@/app/(app)/pesanan/actions', () => ({
+vi.mock('@/app/(app)/pesanan/item-mutation-actions', () => ({
   addItemToPesanan: vi.fn(async () => ({})),
   updateItemDetails: vi.fn(async () => ({})),
   deleteItemFromPesanan: vi.fn(async () => ({})),

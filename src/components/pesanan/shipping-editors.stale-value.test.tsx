@@ -18,7 +18,7 @@ const updateColly = vi.fn(async () => ({}) as { error?: string })
 const updatePengiriman = vi.fn(async () => ({}) as { error?: string })
 const updateTanggalPengiriman = vi.fn(async () => ({}) as { error?: string })
 
-vi.mock('@/app/(app)/pesanan/actions', () => ({
+vi.mock('@/app/(app)/pesanan/order-lifecycle-actions', () => ({
   updateColly: (...a: unknown[]) => updateColly(...(a as [])),
   updatePengiriman: (...a: unknown[]) => updatePengiriman(...(a as [])),
   updateTanggalPengiriman: (...a: unknown[]) => updateTanggalPengiriman(...(a as [])),

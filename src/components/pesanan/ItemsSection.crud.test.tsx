@@ -16,7 +16,7 @@ const updateItemDetails = vi.fn(async () => ({}) as { error?: string })
 const deleteItemFromPesanan = vi.fn(async () => ({}) as { error?: string })
 const addItemToPesanan = vi.fn(async () => ({}) as { error?: string })
 
-vi.mock('@/app/(app)/pesanan/actions', () => ({
+vi.mock('@/app/(app)/pesanan/item-mutation-actions', () => ({
   addItemToPesanan: (...a: unknown[]) => addItemToPesanan(...(a as [])),
   updateItemDetails: (...a: unknown[]) => updateItemDetails(...(a as [])),
   deleteItemFromPesanan: (...a: unknown[]) => deleteItemFromPesanan(...(a as [])),

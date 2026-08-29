@@ -3,7 +3,7 @@
 import { memo, useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
-import { setItemJumlahDiambil } from '@/app/(app)/pesanan/actions'
+import { setItemJumlahDiambil } from '@/app/(app)/pesanan/item-mutation-actions'
 
 interface HelperItemChecklistProps {
   itemId: string

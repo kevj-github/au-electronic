@@ -6,7 +6,7 @@ import { id as idLocale } from 'date-fns/locale'
 import { Printer, Copy, Check, Eye, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatWhatsapp } from '@/components/invoice/whatsapp'
-import { getInvoiceData } from '@/app/(app)/pesanan/actions'
+import { getInvoiceData } from '@/app/(app)/pesanan/order-lifecycle-actions'
 import { getEpsonPrinterName } from '@/app/(app)/pengaturan/actions'
 import type { InvoiceData } from '@/lib/invoice-data'
 

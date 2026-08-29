@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
-import { deletePesanan } from '@/app/(app)/pesanan/actions'
+import { deletePesanan } from '@/app/(app)/pesanan/order-lifecycle-actions'
 import { Button } from '@/components/ui/button'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 

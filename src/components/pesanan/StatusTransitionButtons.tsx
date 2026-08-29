@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { updateStatusPesanan } from '@/app/(app)/pesanan/actions'
+import { updateStatusPesanan } from '@/app/(app)/pesanan/order-lifecycle-actions'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,

@@ -58,7 +58,7 @@ vi.mock('@/components/ui/input', () => ({
   },
 }))
 
-vi.mock('@/app/(app)/pesanan/actions', () => ({
+vi.mock('@/app/(app)/pesanan/item-mutation-actions', () => ({
   addItemToPesanan: vi.fn(async () => ({})),
   updateItemDetails: vi.fn(async () => ({})),
   deleteItemFromPesanan: vi.fn(async () => ({})),

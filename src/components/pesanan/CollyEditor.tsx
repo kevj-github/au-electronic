@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { updateColly } from '@/app/(app)/pesanan/actions'
+import { updateColly } from '@/app/(app)/pesanan/order-lifecycle-actions'
 import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
 import { setErrorFromResult } from '@/lib/action-result'
 
