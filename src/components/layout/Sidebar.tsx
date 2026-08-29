@@ -2,23 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ClipboardList, Users, LayoutDashboard, Settings, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { cn, isActiveRoute } from '@/lib/utils'
+import { navItems } from '@/lib/nav-items'
 import type { UserRole } from '@/lib/types'
-
-interface NavItem {
-  href: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  roles: UserRole[]
-}
-
-const navItems: NavItem[] = [
-  { href: '/pesanan', label: 'Pesanan', icon: ClipboardList, roles: ['owner', 'helper'] },
-  { href: '/pelanggan', label: 'Pelanggan', icon: Users, roles: ['owner'] },
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['owner'] },
-  { href: '/pengaturan', label: 'Pengaturan', icon: Settings, roles: ['owner'] },
-]
 
 interface SidebarProps {
   role: UserRole
