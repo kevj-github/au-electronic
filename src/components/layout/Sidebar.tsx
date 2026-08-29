@@ -53,7 +53,7 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
           <button
             type="button"
             onClick={onClose}
-            className="md:hidden p-1 text-muted-foreground hover:text-foreground"
+            className="md:hidden p-1 rounded-md border border-transparent text-muted-foreground outline-none hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             aria-label="Tutup menu"
           >
             <X className="size-5" />
@@ -72,7 +72,7 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
                   onClick={onClose}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent text-sm font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
                     active
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'

@@ -27,7 +27,7 @@ export function TopBar({ title, onMenuClick }: TopBarProps) {
         <button
           type="button"
           onClick={onMenuClick}
-          className="md:hidden p-1.5 -ml-1.5 text-muted-foreground hover:text-foreground"
+          className="md:hidden p-1.5 -ml-1.5 rounded-md border border-transparent text-muted-foreground outline-none hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-label="Buka menu"
         >
           <Menu className="size-5" />
