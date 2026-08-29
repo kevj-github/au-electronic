@@ -20,7 +20,11 @@ export default async function PengaturanPage() {
 
   const supabase = await createClient()
   const [{ data: userList }, { data: lockSetting }, { data: epsonSetting }] = await Promise.all([
-    supabase.from('users').select('*').order('created_at', { ascending: true }).returns<User[]>(),
+    supabase
+      .from('users')
+      .select('id, nama, email, role')
+      .order('created_at', { ascending: true })
+      .returns<Pick<User, 'id' | 'nama' | 'email' | 'role'>[]>(),
     supabase.from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>(),
     supabase.from('settings').select('value').eq('key', 'epson_printer_name').single<{ value: string }>(),
   ])
