@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals } from './utils'
+import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute } from './utils'
 
 describe('formatRupiah', () => {
   it('formats zero', () => {
@@ -119,5 +119,27 @@ describe('orderTotals', () => {
       totalPesanan: 0,
       totalDibayar: 0,
     })
+  })
+})
+
+describe('isActiveRoute', () => {
+  it('matches an exact path', () => {
+    expect(isActiveRoute('/pesanan', '/pesanan')).toBe(true)
+  })
+
+  it('matches a sub-path', () => {
+    expect(isActiveRoute('/pesanan/123', '/pesanan')).toBe(true)
+  })
+
+  it('does not match a sibling path with a shared prefix', () => {
+    expect(isActiveRoute('/pesananan', '/pesanan')).toBe(false)
+  })
+
+  it('does not match an unrelated path', () => {
+    expect(isActiveRoute('/pelanggan', '/pesanan')).toBe(false)
+  })
+
+  it('does not match the root against a nested href', () => {
+    expect(isActiveRoute('/', '/pesanan')).toBe(false)
   })
 })

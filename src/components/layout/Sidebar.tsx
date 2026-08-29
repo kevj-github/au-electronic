@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ClipboardList, Users, LayoutDashboard, Settings, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, isActiveRoute } from '@/lib/utils'
 import type { UserRole } from '@/lib/types'
 
 interface NavItem {
@@ -64,7 +64,7 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
             .filter((item) => item.roles.includes(role))
             .map((item) => {
               const Icon = item.icon
-              const active = pathname === item.href || pathname.startsWith(item.href + '/')
+              const active = isActiveRoute(pathname, item.href)
               return (
                 <Link
                   key={item.href}

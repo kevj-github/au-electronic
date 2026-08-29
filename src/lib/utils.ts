@@ -48,6 +48,11 @@ export function formatThousandsInput(raw: string): string {
   return Number(digits).toLocaleString('id-ID')
 }
 
+/** True if `pathname` is `href` or a sub-path of it (e.g. "/pesanan/123" matches "/pesanan"). */
+export function isActiveRoute(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(href + '/')
+}
+
 /**
  * Order money totals derived from its nested items and payments. The same pair
  * of reduces was previously copy-pasted across the dashboard and OrderList;
