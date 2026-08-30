@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, listCountNotice } from './utils'
+import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, listCountNotice, escapeIlike } from './utils'
 
 describe('formatRupiah', () => {
   it('formats zero', () => {
@@ -145,6 +145,24 @@ describe('listCountNotice', () => {
     expect(listCountNotice(612, 500, 'pelanggan terdaftar')).toBe(
       '612 pelanggan terdaftar — menampilkan 500',
     )
+  })
+})
+
+describe('escapeIlike', () => {
+  it('leaves plain text untouched', () => {
+    expect(escapeIlike('toko satu')).toBe('toko satu')
+  })
+
+  it('escapes a literal percent sign', () => {
+    expect(escapeIlike('50%')).toBe('50\\%')
+  })
+
+  it('escapes a literal underscore', () => {
+    expect(escapeIlike('AU_2026')).toBe('AU\\_2026')
+  })
+
+  it('escapes multiple wildcards in one string', () => {
+    expect(escapeIlike('%_%')).toBe('\\%\\_\\%')
   })
 })
 

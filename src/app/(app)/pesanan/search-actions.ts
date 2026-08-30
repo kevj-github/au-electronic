@@ -4,15 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { getRole } from '@/lib/pesanan-guards'
 import { pesananListSelect } from '@/lib/pesanan-select'
 import { toOrderRows, type OrderRow, type PesananWithRelations } from '@/components/pesanan/order-row'
+import { escapeIlike } from '@/lib/utils'
 import type { ActionResult } from '@/lib/action-result'
 import type { StatusPesanan } from '@/lib/types'
 
 const SEARCH_RESULT_LIMIT = 50
-
-/** Escapes ilike's own wildcards so a literal `%`/`_` in the query matches literally. */
-function escapeIlike(raw: string): string {
-  return raw.replace(/[%_]/g, '\\$&')
-}
 
 /**
  * Full-table fallback for when a search on /pesanan misses because the match

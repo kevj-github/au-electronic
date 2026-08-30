@@ -2,15 +2,11 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
+import { escapeIlike } from '@/lib/utils'
 import type { ActionResult } from '@/lib/action-result'
 import type { Pelanggan, TipePelanggan } from '@/lib/types'
 
 const SEARCH_RESULT_LIMIT = 50
-
-/** Escapes ilike's own wildcards so a literal `%`/`_` in the query matches literally. */
-function escapeIlike(raw: string): string {
-  return raw.replace(/[%_]/g, '\\$&')
-}
 
 /**
  * Full-table fallback for /pelanggan search past `PELANGGAN_LIST_LIMIT` (500
