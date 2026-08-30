@@ -135,7 +135,12 @@ export default async function DashboardPage({
                 Menampilkan {piutangRows.length} tagihan terlama dari {unpaidCount}.
               </p>
             )}
-            <OrderList rows={piutangRows} isOwner />
+            {/* `truncated={false}`: OrderList's "cari di semua pesanan" fallback
+                searches the whole pesanan table regardless of payment status,
+                which would be wrong here — this list is already scoped to
+                unpaid orders, not the 500-most-recent-orders cap the fallback
+                exists for. `piutangTruncated` above covers this list's own cap. */}
+            <OrderList rows={piutangRows} isOwner truncated={false} />
           </>
         )}
       </div>

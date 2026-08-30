@@ -33,6 +33,9 @@ export default async function PelangganPage() {
   if (!user) redirect('/login')
   if (user.role !== 'owner') redirect('/pesanan')
 
+  const shown = pelangganList?.length ?? 0
+  const truncated = (pelangganCount ?? shown) > shown
+
   return (
     <div className="space-y-4">
       <RealtimeRefresh table="pelanggan" />
@@ -40,14 +43,14 @@ export default async function PelangganPage() {
         <div>
           <h2 className="text-lg font-semibold">Pelanggan</h2>
           <p className="text-sm text-muted-foreground">
-            {listCountNotice(pelangganCount, pelangganList?.length ?? 0, 'pelanggan terdaftar')}
+            {listCountNotice(pelangganCount, shown, 'pelanggan terdaftar')}
           </p>
         </div>
         <Link href="/pelanggan/baru">
           <Button>+ Tambah Pelanggan</Button>
         </Link>
       </div>
-      <PelangganList pelangganList={pelangganList ?? []} />
+      <PelangganList pelangganList={pelangganList ?? []} truncated={truncated} />
     </div>
   )
 }

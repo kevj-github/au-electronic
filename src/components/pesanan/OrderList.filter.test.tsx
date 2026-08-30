@@ -72,7 +72,7 @@ const ROWS = [
 
 describe('OrderList search', () => {
   it('matches on order code', async () => {
-    render(<OrderList rows={ROWS} isOwner />)
+    render(<OrderList rows={ROWS} isOwner truncated={false} />)
 
     await search('00002')
 
@@ -80,7 +80,7 @@ describe('OrderList search', () => {
   })
 
   it('matches on customer name, case-insensitively', async () => {
-    render(<OrderList rows={ROWS} isOwner />)
+    render(<OrderList rows={ROWS} isOwner truncated={false} />)
 
     await search('SUMBER')
 
@@ -88,7 +88,7 @@ describe('OrderList search', () => {
   })
 
   it('does not match across the kode/nama boundary', async () => {
-    render(<OrderList rows={ROWS} isOwner />)
+    render(<OrderList rows={ROWS} isOwner truncated={false} />)
 
     // "00001 Toko" is a substring of a naive `kode + ' ' + nama` haystack but
     // matches neither field on its own, so it must find nothing.
@@ -98,7 +98,7 @@ describe('OrderList search', () => {
   })
 
   it('shows everything when the query is cleared', async () => {
-    render(<OrderList rows={ROWS} isOwner />)
+    render(<OrderList rows={ROWS} isOwner truncated={false} />)
 
     await search('00002')
     await search('')
@@ -107,7 +107,7 @@ describe('OrderList search', () => {
   })
 
   it('finds nothing for a non-matching query', async () => {
-    render(<OrderList rows={ROWS} isOwner />)
+    render(<OrderList rows={ROWS} isOwner truncated={false} />)
 
     await search('zzzz')
 
@@ -115,7 +115,7 @@ describe('OrderList search', () => {
   })
 
   it('handles an order with no linked customer and no typed name', async () => {
-    render(<OrderList rows={ROWS} isOwner />)
+    render(<OrderList rows={ROWS} isOwner truncated={false} />)
 
     await search('00003')
 
@@ -137,7 +137,7 @@ describe('OrderList date filtering', () => {
   }
 
   it('keeps only orders inside the range', async () => {
-    render(<OrderList rows={dated} isOwner />)
+    render(<OrderList rows={dated} isOwner truncated={false} />)
 
     await setDates('2026-08-01', '2026-08-31')
 
@@ -145,7 +145,7 @@ describe('OrderList date filtering', () => {
   })
 
   it('treats the end date as inclusive to the end of that day', async () => {
-    render(<OrderList rows={dated} isOwner />)
+    render(<OrderList rows={dated} isOwner truncated={false} />)
 
     // The order is at 10:00 on the 10th; an exclusive bound would drop it.
     await setDates('2026-08-10', '2026-08-10')
@@ -154,7 +154,7 @@ describe('OrderList date filtering', () => {
   })
 
   it('applies a from-only bound', async () => {
-    render(<OrderList rows={dated} isOwner />)
+    render(<OrderList rows={dated} isOwner truncated={false} />)
 
     await setDates('2026-08-01', '')
 
@@ -162,7 +162,7 @@ describe('OrderList date filtering', () => {
   })
 
   it('combines the date range with the text query', async () => {
-    render(<OrderList rows={dated} isOwner />)
+    render(<OrderList rows={dated} isOwner truncated={false} />)
 
     await setDates('2026-07-01', '2026-09-30')
     await search('00003')
@@ -172,7 +172,7 @@ describe('OrderList date filtering', () => {
 
   it('clears the date range via Reset', async () => {
     const user = userEvent.setup()
-    render(<OrderList rows={dated} isOwner />)
+    render(<OrderList rows={dated} isOwner truncated={false} />)
 
     await setDates('2026-08-01', '2026-08-31')
     expect(visibleCodes()).toEqual(['AU.2026.08.00002'])

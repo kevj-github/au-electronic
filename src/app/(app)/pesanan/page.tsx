@@ -11,7 +11,7 @@ import { OrderList } from '@/components/pesanan/OrderList'
 // module, not from the `'use client'` OrderList.
 import { toOrderRows, type PesananWithRelations } from '@/components/pesanan/order-row'
 import { Button } from '@/components/ui/button'
-import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
+import { pesananListSelect } from '@/lib/pesanan-select'
 import { listCountNotice } from '@/lib/utils'
 
 /**
@@ -41,11 +41,9 @@ export default async function PesananPage() {
   // column can never reach the RSC payload, whereas `*` would ship catatan,
   // pengiriman, dibuat_oleh and tanggal_pengiriman to the browser even when the
   // UI hides them. Same defense-in-depth rule as the price columns — see the
-  // per-role selects in `[id]/page.tsx`.
-  // Embed sources come from lib/pesanan-select — see the rules encoded there.
-  const select = isOwner
-    ? `*, pelanggan(nama, alamat), ${itemsEmbed(true, 'subtotal, diambil_oleh_helper')}, ${pembayaranEmbed('jumlah')}`
-    : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), ${itemsEmbed(false, 'diambil_oleh_helper')}`
+  // per-role selects in `[id]/page.tsx`. Shared with searchPesananGlobal so the
+  // two selects can't drift apart on what a helper is allowed to see.
+  const select = pesananListSelect(isOwner)
 
   // `count: 'exact'` returns the true number of matching rows regardless of the
   // limit, so the header stays accurate even when the list is capped.
@@ -73,6 +71,11 @@ export default async function PesananPage() {
   // the RSC payload to render a handful of totals.
   const rows = toOrderRows(visiblePesananList, isOwner)
 
+  // Same "was the fetch capped" check listCountNotice makes internally — the
+  // list needs it as a boolean too, to offer a full-table search fallback
+  // when a local search misses because the match lives past the cap.
+  const truncated = (pesananCount ?? rows.length) > rows.length
+
   return (
     <div className="space-y-4">
       <RealtimeRefresh table="pesanan" />
@@ -89,7 +92,7 @@ export default async function PesananPage() {
           </Link>
         )}
       </div>
-      <OrderList rows={rows} isOwner={isOwner} />
+      <OrderList rows={rows} isOwner={isOwner} truncated={truncated} />
     </div>
   )
 }

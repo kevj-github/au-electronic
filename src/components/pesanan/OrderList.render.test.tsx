@@ -65,7 +65,7 @@ const ROWS = [
 describe('OrderList re-render cost', () => {
   it('typing a query that keeps every row in the results does not re-render other rows', async () => {
     const user = userEvent.setup()
-    render(<OrderList rows={ROWS} isOwner />)
+    render(<OrderList rows={ROWS} isOwner truncated={false} />)
 
     expect(deleteButtonRenders['AU.2026.08.00002']).toBeGreaterThan(0)
     const rendersBefore = deleteButtonRenders['AU.2026.08.00002']

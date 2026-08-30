@@ -10,6 +10,7 @@ import { FilterBar } from '@/components/ui/filter-bar'
 import { OrderRowCard, OrderRowTableRow } from './OrderListRow'
 import { useSearchable } from '@/hooks/use-searchable'
 import { usePagedList } from '@/hooks/use-paged-list'
+import { searchPesananGlobal } from '@/app/(app)/pesanan/search-actions'
 import type { StatusPesanan } from '@/lib/types'
 // Types only — erased at compile time, so importing them from the server-safe
 // module does not drag it into the client bundle. The functions that live there
@@ -30,6 +31,8 @@ export type {
 interface OrderListProps {
   rows: OrderRow[]
   isOwner: boolean
+  /** Whether `rows` was capped below the true row count (PESANAN_LIST_LIMIT). */
+  truncated: boolean
 }
 
 const statusOptions: Array<{ value: StatusPesanan | 'semua'; label: string }> =
@@ -42,13 +45,28 @@ const statusOptions: Array<{ value: StatusPesanan | 'semua'; label: string }> =
 
 const PAGE_SIZE = 10
 
-export function OrderList({ rows, isOwner }: OrderListProps) {
+export function OrderList({ rows, isOwner, truncated }: OrderListProps) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusPesanan | 'semua'>(
     isOwner ? 'diproses' : 'semua',
   )
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+
+  // Results of "Cari di semua pesanan" — a full-table search past the 500-row
+  // cap, offered only when the local filter above comes back empty. Reset
+  // during render (not an effect) whenever any filter input changes, the same
+  // pattern usePagedList uses for its own page reset.
+  const [serverSearch, setServerSearch] = useState<OrderRow[] | null>(null)
+  const [serverSearching, setServerSearching] = useState(false)
+  const [serverSearchError, setServerSearchError] = useState<string | null>(null)
+  const filterKey = JSON.stringify([query, status, dateFrom, dateTo])
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey)
+    setServerSearch(null)
+    setServerSearchError(null)
+  }
 
   /**
    * Search text, lowercased once per order rather than once per order *per
@@ -92,13 +110,42 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
       .map(({ item }) => item)
   }, [searchable, createdAtByRow, query, status, dateFrom, dateTo])
 
+  // Server search results replace the local filtered set entirely once
+  // present; they already reflect the current query and status (the action
+  // takes both), but not the date range, since date filtering is cheap to
+  // redo client-side over whatever the server returned.
+  const results = useMemo(() => {
+    if (serverSearch === null) return filtered
+    const fromMs = dateFrom ? startOfDay(parseISO(dateFrom)).getTime() : null
+    const toMs = dateTo ? endOfDay(parseISO(dateTo)).getTime() : null
+    if (fromMs === null && toMs === null) return serverSearch
+    return serverSearch.filter((row) => {
+      const createdAt = parseISO(row.p.created_at).getTime()
+      if (fromMs !== null && createdAt < fromMs) return false
+      if (toMs !== null && createdAt > toMs) return false
+      return true
+    })
+  }, [serverSearch, filtered, dateFrom, dateTo])
+
   // The row views are already derived (server-side, in `toOrderRows`), so
   // pagination is just the page slice.
   const { totalPages, pageRows, page, setPage } = usePagedList(
-    filtered,
+    results,
     PAGE_SIZE,
-    JSON.stringify([query, status, dateFrom, dateTo]),
+    `${filterKey}:${serverSearch === null ? 'local' : 'server'}`,
   )
+
+  async function handleServerSearch() {
+    setServerSearching(true)
+    setServerSearchError(null)
+    const result = await searchPesananGlobal(query, status)
+    setServerSearching(false)
+    if (result.error) {
+      setServerSearchError(result.error)
+      return
+    }
+    setServerSearch(result.rows ?? [])
+  }
 
   if (rows.length === 0) {
     return <p className="text-muted-foreground text-sm">Belum ada pesanan.</p>
@@ -150,10 +197,36 @@ export function OrderList({ rows, isOwner }: OrderListProps) {
         </>
       )}
 
-      {filtered.length === 0 ? (
-        <EmptyState message="Tidak ada pesanan yang cocok. Coba kata kunci lain atau ubah filter." />
+      {results.length === 0 ? (
+        <div className="space-y-3">
+          <EmptyState message="Tidak ada pesanan yang cocok. Coba kata kunci lain atau ubah filter." />
+          {truncated && query.trim() !== '' && serverSearch === null && (
+            <div className="text-sm text-center space-y-2">
+              <p className="text-muted-foreground">
+                Pencarian ini hanya mencakup 500 pesanan terbaru.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleServerSearch}
+                disabled={serverSearching}
+              >
+                {serverSearching ? 'Mencari...' : 'Cari di semua pesanan'}
+              </Button>
+              {serverSearchError && (
+                <p className="text-destructive text-xs">{serverSearchError}</p>
+              )}
+            </div>
+          )}
+        </div>
       ) : (
         <>
+          {serverSearch !== null && (
+            <p className="text-xs text-muted-foreground">
+              Menampilkan hasil pencarian dari semua pesanan, bukan hanya 500 terbaru.
+            </p>
+          )}
           {/* Mobile: card list */}
           <div className="space-y-2 sm:hidden">
             {pageRows.map((row) => (
