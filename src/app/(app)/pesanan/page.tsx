@@ -12,6 +12,7 @@ import { OrderList } from '@/components/pesanan/OrderList'
 import { toOrderRows, type PesananWithRelations } from '@/components/pesanan/order-row'
 import { Button } from '@/components/ui/button'
 import { itemsEmbed, pembayaranEmbed } from '@/lib/pesanan-select'
+import { listCountNotice } from '@/lib/utils'
 
 /**
  * Upper bound on how many orders this page hydrates. PostgREST silently caps a
@@ -72,9 +73,6 @@ export default async function PesananPage() {
   // the RSC payload to render a handful of totals.
   const rows = toOrderRows(visiblePesananList, isOwner)
 
-  const totalPesanan = pesananCount ?? rows.length
-  const listTruncated = totalPesanan > rows.length
-
   return (
     <div className="space-y-4">
       <RealtimeRefresh table="pesanan" />
@@ -82,9 +80,7 @@ export default async function PesananPage() {
         <div>
           <h2 className="text-lg font-semibold">Pesanan</h2>
           <p className="text-sm text-muted-foreground">
-            {totalPesanan} pesanan
-            {listTruncated &&
-              ` — menampilkan ${rows.length} terbaru`}
+            {listCountNotice(pesananCount, rows.length, 'pesanan', 'terbaru')}
           </p>
         </div>
         {!isLocked && (

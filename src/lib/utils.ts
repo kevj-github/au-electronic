@@ -54,6 +54,24 @@ export function isActiveRoute(pathname: string, href: string): boolean {
 }
 
 /**
+ * "{count} {label}" list-header line, appending a "— menampilkan {shown}"
+ * notice when the fetched rows were capped below the true row count (e.g. the
+ * 500-row limit on /pesanan and /pelanggan). Previously copy-pasted across
+ * those two pages with a subtly different `??` fallback shape on each; `count`
+ * takes the raw `count: 'exact'` result (nullable) directly.
+ */
+export function listCountNotice(
+  count: number | null,
+  shown: number,
+  label: string,
+  truncatedSuffix?: string,
+): string {
+  const total = count ?? shown
+  if (total <= shown) return `${total} ${label}`
+  return `${total} ${label} — menampilkan ${shown}${truncatedSuffix ? ` ${truncatedSuffix}` : ''}`
+}
+
+/**
  * Order money totals derived from its nested items and payments. The same pair
  * of reduces was previously copy-pasted across the dashboard and OrderList;
  * `subtotal` is optional because helper-facing queries deliberately omit it.

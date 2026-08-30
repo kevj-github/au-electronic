@@ -8,6 +8,7 @@ export const metadata: Metadata = { title: 'Pelanggan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { PelangganList } from '@/components/pelanggan/PelangganList'
 import { Button } from '@/components/ui/button'
+import { listCountNotice } from '@/lib/utils'
 import type { Pelanggan } from '@/lib/types'
 
 /** See PESANAN_LIST_LIMIT in pesanan/page.tsx — same rationale, same cap. */
@@ -39,9 +40,7 @@ export default async function PelangganPage() {
         <div>
           <h2 className="text-lg font-semibold">Pelanggan</h2>
           <p className="text-sm text-muted-foreground">
-            {pelangganCount ?? pelangganList?.length ?? 0} pelanggan terdaftar
-            {(pelangganCount ?? 0) > (pelangganList?.length ?? 0) &&
-              ` — menampilkan ${pelangganList?.length ?? 0}`}
+            {listCountNotice(pelangganCount, pelangganList?.length ?? 0, 'pelanggan terdaftar')}
           </p>
         </div>
         <Link href="/pelanggan/baru">

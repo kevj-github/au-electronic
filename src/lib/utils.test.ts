@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute } from './utils'
+import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, listCountNotice } from './utils'
 
 describe('formatRupiah', () => {
   it('formats zero', () => {
@@ -119,6 +119,32 @@ describe('orderTotals', () => {
       totalPesanan: 0,
       totalDibayar: 0,
     })
+  })
+})
+
+describe('listCountNotice', () => {
+  it('shows just the count when not truncated', () => {
+    expect(listCountNotice(12, 12, 'pesanan')).toBe('12 pesanan')
+  })
+
+  it('shows just the count when shown exceeds count (defensive)', () => {
+    expect(listCountNotice(5, 10, 'pesanan')).toBe('5 pesanan')
+  })
+
+  it('falls back to shown when count is null', () => {
+    expect(listCountNotice(null, 500, 'pesanan')).toBe('500 pesanan')
+  })
+
+  it('appends a truncation notice with a suffix when capped', () => {
+    expect(listCountNotice(612, 500, 'pesanan', 'terbaru')).toBe(
+      '612 pesanan — menampilkan 500 terbaru',
+    )
+  })
+
+  it('appends a truncation notice without a suffix when none given', () => {
+    expect(listCountNotice(612, 500, 'pelanggan terdaftar')).toBe(
+      '612 pelanggan terdaftar — menampilkan 500',
+    )
   })
 })
 
