@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseISO, startOfDay, endOfDay } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,11 +60,23 @@ export function OrderList({ rows, isOwner, truncated }: OrderListProps) {
   const [serverSearch, setServerSearch] = useState<OrderRow[] | null>(null)
   const [serverSearching, setServerSearching] = useState(false)
   const [serverSearchError, setServerSearchError] = useState<string | null>(null)
+  // Bumped whenever a search fires or the filters change, so a response can
+  // check it's still wanted before applying — a request in flight when the
+  // user edits the query (or fires a second search before the first
+  // resolves) must not resurrect stale results once it finally settles.
+  // Refs can't be touched during render, so the filter-change bump lives in
+  // an effect rather than alongside the render-time state reset below; it
+  // still lands well before any real network response could arrive.
+  const searchRequestId = useRef(0)
   const filterKey = JSON.stringify([query, status, dateFrom, dateTo])
+  useEffect(() => {
+    searchRequestId.current++
+  }, [filterKey])
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (prevFilterKey !== filterKey) {
     setPrevFilterKey(filterKey)
     setServerSearch(null)
+    setServerSearching(false)
     setServerSearchError(null)
   }
 
@@ -136,9 +148,13 @@ export function OrderList({ rows, isOwner, truncated }: OrderListProps) {
   )
 
   async function handleServerSearch() {
+    const requestId = ++searchRequestId.current
     setServerSearching(true)
     setServerSearchError(null)
     const result = await searchPesananGlobal(query, status)
+    // A newer search (or a filter change, which also bumps this) has
+    // superseded this request — its result is stale, drop it.
+    if (searchRequestId.current !== requestId) return
     setServerSearching(false)
     if (result.error) {
       setServerSearchError(result.error)

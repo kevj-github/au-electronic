@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FilterBar } from '@/components/ui/filter-bar'
@@ -36,11 +36,21 @@ export function PelangganList({ pelangganList, truncated }: PelangganListProps) 
   const [serverSearch, setServerSearch] = useState<Pelanggan[] | null>(null)
   const [serverSearching, setServerSearching] = useState(false)
   const [serverSearchError, setServerSearchError] = useState<string | null>(null)
+  // Bumped whenever a search fires or the filters change — see
+  // OrderList.tsx's identical guard for why a stale in-flight response must
+  // check this before applying its result. Refs can't be touched during
+  // render, so the filter-change bump lives in an effect rather than
+  // alongside the render-time state reset below.
+  const searchRequestId = useRef(0)
   const filterKey = JSON.stringify([query, tipe])
+  useEffect(() => {
+    searchRequestId.current++
+  }, [filterKey])
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (prevFilterKey !== filterKey) {
     setPrevFilterKey(filterKey)
     setServerSearch(null)
+    setServerSearching(false)
     setServerSearchError(null)
   }
 
@@ -71,9 +81,11 @@ export function PelangganList({ pelangganList, truncated }: PelangganListProps) 
   } = usePagedList(results, PAGE_SIZE, `${filterKey}:${serverSearch === null ? 'local' : 'server'}`)
 
   async function handleServerSearch() {
+    const requestId = ++searchRequestId.current
     setServerSearching(true)
     setServerSearchError(null)
     const result = await searchPelangganGlobal(query, tipe)
+    if (searchRequestId.current !== requestId) return
     setServerSearching(false)
     if (result.error) {
       setServerSearchError(result.error)

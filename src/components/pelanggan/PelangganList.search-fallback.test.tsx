@@ -1,8 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PelangganList } from './PelangganList'
 import type { Pelanggan } from '@/lib/types'
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
 
 /**
  * Mirrors OrderList.search-fallback.test.tsx: "Cari di semua pelanggan" is
@@ -107,5 +115,44 @@ describe('PelangganList search-all fallback', () => {
       screen.queryByText(/Menampilkan hasil pencarian dari semua pelanggan/),
     ).not.toBeInTheDocument()
     expect(screen.getByText('Cari di semua pelanggan')).toBeInTheDocument()
+  })
+
+  it('does not let a slow, superseded search overwrite a fresher one', async () => {
+    const user = userEvent.setup()
+    const first = deferred<{ pelangganList?: Pelanggan[]; error?: string }>()
+    const second = deferred<{ pelangganList?: Pelanggan[]; error?: string }>()
+    searchPelangganGlobal.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+
+    render(<PelangganList pelangganList={LIST} truncated />)
+
+    const input = screen.getByPlaceholderText(/Cari nama/)
+
+    // Fire the first search, then edit the query before it resolves — the
+    // only way two requests can actually overlap, since the button is
+    // disabled while one is in flight.
+    await user.type(input, 'lama')
+    await user.click(await screen.findByText('Cari di semua pelanggan'))
+    await user.clear(input)
+    await user.type(input, 'lain')
+
+    await user.click(await screen.findByText('Cari di semua pelanggan'))
+    expect(searchPelangganGlobal).toHaveBeenCalledTimes(2)
+
+    // The second (current) request resolves first...
+    await act(async () => {
+      second.resolve({ pelangganList: [pelanggan('fresh', 'Fresh')] })
+      await second.promise
+    })
+    await waitFor(() => expect(screen.getAllByText('Fresh').length).toBeGreaterThan(0))
+
+    // ...then the first (now-stale) request finally resolves. Its result
+    // must be dropped rather than overwriting what's already shown.
+    await act(async () => {
+      first.resolve({ pelangganList: [pelanggan('stale', 'Stale')] })
+      await first.promise
+    })
+
+    expect(screen.queryByText('Stale')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Fresh').length).toBeGreaterThan(0)
   })
 })
