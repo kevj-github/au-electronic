@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
-import { escapeIlike } from '@/lib/utils'
+import { escapeIlike, mergeSearchResults } from '@/lib/utils'
 import type { ActionResult } from '@/lib/action-result'
 import type { Pelanggan, TipePelanggan } from '@/lib/types'
 
@@ -42,13 +42,12 @@ export async function searchPelangganGlobal(
     return { error: 'Gagal mencari pelanggan.' }
   }
 
-  const seen = new Map<string, Pelanggan>()
-  for (const row of [...(byNama.data ?? []), ...(byTelepon.data ?? []), ...(byAlamat.data ?? [])]) {
-    seen.set(row.id, row)
-  }
-  const merged = Array.from(seen.values())
-    .sort((a, b) => a.nama.localeCompare(b.nama))
-    .slice(0, SEARCH_RESULT_LIMIT)
+  const merged = mergeSearchResults(
+    [byNama.data ?? [], byTelepon.data ?? [], byAlamat.data ?? []],
+    (row) => row.id,
+    (a, b) => a.nama.localeCompare(b.nama),
+    SEARCH_RESULT_LIMIT,
+  )
 
   return { pelangganList: merged }
 }

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getRole } from '@/lib/pesanan-guards'
 import { pesananListSelect } from '@/lib/pesanan-select'
 import { toOrderRows, type OrderRow, type PesananWithRelations } from '@/components/pesanan/order-row'
-import { escapeIlike } from '@/lib/utils'
+import { escapeIlike, mergeSearchResults } from '@/lib/utils'
 import type { ActionResult } from '@/lib/action-result'
 import type { StatusPesanan } from '@/lib/types'
 
@@ -66,13 +66,12 @@ export async function searchPesananGlobal(
 
   if (byKode.error || byNama.error) return { error: 'Gagal mencari pesanan.' }
 
-  const seen = new Map<string, PesananWithRelations>()
-  for (const row of [...(byKode.data ?? []), ...(byNama.data ?? [])]) {
-    seen.set(row.id, row)
-  }
-  const merged = Array.from(seen.values())
-    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-    .slice(0, SEARCH_RESULT_LIMIT)
+  const merged = mergeSearchResults(
+    [byKode.data ?? [], byNama.data ?? []],
+    (row) => row.id,
+    (a, b) => (a.created_at < b.created_at ? 1 : -1),
+    SEARCH_RESULT_LIMIT,
+  )
 
   // The helper select above already omits tanggal_pengiriman — mirrors the
   // page's own masking so a helper's search result carries the same shape.

@@ -46,6 +46,25 @@ export function escapeIlike(raw: string): string {
   return raw.replace(/[%_]/g, '\\$&')
 }
 
+/**
+ * Merges several `.ilike()` result sets that may overlap (a row matching more
+ * than one column comes back from more than one query), dedupes by id, sorts,
+ * and caps at `limit`. Shared by searchPesananGlobal and searchPelangganGlobal,
+ * which each run one `.ilike()` per searchable column and combine the results.
+ */
+export function mergeSearchResults<T>(
+  resultSets: T[][],
+  getId: (item: T) => string,
+  compare: (a: T, b: T) => number,
+  limit: number,
+): T[] {
+  const seen = new Map<string, T>()
+  for (const row of resultSets.flat()) {
+    seen.set(getId(row), row)
+  }
+  return Array.from(seen.values()).sort(compare).slice(0, limit)
+}
+
 /** Strip everything but digits (e.g. "Rp 1.000a" -> "1000", "" -> ""). */
 export function parseThousandsInput(display: string): string {
   return display.replace(/\D/g, '')

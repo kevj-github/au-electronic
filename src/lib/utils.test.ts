@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, listCountNotice, escapeIlike } from './utils'
+import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, listCountNotice, escapeIlike, mergeSearchResults } from './utils'
 
 describe('formatRupiah', () => {
   it('formats zero', () => {
@@ -163,6 +163,40 @@ describe('escapeIlike', () => {
 
   it('escapes multiple wildcards in one string', () => {
     expect(escapeIlike('%_%')).toBe('\\%\\_\\%')
+  })
+})
+
+describe('mergeSearchResults', () => {
+  it('dedupes a row that matched more than one query', () => {
+    const a = { id: '1', nama: 'Budi' }
+    const b = { id: '2', nama: 'Ani' }
+    const result = mergeSearchResults(
+      [[a, b], [a]],
+      (row) => row.id,
+      (x, y) => x.nama.localeCompare(y.nama),
+      10,
+    )
+    expect(result).toEqual([b, a])
+  })
+
+  it('sorts the merged set with the given comparator', () => {
+    const result = mergeSearchResults(
+      [[{ id: '1', created_at: '2026-01-01' }], [{ id: '2', created_at: '2026-06-01' }]],
+      (row) => row.id,
+      (x, y) => (x.created_at < y.created_at ? 1 : -1),
+      10,
+    )
+    expect(result.map((r) => r.id)).toEqual(['2', '1'])
+  })
+
+  it('caps the result at limit', () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({ id: String(i) }))
+    const result = mergeSearchResults([rows], (row) => row.id, () => 0, 3)
+    expect(result).toHaveLength(3)
+  })
+
+  it('handles empty result sets', () => {
+    expect(mergeSearchResults([[], []], (row: { id: string }) => row.id, () => 0, 10)).toEqual([])
   })
 })
 
