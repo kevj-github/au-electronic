@@ -1,9 +1,11 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { setItemJumlahDiambil } from '@/app/(app)/pesanan/item-mutation-actions'
+import { useOptimisticAction } from '@/hooks/use-optimistic-action'
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
 
 interface HelperItemChecklistProps {
   itemId: string
@@ -13,30 +15,24 @@ interface HelperItemChecklistProps {
 }
 
 function HelperItemChecklistImpl({ itemId, qty, jumlahDiambil, disabled = false }: HelperItemChecklistProps) {
-  const [prevJumlah, setPrevJumlah] = useState(jumlahDiambil)
-  const [pending, setPending] = useState<number | null>(null)
-  const [inputValue, setInputValue] = useState(jumlahDiambil > 0 ? String(jumlahDiambil) : '')
-  const [loading, setLoading] = useState(false)
+  const { value, commit: commitValue, loading } = useOptimisticAction(jumlahDiambil, (next) =>
+    setItemJumlahDiambil(itemId, next)
+  )
+  // The typed text is its own state, not derived from `value`: while the user
+  // is mid-edit it can be an intermediate string `value` can't represent
+  // (e.g. "1" en route to "15"). Resynced to the server value the same way
+  // `value` is (see usePropSyncedState), and explicitly set again on commit
+  // below so it reflects the just-submitted number immediately.
+  const [inputValue, setInputValue] = usePropSyncedState(jumlahDiambil, (v) =>
+    v > 0 ? String(v) : ''
+  )
 
-  // Resync pattern (see ItemChecklistCheckbox): drop any stale optimistic value
-  // the moment the server-revalidated jumlahDiambil prop changes for any reason.
-  if (jumlahDiambil !== prevJumlah) {
-    setPrevJumlah(jumlahDiambil)
-    setPending(null)
-    setInputValue(jumlahDiambil > 0 ? String(jumlahDiambil) : '')
-  }
-
-  const value = pending ?? jumlahDiambil
   const checked = qty > 0 && value >= qty
 
   async function commit(next: number) {
     const clamped = Math.max(0, Math.min(next, qty))
-    setPending(clamped)
     setInputValue(clamped > 0 ? String(clamped) : '')
-    setLoading(true)
-    const result = await setItemJumlahDiambil(itemId, clamped)
-    if (result?.error) setPending(null)
-    setLoading(false)
+    await commitValue(clamped)
   }
 
   function handleInputChange(raw: string) {
