@@ -59,7 +59,7 @@ const ASCII_FOLD: Record<string, string> = {
   '“': '"',
   '”': '"',
   '…': '...', // ellipsis
-  ' ': ' ', // non-breaking space
+  ' ': ' ', // non-breaking space
 }
 
 /** Fold a text field to printable ASCII. Applied before layout so the folded
