@@ -47,6 +47,16 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
     setSaving(false)
   }
 
+  // A prior "Tersimpan."/error message describes the value at the time it was
+  // shown, not whatever the field holds now — drop it the moment the name
+  // changes for any reason (typing, or picking a detected printer) so it
+  // can't mislead the user into thinking an edited-but-unsaved value was saved.
+  function handleNameChange(next: string) {
+    setName(next)
+    setStatus(null)
+    setError(null)
+  }
+
   return (
     <div className="space-y-3">
       <div>
@@ -58,7 +68,7 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
       <div className="flex flex-wrap items-center gap-2">
         <Input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => handleNameChange(e.target.value)}
           placeholder="EPSON LX-310"
           className="max-w-xs"
         />
@@ -79,7 +89,7 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
               type="button"
               variant={p === name ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setName(p)}
+              onClick={() => handleNameChange(p)}
               title={p}
               className="max-w-full truncate"
             >
