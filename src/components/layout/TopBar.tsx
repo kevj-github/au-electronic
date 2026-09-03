@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Menu } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -13,12 +14,19 @@ interface TopBarProps {
 
 export function TopBar({ title, onMenuClick }: TopBarProps) {
   const router = useRouter()
+  const [loggingOut, setLoggingOut] = useState(false)
 
   async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    setLoggingOut(true)
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      router.push('/login')
+      router.refresh()
+    } catch (error) {
+      console.error('[TopBar] failed to sign out:', error)
+      setLoggingOut(false)
+    }
   }
 
   return (
@@ -36,8 +44,8 @@ export function TopBar({ title, onMenuClick }: TopBarProps) {
       </div>
       <div className="flex items-center gap-1">
         <ThemeToggle />
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
-          Keluar
+        <Button variant="ghost" size="sm" onClick={handleLogout} disabled={loggingOut}>
+          {loggingOut ? 'Keluar...' : 'Keluar'}
         </Button>
       </div>
     </header>
