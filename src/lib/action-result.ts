@@ -23,10 +23,12 @@ export type ActionResult<T extends object = object> = { error?: string } & T
  * treated only needs to happen once.
  *
  * Returns whether `result` was an error, so callers that need to bail out
- * write `if (setErrorFromResult(result, setError)) return`. Deliberately
- * NOT used by components that roll back optimistic state on error instead of
- * showing a message (`ItemChecklistCheckbox`, `HelperItemChecklist`) — that's
- * a different concern with no `error` state to set.
+ * write `if (setErrorFromResult(result, setError)) return`. Not used by
+ * components that roll back optimistic state on error with nothing else to
+ * show (`ItemChecklistCheckbox`, `HelperItemChecklist`) — but a component
+ * *can* combine both: `useOptimisticAction`'s `commit` already rolls back on
+ * error and also returns the result, so a caller that wants a visible message
+ * too (`PesananLockToggle`) just passes that result straight through here.
  */
 export function setErrorFromResult(
   result: { error?: string } | undefined,

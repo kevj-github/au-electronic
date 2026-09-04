@@ -5,26 +5,24 @@ import { Lock, Unlock } from 'lucide-react'
 import { setPesananLocked } from '@/app/(app)/pengaturan/actions'
 import { Button } from '@/components/ui/button'
 import { setErrorFromResult } from '@/lib/action-result'
-import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
+import { useOptimisticAction } from '@/hooks/use-optimistic-action'
 
 interface PesananLockToggleProps {
   locked: boolean
 }
 
 export function PesananLockToggle({ locked: initialLocked }: PesananLockToggleProps) {
-  // RealtimeRefresh (mounted on this page for the `users` table) can push a
-  // fresh `locked` prop from another device's toggle — resync to it.
-  const [locked, setLocked] = usePropSyncedState(initialLocked, (v) => v)
-  const [loading, setLoading] = useState(false)
+  // useOptimisticAction's render-phase prev-value compare also covers the
+  // RealtimeRefresh resync usePropSyncedState used to handle here (mounted on
+  // this page for the `users` table, pushing a fresh `locked` prop from
+  // another device's toggle).
+  const { value: locked, commit, loading } = useOptimisticAction(initialLocked, setPesananLocked)
   const [error, setError] = useState<string | null>(null)
 
   async function handleToggle() {
-    setLoading(true)
     setError(null)
-    const next = !locked
-    const result = await setPesananLocked(next)
-    if (!setErrorFromResult(result, setError)) setLocked(next)
-    setLoading(false)
+    const result = await commit(!locked)
+    setErrorFromResult(result, setError)
   }
 
   return (
