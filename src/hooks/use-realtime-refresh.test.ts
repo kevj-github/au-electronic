@@ -26,8 +26,9 @@ channelObj = { on, subscribe }
 const channel = vi.fn(() => channelObj)
 const setAuth = vi.fn()
 const unsubscribeAuthListener = vi.fn()
-const getSession = vi.fn(() =>
-  Promise.resolve({ data: { session: { access_token: 'test-access-token' } } })
+const getSession = vi.fn(
+  (): Promise<{ data: { session: { access_token: string } | null } }> =>
+    Promise.resolve({ data: { session: { access_token: 'test-access-token' } } })
 )
 const onAuthStateChange = vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
   capturedAuthListener = callback
@@ -109,6 +110,52 @@ describe('useRealtimeRefresh', () => {
     setAuth.mockClear()
     capturedAuthListener?.('TOKEN_REFRESHED', { access_token: 'refreshed-token' })
     expect(setAuth).toHaveBeenCalledWith('refreshed-token')
+  })
+
+  it('does not call setAuth from the auth-state-change listener when the event carries no session', async () => {
+    renderHook(() => useRealtimeRefresh('pesanan'))
+    await flushMicrotasks()
+    setAuth.mockClear()
+    capturedAuthListener?.('SIGNED_OUT', null)
+    expect(setAuth).not.toHaveBeenCalled()
+  })
+
+  it('does not call setAuth from getSession when there is no session yet, but still subscribes', async () => {
+    getSession.mockResolvedValueOnce({ data: { session: null } })
+    renderHook(() => useRealtimeRefresh('pesanan'))
+    await flushMicrotasks()
+    expect(setAuth).not.toHaveBeenCalled()
+    expect(subscribe).toHaveBeenCalled()
+  })
+
+  it('logs a getSession() rejection instead of swallowing it', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const rejection = new Error('network down')
+    getSession.mockRejectedValueOnce(rejection)
+    renderHook(() => useRealtimeRefresh('pesanan'))
+    await flushMicrotasks()
+    expect(consoleError).toHaveBeenCalledWith(
+      '[useRealtimeRefresh] failed to start session for pesanan-all:',
+      rejection
+    )
+    consoleError.mockRestore()
+  })
+
+  it('never subscribes if the component unmounts before getSession resolves', async () => {
+    let resolveSession!: (value: { data: { session: { access_token: string } | null } }) => void
+    getSession.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveSession = resolve })
+    )
+    const { unmount } = renderHook(() => useRealtimeRefresh('pesanan'))
+    unmount()
+    resolveSession({ data: { session: { access_token: 'late-token' } } })
+    await flushMicrotasks()
+
+    expect(setAuth).not.toHaveBeenCalledWith('late-token')
+    expect(channel).not.toHaveBeenCalled()
+    expect(subscribe).not.toHaveBeenCalled()
+    expect(removeChannel).not.toHaveBeenCalled() // no channel was ever created to remove
+    expect(unsubscribeAuthListener).toHaveBeenCalled()
   })
 
   it('debounces router.refresh by 300ms after a change event', async () => {
