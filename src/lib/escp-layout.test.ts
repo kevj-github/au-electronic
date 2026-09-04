@@ -97,6 +97,11 @@ describe('itemLines', () => {
     expect(out.trimStart().startsWith('1')).toBe(true)
   })
 
+  it('renders a single blank-name row when namaBarang is empty', () => {
+    const out = itemLines(item({ namaBarang: '' }), 0)
+    expect(out.split('\n')).toHaveLength(1)
+  })
+
   it('wraps a long name onto continuation rows with blank NO/CHECK/QTY/amount columns', () => {
     const longName = 'KOMPRESOR KULKAS SERI PANJANG SEKALI UNTUK MENGUJI PEMBUNGKUSAN NAMA'
     const out = itemLines(item({ namaBarang: longName, qty: 2, hargaSatuan: 1000, subtotal: 2000 }), 4)
@@ -160,6 +165,43 @@ describe('headerBlock', () => {
     const out = headerBlock(baseData, '16 Jul 2026', '20 Jul 2026', bold, label)
     const kepadaLine = out.split('\n').find((l) => l.includes('Kepada Yth:'))!
     expect(kepadaLine).toContain(label)
+  })
+
+  it('keeps a short customer line whole on the label row when it already fits the capacity', () => {
+    const label = 'Hal. 1/2'
+    const shortData = { ...baseData, namaPelanggan: 'Budi', alamatPelanggan: undefined }
+    const out = headerBlock(shortData, '16 Jul 2026', '20 Jul 2026', bold, label)
+    const kepadaLine = out.split('\n').find((l) => l.includes(label))!
+    expect(kepadaLine).toContain('Kepada Yth: Budi')
+  })
+
+  it('breaks the first line at the last word boundary that fits before the label slot', () => {
+    const label = 'Hal. 1/2'
+    const longAddressData = {
+      ...baseData,
+      namaPelanggan: 'Yustinus Setiawan',
+      alamatPelanggan: 'Jl. Panjang Sekali No 99',
+    }
+    const out = headerBlock(longAddressData, '16 Jul 2026', '20 Jul 2026', bold, label)
+    const lines = out.split('\n')
+    const kepadaLine = lines.find((l) => l.includes(label))!
+    // Breaks after "Yustinus" (whole word), not mid-word.
+    expect(kepadaLine.trimEnd().endsWith('Yustinus')).toBe(true)
+    // The rest of the customer text still appears on the continuation lines.
+    expect(lines.join('')).toContain('Setiawan - Jl. Panjang Sekali No 99')
+  })
+
+  it('falls back to a hard break at the capacity when no word boundary fits before it', () => {
+    const label = 'Hal. 1/2'
+    const noSpaceData = { ...baseData, namaPelanggan: 'A'.repeat(40), alamatPelanggan: undefined }
+    const out = headerBlock(noSpaceData, '16 Jul 2026', '20 Jul 2026', bold, label)
+    const lines = out.split('\n')
+    const kepadaLine = lines.find((l) => l.includes(label))!
+    // No space anywhere in "Kepada Yth: AAAA...", so the break lands mid-run of 'A's
+    // rather than at a word boundary, and no 'A' is dropped across the wrap.
+    expect(kepadaLine.trimEnd().endsWith('A')).toBe(true)
+    const kepadaAndAfter = lines.slice(lines.indexOf(kepadaLine)).join('')
+    expect((kepadaAndAfter.match(/A/g) ?? []).length).toBe(40)
   })
 })
 
