@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
+import { getFormString } from '@/lib/form-data'
 import type { ActionResult } from '@/lib/action-result'
 import type { MetodePembayaran } from '@/lib/types'
 
@@ -23,9 +24,9 @@ export async function createPembayaran(
   if (!authUser) return { error: 'Tidak terautentikasi.' }
 
   const jumlah = Number(formData.get('jumlah'))
-  const metode = formData.get('metode') as MetodePembayaran
-  const catatan = formData.get('catatan') as string
-  const dibayar_pada = formData.get('dibayar_pada') as string
+  const metode = getFormString(formData, 'metode') as MetodePembayaran
+  const catatan = getFormString(formData, 'catatan')
+  const dibayar_pada = getFormString(formData, 'dibayar_pada')
 
   // Covers NaN, 0 and negatives — Number('') and Number('abc') are 0 and NaN.
   if (!Number.isFinite(jumlah) || jumlah <= 0) {
