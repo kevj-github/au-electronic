@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireOwner } from '@/lib/supabase/require-owner'
+import { getFormString } from '@/lib/form-data'
 import type { ActionResult } from '@/lib/action-result'
 import type { User } from '@/lib/types'
 
@@ -13,10 +14,10 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
 
-  const nama = formData.get('nama') as string
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const role = formData.get('role') as string
+  const nama = getFormString(formData, 'nama')
+  const email = getFormString(formData, 'email')
+  const password = getFormString(formData, 'password')
+  const role = getFormString(formData, 'role')
 
   if (!nama || !email || !password) {
     return { error: 'Nama, email, dan password wajib diisi.' }
