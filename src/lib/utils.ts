@@ -83,10 +83,22 @@ export function isActiveRoute(pathname: string, href: string): boolean {
 }
 
 /**
+ * True when a bounded list fetch (e.g. the 500-row limit on /pesanan and
+ * /pelanggan) didn't return every matching row — `count` is the true total
+ * from a `count: 'exact'` query (nullable: it comes from the content-range
+ * header, so a failed/missing count falls back to "not truncated" via
+ * `shown`), `shown` is how many rows actually came back. Also the check
+ * `listCountNotice` makes internally to decide whether to append its suffix,
+ * and previously re-implemented separately (with a subtly different `??`
+ * fallback shape) at each page's own `truncated` prop for its list component.
+ */
+export function isListTruncated(count: number | null, shown: number): boolean {
+  return (count ?? shown) > shown
+}
+
+/**
  * "{count} {label}" list-header line, appending a "— menampilkan {shown}"
- * notice when the fetched rows were capped below the true row count (e.g. the
- * 500-row limit on /pesanan and /pelanggan). Previously copy-pasted across
- * those two pages with a subtly different `??` fallback shape on each; `count`
+ * notice when the fetched rows were capped below the true row count. `count`
  * takes the raw `count: 'exact'` result (nullable) directly.
  */
 export function listCountNotice(
@@ -96,7 +108,7 @@ export function listCountNotice(
   truncatedSuffix?: string,
 ): string {
   const total = count ?? shown
-  if (total <= shown) return `${total} ${label}`
+  if (!isListTruncated(count, shown)) return `${total} ${label}`
   return `${total} ${label} — menampilkan ${shown}${truncatedSuffix ? ` ${truncatedSuffix}` : ''}`
 }
 

@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: 'Pelanggan' }
 import { RealtimeRefresh } from '@/components/realtime/RealtimeRefresh'
 import { PelangganList } from '@/components/pelanggan/PelangganList'
 import { Button } from '@/components/ui/button'
-import { listCountNotice } from '@/lib/utils'
+import { listCountNotice, isListTruncated } from '@/lib/utils'
 import type { Pelanggan } from '@/lib/types'
 
 /** See PESANAN_LIST_LIMIT in pesanan/page.tsx — same rationale, same cap. */
@@ -34,7 +34,7 @@ export default async function PelangganPage() {
   if (user.role !== 'owner') redirect('/pesanan')
 
   const shown = pelangganList?.length ?? 0
-  const truncated = (pelangganCount ?? shown) > shown
+  const truncated = isListTruncated(pelangganCount, shown)
 
   return (
     <div className="space-y-4">

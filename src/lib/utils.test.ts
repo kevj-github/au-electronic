@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, listCountNotice, escapeIlike, mergeSearchResults } from './utils'
+import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, isListTruncated, listCountNotice, escapeIlike, mergeSearchResults } from './utils'
 
 describe('formatRupiah', () => {
   it('formats zero', () => {
@@ -119,6 +119,24 @@ describe('orderTotals', () => {
       totalPesanan: 0,
       totalDibayar: 0,
     })
+  })
+})
+
+describe('isListTruncated', () => {
+  it('is false when every row was fetched', () => {
+    expect(isListTruncated(12, 12)).toBe(false)
+  })
+
+  it('is true when the fetch was capped below the true count', () => {
+    expect(isListTruncated(612, 500)).toBe(true)
+  })
+
+  it('falls back to shown (never truncated) when count is null', () => {
+    expect(isListTruncated(null, 500)).toBe(false)
+  })
+
+  it('is false when shown exceeds count (defensive)', () => {
+    expect(isListTruncated(5, 10)).toBe(false)
   })
 })
 

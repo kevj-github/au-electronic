@@ -12,7 +12,7 @@ import { OrderList } from '@/components/pesanan/OrderList'
 import { toOrderRows, type PesananWithRelations } from '@/components/pesanan/order-row'
 import { Button } from '@/components/ui/button'
 import { pesananListSelect } from '@/lib/pesanan-select'
-import { listCountNotice } from '@/lib/utils'
+import { listCountNotice, isListTruncated } from '@/lib/utils'
 
 /**
  * Upper bound on how many orders this page hydrates. PostgREST silently caps a
@@ -71,10 +71,10 @@ export default async function PesananPage() {
   // the RSC payload to render a handful of totals.
   const rows = toOrderRows(visiblePesananList, isOwner)
 
-  // Same "was the fetch capped" check listCountNotice makes internally — the
-  // list needs it as a boolean too, to offer a full-table search fallback
-  // when a local search misses because the match lives past the cap.
-  const truncated = (pesananCount ?? rows.length) > rows.length
+  // Same check listCountNotice makes internally — the list needs it as a
+  // boolean too, to offer a full-table search fallback when a local search
+  // misses because the match lives past the cap.
+  const truncated = isListTruncated(pesananCount, rows.length)
 
   return (
     <div className="space-y-4">
