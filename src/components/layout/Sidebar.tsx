@@ -2,23 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ClipboardList, Users, LayoutDashboard, Settings, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { X } from 'lucide-react'
+import { cn, isActiveRoute } from '@/lib/utils'
+import { navItems } from '@/lib/nav-items'
 import type { UserRole } from '@/lib/types'
-
-interface NavItem {
-  href: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  roles: UserRole[]
-}
-
-const navItems: NavItem[] = [
-  { href: '/pesanan', label: 'Pesanan', icon: ClipboardList, roles: ['owner', 'helper'] },
-  { href: '/pelanggan', label: 'Pelanggan', icon: Users, roles: ['owner'] },
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['owner'] },
-  { href: '/pengaturan', label: 'Pengaturan', icon: Settings, roles: ['owner'] },
-]
 
 interface SidebarProps {
   role: UserRole
@@ -41,7 +28,7 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
       )}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-64 bg-white border-r flex flex-col transition-transform duration-200 md:static md:translate-x-0 md:w-56',
+          'fixed inset-y-0 left-0 z-40 w-64 bg-sidebar border-r flex flex-col transition-transform duration-200 md:static md:translate-x-0 md:w-56',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -53,7 +40,7 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
           <button
             type="button"
             onClick={onClose}
-            className="md:hidden p-1 text-slate-500 hover:text-slate-900"
+            className="md:hidden p-1 rounded-md border border-transparent text-muted-foreground outline-none hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             aria-label="Tutup menu"
           >
             <X className="size-5" />
@@ -64,7 +51,7 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
             .filter((item) => item.roles.includes(role))
             .map((item) => {
               const Icon = item.icon
-              const active = pathname === item.href || pathname.startsWith(item.href + '/')
+              const active = isActiveRoute(pathname, item.href)
               return (
                 <Link
                   key={item.href}
@@ -72,10 +59,10 @@ export function Sidebar({ role, nama, open, onClose }: SidebarProps) {
                   onClick={onClose}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent text-sm font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
                     active
                       ? 'bg-primary/10 text-primary'
-                      : 'text-slate-600 hover:bg-slate-50'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   )}
                 >
                   <Icon className="size-4" />

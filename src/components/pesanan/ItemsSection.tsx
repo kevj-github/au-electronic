@@ -1,18 +1,19 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   addItemToPesanan,
   updateItemDetails,
   deleteItemFromPesanan,
   updateItemHarga,
-} from '@/app/(app)/pesanan/actions'
+} from '@/app/(app)/pesanan/item-mutation-actions'
 import { ItemRowMobile } from './ItemRowMobile'
 import { ItemRowDesktop } from './ItemRowDesktop'
 import { AddItemFormMobile } from './AddItemFormMobile'
 import { AddItemFormDesktop } from './AddItemFormDesktop'
 import { formatRupiah, parseThousandsInput } from '@/lib/utils'
+import { setErrorFromResult } from '@/lib/action-result'
 import {
   emptyAdd,
   numPrice,
@@ -47,7 +48,13 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
         .map((i) => [i.id, i.harga_satuan && i.harga_satuan > 0 ? String(i.harga_satuan) : ''])
     )
   )
-  const [savingPriceId, setSavingPriceId] = useState<string | null>(null)
+  // A Set, not a single id: tracking only the most recently started save meant
+  // that starting a second row's save (e.g. tabbing through several price
+  // fields quickly) cleared the first row's "saving" flag while its own
+  // request was still in flight — re-enabling that field's input before its
+  // round trip actually finished, which could let a second edit fire for the
+  // same row while the first was still pending.
+  const [savingPriceIds, setSavingPriceIds] = useState<Set<string>>(() => new Set())
 
   // Resync pattern (see ItemChecklistCheckbox / HelperItemChecklist): drop the
   // local override for any item whose server-revalidated harga_satuan has
@@ -91,119 +98,172 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
 
   const grandTotal = items.reduce((sum, i) => sum + subtotalOf(i, prices), 0)
 
-  function setPrice(id: string, value: string) {
+  // Mirrors of fast-changing state, kept in sync post-commit via effects (never
+  // written during render — React's rules-of-hooks lint forbids that) so the
+  // callbacks below can read a fresh value at call time without taking it as a
+  // dependency. A dependency here would give every row a new function
+  // reference on every keystroke in any single row, defeating ItemRowMobile/
+  // ItemRowDesktop's memo() for the whole list (see the memo notes on those
+  // components for the render-count regression this fixes).
+  const pricesRef = useRef(prices)
+  useEffect(() => { pricesRef.current = prices }, [prices])
+  const editStateRef = useRef(editState)
+  useEffect(() => { editStateRef.current = editState }, [editState])
+
+  const setPrice = useCallback((id: string, value: string) => {
     setPrices((prev) => ({ ...prev, [id]: parseThousandsInput(value) }))
     setError(null)
-  }
+  }, [])
+
+  // Shared shape behind every mutation below: mark busy, clear the error,
+  // await the Server Action, clear busy, bail out on error (keeping it
+  // visible), otherwise run the caller's success side effect and refresh.
+  // `markBusy` is a callback rather than a fixed id shape because savePrice's
+  // busy state is a Set keyed by item id (see savingPriceIds above) while the
+  // others share one `loadingId` — both fit `(busy: boolean) => void`.
+  const runAction = useCallback(async (
+    markBusy: (busy: boolean) => void,
+    action: () => Promise<{ error?: string } | undefined>,
+    onSuccess?: () => void,
+  ) => {
+    markBusy(true)
+    setError(null)
+    const result = await action()
+    markBusy(false)
+    if (setErrorFromResult(result, setError)) return
+    onSuccess?.()
+    router.refresh()
+  }, [router])
 
   // Save on blur, but only when the value actually changed from the saved one —
   // avoids a redundant round-trip every time the field loses focus.
-  async function savePrice(item: SectionItem) {
-    const value = numPrice(item, prices)
+  const savePrice = useCallback(async (item: SectionItem) => {
+    const value = numPrice(item, pricesRef.current)
     if (value === (item.harga_satuan ?? 0)) return
-    setSavingPriceId(item.id)
-    setError(null)
-    const result = await updateItemHarga(item.id, value)
-    setSavingPriceId(null)
-    if (result?.error) { setError(result.error); return }
-    router.refresh()
-  }
+    await runAction(
+      (busy) => setSavingPriceIds((prev) => {
+        const next = new Set(prev)
+        if (busy) next.add(item.id); else next.delete(item.id)
+        return next
+      }),
+      () => updateItemHarga(item.id, value),
+    )
+  }, [runAction])
 
-  function startEdit(item: SectionItem) {
+  const startEdit = useCallback((item: SectionItem) => {
     setEditingId(item.id)
     setEditState({ nama_barang: item.nama_barang, qty: String(item.qty) })
     setError(null)
-  }
+  }, [])
 
-  function cancelEdit() {
+  const cancelEdit = useCallback(() => {
     setEditingId(null)
     setError(null)
-  }
+  }, [])
 
-  async function saveEdit(itemId: string) {
-    if (!editState.nama_barang.trim()) return
-    const qty = parseInt(editState.qty, 10)
+  const saveEdit = useCallback(async (itemId: string) => {
+    const s = editStateRef.current
+    if (!s.nama_barang.trim()) return
+    const qty = parseInt(s.qty, 10)
     if (!qty || qty < 1) return
-    setLoadingId(itemId)
-    setError(null)
-    const result = await updateItemDetails(itemId, { nama_barang: editState.nama_barang, qty })
-    setLoadingId(null)
-    if (result?.error) { setError(result.error); return }
-    setEditingId(null)
-    router.refresh()
-  }
+    await runAction(
+      (busy) => setLoadingId(busy ? itemId : null),
+      () => updateItemDetails(itemId, { nama_barang: s.nama_barang, qty }),
+      () => setEditingId(null),
+    )
+  }, [runAction])
 
-  async function confirmDelete(itemId: string) {
-    setLoadingId(itemId)
-    setError(null)
-    const result = await deleteItemFromPesanan(itemId)
-    setLoadingId(null)
-    if (result?.error) { setError(result.error); return }
-    setDeletingId(null)
-    router.refresh()
-  }
+  const confirmDelete = useCallback(async (itemId: string) => {
+    await runAction(
+      (busy) => setLoadingId(busy ? itemId : null),
+      () => deleteItemFromPesanan(itemId),
+      () => setDeletingId(null),
+    )
+  }, [runAction])
+
+  const onEditQtyChange = useCallback((value: string) => {
+    setEditState((s) => ({ ...s, qty: value }))
+  }, [])
+
+  const onEditNamaChange = useCallback((value: string) => {
+    setEditState((s) => ({ ...s, nama_barang: value }))
+  }, [])
+
+  const cancelDelete = useCallback(() => setDeletingId(null), [])
 
   async function saveNewItem(keepAdding = false) {
     if (!newItem.nama_barang.trim()) return
     const qty = parseInt(newItem.qty, 10)
     if (!qty || qty < 1) return
-    setLoadingId('new')
-    setError(null)
-    const result = await addItemToPesanan(pesananId, { nama_barang: newItem.nama_barang, qty })
-    setLoadingId(null)
-    if (result?.error) { setError(result.error); return }
-    setNewItem(emptyAdd)
-    if (!keepAdding) {
-      setAddingNew(false)
-    } else {
-      setTimeout(() => newQtyRef.current?.focus(), 0)
-    }
-    router.refresh()
+    await runAction(
+      (busy) => setLoadingId(busy ? 'new' : null),
+      () => addItemToPesanan(pesananId, { nama_barang: newItem.nama_barang, qty }),
+      () => {
+        setNewItem(emptyAdd)
+        if (!keepAdding) {
+          setAddingNew(false)
+        } else {
+          setTimeout(() => newQtyRef.current?.focus(), 0)
+        }
+      },
+    )
   }
 
   // colSpan for edit/add rows. Owner adds 3 extra cols (checkbox + harga + subtotal);
   // base 3 = qty + nama + helper; edit column only when unlocked.
   const totalCols = (isOwner ? 3 : 0) + 3 + (!isLocked ? 1 : 0)
 
+  // Every prop ItemRowMobile and ItemRowDesktop have in common, computed once
+  // per item instead of duplicated across both `.map()` blocks below. Callers
+  // spread this (never pass it as a single object prop) and add their one
+  // layout-specific prop (editNamaRef / totalCols) — spreading unpacks it back
+  // into the same individual values each row already received, so this changes
+  // nothing about which props reach memo()'s shallow compare.
+  function buildRowProps(item: SectionItem) {
+    return {
+      item,
+      isOwner,
+      isLocked,
+      priceEditable,
+      isEditing: editingId === item.id,
+      editState: editingId === item.id ? editState : emptyAdd,
+      editQtyRef,
+      onEditQtyChange,
+      onEditNamaChange,
+      onSaveEdit: saveEdit,
+      onCancelEdit: cancelEdit,
+      isDeleting: deletingId === item.id,
+      onStartEdit: startEdit,
+      onStartDelete: setDeletingId,
+      onCancelDelete: cancelDelete,
+      onConfirmDelete: confirmDelete,
+      isLoading: loadingId === item.id,
+      rawPriceValue: rawPrice(item, prices),
+      numPriceValue: numPrice(item, prices),
+      subtotalValue: subtotalOf(item, prices),
+      isSavingPrice: savingPriceIds.has(item.id),
+      onPriceChange: setPrice,
+      onPriceBlur: savePrice,
+    }
+  }
+
   return (
     <div className="space-y-3">
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {/* Mobile: card list */}
       <div className="space-y-2 sm:hidden">
         {items.map((item) => (
           <ItemRowMobile
             key={item.id}
-            item={item}
-            isOwner={isOwner}
-            isLocked={isLocked}
-            priceEditable={priceEditable}
-            isEditing={editingId === item.id}
-            editState={editState}
-            editQtyRef={editQtyRef}
+            {...buildRowProps(item)}
             editNamaRef={editNamaRef}
-            onEditQtyChange={(value) => setEditState((s) => ({ ...s, qty: value }))}
-            onEditNamaChange={(value) => setEditState((s) => ({ ...s, nama_barang: value }))}
-            onSaveEdit={() => saveEdit(item.id)}
-            onCancelEdit={cancelEdit}
-            isDeleting={deletingId === item.id}
-            onStartEdit={() => startEdit(item)}
-            onStartDelete={() => setDeletingId(item.id)}
-            onCancelDelete={() => setDeletingId(null)}
-            onConfirmDelete={() => confirmDelete(item.id)}
-            isLoading={loadingId === item.id}
-            rawPriceValue={rawPrice(item, prices)}
-            numPriceValue={numPrice(item, prices)}
-            subtotalValue={subtotalOf(item, prices)}
-            isSavingPrice={savingPriceId === item.id}
-            onPriceChange={(value) => setPrice(item.id, value)}
-            onPriceBlur={() => savePrice(item)}
           />
         ))}
 
         {/* Order total — owner only */}
         {isOwner && items.length > 0 && (
-          <div className="flex items-center justify-between px-3 py-2 border rounded-lg bg-gray-50">
+          <div className="flex items-center justify-between px-3 py-2 border rounded-lg bg-muted">
             <span className="text-sm font-medium">Total</span>
             <span className="font-mono text-sm font-semibold">{formatRupiah(grandTotal)}</span>
           </div>
@@ -229,7 +289,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
       {/* Desktop: table */}
       <div className="hidden sm:block border rounded-lg overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-muted border-b">
             <tr>
               {isOwner && <th className="w-10 px-3 py-2"></th>}
               <th className="text-right px-4 py-2 font-medium w-16">Qty</th>
@@ -244,30 +304,8 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
             {items.map((item) => (
               <ItemRowDesktop
                 key={item.id}
-                item={item}
-                isOwner={isOwner}
-                isLocked={isLocked}
-                priceEditable={priceEditable}
-                isEditing={editingId === item.id}
-                editState={editState}
+                {...buildRowProps(item)}
                 totalCols={totalCols}
-                editQtyRef={editQtyRef}
-                onEditQtyChange={(value) => setEditState((s) => ({ ...s, qty: value }))}
-                onEditNamaChange={(value) => setEditState((s) => ({ ...s, nama_barang: value }))}
-                onSaveEdit={() => saveEdit(item.id)}
-                onCancelEdit={cancelEdit}
-                isDeleting={deletingId === item.id}
-                onStartEdit={() => startEdit(item)}
-                onStartDelete={() => setDeletingId(item.id)}
-                onCancelDelete={() => setDeletingId(null)}
-                onConfirmDelete={() => confirmDelete(item.id)}
-                isLoading={loadingId === item.id}
-                rawPriceValue={rawPrice(item, prices)}
-                numPriceValue={numPrice(item, prices)}
-                subtotalValue={subtotalOf(item, prices)}
-                isSavingPrice={savingPriceId === item.id}
-                onPriceChange={(value) => setPrice(item.id, value)}
-                onPriceBlur={() => savePrice(item)}
               />
             ))}
 
@@ -289,7 +327,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
           </tbody>
           {/* Order total — owner only */}
           {isOwner && items.length > 0 && (
-            <tfoot className="border-t bg-gray-50">
+            <tfoot className="border-t bg-muted">
               <tr>
                 <td className="px-4 py-2 text-right font-medium" colSpan={4}>Total</td>
                 <td className="px-4 py-2 text-right font-mono font-semibold">{formatRupiah(grandTotal)}</td>

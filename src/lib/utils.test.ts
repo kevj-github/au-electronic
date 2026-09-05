@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals } from './utils'
+import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, listCountNotice, escapeIlike, mergeSearchResults } from './utils'
 
 describe('formatRupiah', () => {
   it('formats zero', () => {
@@ -119,5 +119,105 @@ describe('orderTotals', () => {
       totalPesanan: 0,
       totalDibayar: 0,
     })
+  })
+})
+
+describe('listCountNotice', () => {
+  it('shows just the count when not truncated', () => {
+    expect(listCountNotice(12, 12, 'pesanan')).toBe('12 pesanan')
+  })
+
+  it('shows just the count when shown exceeds count (defensive)', () => {
+    expect(listCountNotice(5, 10, 'pesanan')).toBe('5 pesanan')
+  })
+
+  it('falls back to shown when count is null', () => {
+    expect(listCountNotice(null, 500, 'pesanan')).toBe('500 pesanan')
+  })
+
+  it('appends a truncation notice with a suffix when capped', () => {
+    expect(listCountNotice(612, 500, 'pesanan', 'terbaru')).toBe(
+      '612 pesanan — menampilkan 500 terbaru',
+    )
+  })
+
+  it('appends a truncation notice without a suffix when none given', () => {
+    expect(listCountNotice(612, 500, 'pelanggan terdaftar')).toBe(
+      '612 pelanggan terdaftar — menampilkan 500',
+    )
+  })
+})
+
+describe('escapeIlike', () => {
+  it('leaves plain text untouched', () => {
+    expect(escapeIlike('toko satu')).toBe('toko satu')
+  })
+
+  it('escapes a literal percent sign', () => {
+    expect(escapeIlike('50%')).toBe('50\\%')
+  })
+
+  it('escapes a literal underscore', () => {
+    expect(escapeIlike('AU_2026')).toBe('AU\\_2026')
+  })
+
+  it('escapes multiple wildcards in one string', () => {
+    expect(escapeIlike('%_%')).toBe('\\%\\_\\%')
+  })
+})
+
+describe('mergeSearchResults', () => {
+  it('dedupes a row that matched more than one query', () => {
+    const a = { id: '1', nama: 'Budi' }
+    const b = { id: '2', nama: 'Ani' }
+    const result = mergeSearchResults(
+      [[a, b], [a]],
+      (row) => row.id,
+      (x, y) => x.nama.localeCompare(y.nama),
+      10,
+    )
+    expect(result).toEqual([b, a])
+  })
+
+  it('sorts the merged set with the given comparator', () => {
+    const result = mergeSearchResults(
+      [[{ id: '1', created_at: '2026-01-01' }], [{ id: '2', created_at: '2026-06-01' }]],
+      (row) => row.id,
+      (x, y) => (x.created_at < y.created_at ? 1 : -1),
+      10,
+    )
+    expect(result.map((r) => r.id)).toEqual(['2', '1'])
+  })
+
+  it('caps the result at limit', () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({ id: String(i) }))
+    const result = mergeSearchResults([rows], (row) => row.id, () => 0, 3)
+    expect(result).toHaveLength(3)
+  })
+
+  it('handles empty result sets', () => {
+    expect(mergeSearchResults([[], []], (row: { id: string }) => row.id, () => 0, 10)).toEqual([])
+  })
+})
+
+describe('isActiveRoute', () => {
+  it('matches an exact path', () => {
+    expect(isActiveRoute('/pesanan', '/pesanan')).toBe(true)
+  })
+
+  it('matches a sub-path', () => {
+    expect(isActiveRoute('/pesanan/123', '/pesanan')).toBe(true)
+  })
+
+  it('does not match a sibling path with a shared prefix', () => {
+    expect(isActiveRoute('/pesananan', '/pesanan')).toBe(false)
+  })
+
+  it('does not match an unrelated path', () => {
+    expect(isActiveRoute('/pelanggan', '/pesanan')).toBe(false)
+  })
+
+  it('does not match the root against a nested href', () => {
+    expect(isActiveRoute('/', '/pesanan')).toBe(false)
   })
 })

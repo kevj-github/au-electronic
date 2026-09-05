@@ -4,38 +4,25 @@ import { useState } from 'react'
 import { Lock, Unlock } from 'lucide-react'
 import { setPesananLocked } from '@/app/(app)/pengaturan/actions'
 import { Button } from '@/components/ui/button'
+import { setErrorFromResult } from '@/lib/action-result'
+import { useOptimisticAction } from '@/hooks/use-optimistic-action'
 
 interface PesananLockToggleProps {
   locked: boolean
 }
 
 export function PesananLockToggle({ locked: initialLocked }: PesananLockToggleProps) {
-  const [locked, setLocked] = useState(initialLocked)
-  const [loading, setLoading] = useState(false)
+  // useOptimisticAction's render-phase prev-value compare also covers the
+  // RealtimeRefresh resync usePropSyncedState used to handle here (mounted on
+  // this page for the `users` table, pushing a fresh `locked` prop from
+  // another device's toggle).
+  const { value: locked, commit, loading } = useOptimisticAction(initialLocked, setPesananLocked)
   const [error, setError] = useState<string | null>(null)
 
-  // Drop the stale mount-time value when RealtimeRefresh (mounted on this page
-  // for the `users` table) pushes a fresh `locked` prop from another device's
-  // toggle — a useState initialiser only runs once, so without this the
-  // button keeps showing a stale locked/unlocked state until this component's
-  // own toggle happens to overwrite it.
-  const [prevInitialLocked, setPrevInitialLocked] = useState(initialLocked)
-  if (initialLocked !== prevInitialLocked) {
-    setPrevInitialLocked(initialLocked)
-    setLocked(initialLocked)
-  }
-
   async function handleToggle() {
-    setLoading(true)
     setError(null)
-    const next = !locked
-    const result = await setPesananLocked(next)
-    if (result?.error) {
-      setError(result.error)
-    } else {
-      setLocked(next)
-    }
-    setLoading(false)
+    const result = await commit(!locked)
+    setErrorFromResult(result, setError)
   }
 
   return (
@@ -47,7 +34,7 @@ export function PesananLockToggle({ locked: initialLocked }: PesananLockTogglePr
             ? 'Helper tidak dapat membuat pesanan baru saat ini.'
             : 'Helper dapat membuat pesanan baru.'}
         </p>
-        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        {error && <p className="text-xs text-destructive mt-1">{error}</p>}
       </div>
       <Button
         type="button"

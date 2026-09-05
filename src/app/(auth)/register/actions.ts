@@ -2,8 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { ActionResult } from '@/lib/action-result'
 
-export async function registerOwner(formData: FormData): Promise<{ error?: string }> {
+export async function registerOwner(formData: FormData): Promise<ActionResult> {
   const nama = formData.get('nama') as string
   const email = formData.get('email') as string
   const password = formData.get('password') as string

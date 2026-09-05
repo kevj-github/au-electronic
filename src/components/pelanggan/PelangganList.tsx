@@ -1,19 +1,20 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pagination } from '@/components/ui/pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FilterBar } from '@/components/ui/filter-bar'
-import { DeletePelangganButton } from './DeletePelangganButton'
+import { PelangganRowCard, PelangganRowTableRow } from './PelangganListRow'
 import { useSearchable } from '@/hooks/use-searchable'
 import { usePagedList } from '@/hooks/use-paged-list'
+import { searchPelangganGlobal } from '@/app/(app)/pelanggan/search-actions'
+import { Button } from '@/components/ui/button'
 import type { Pelanggan, TipePelanggan } from '@/lib/types'
 
 interface PelangganListProps {
   pelangganList: Pelanggan[]
+  /** Whether `pelangganList` was capped below the true row count (PELANGGAN_LIST_LIMIT). */
+  truncated: boolean
 }
 
 const PAGE_SIZE = 10
@@ -24,9 +25,34 @@ const tipeOptions: Array<{ value: TipePelanggan | 'semua'; label: string }> = [
   { value: 'grosir', label: 'Grosir' },
 ]
 
-export function PelangganList({ pelangganList }: PelangganListProps) {
+export function PelangganList({ pelangganList, truncated }: PelangganListProps) {
   const [query, setQuery] = useState('')
   const [tipe, setTipe] = useState<TipePelanggan | 'semua'>('semua')
+
+  // Results of "Cari di semua pelanggan" — a full-table search past the
+  // 500-row cap, offered only when the local filter comes back empty. Reset
+  // during render whenever a filter input changes, mirroring usePagedList's
+  // own page-reset pattern.
+  const [serverSearch, setServerSearch] = useState<Pelanggan[] | null>(null)
+  const [serverSearching, setServerSearching] = useState(false)
+  const [serverSearchError, setServerSearchError] = useState<string | null>(null)
+  // Bumped whenever a search fires or the filters change — see
+  // OrderList.tsx's identical guard for why a stale in-flight response must
+  // check this before applying its result. Refs can't be touched during
+  // render, so the filter-change bump lives in an effect rather than
+  // alongside the render-time state reset below.
+  const searchRequestId = useRef(0)
+  const filterKey = JSON.stringify([query, tipe])
+  useEffect(() => {
+    searchRequestId.current++
+  }, [filterKey])
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey)
+    setServerSearch(null)
+    setServerSearching(false)
+    setServerSearchError(null)
+  }
 
   // NUL separators keep a query from matching across the
   // nama/telepon/alamat boundaries.
@@ -45,12 +71,28 @@ export function PelangganList({ pelangganList }: PelangganListProps) {
       .map(({ item }) => item)
   }, [searchable, query, tipe])
 
+  const results = serverSearch ?? filtered
+
   const {
     totalPages,
     pageRows: paged,
     page,
     setPage,
-  } = usePagedList(filtered, PAGE_SIZE, JSON.stringify([query, tipe]))
+  } = usePagedList(results, PAGE_SIZE, `${filterKey}:${serverSearch === null ? 'local' : 'server'}`)
+
+  async function handleServerSearch() {
+    const requestId = ++searchRequestId.current
+    setServerSearching(true)
+    setServerSearchError(null)
+    const result = await searchPelangganGlobal(query, tipe)
+    if (searchRequestId.current !== requestId) return
+    setServerSearching(false)
+    if (result.error) {
+      setServerSearchError(result.error)
+      return
+    }
+    setServerSearch(result.pelangganList ?? [])
+  }
 
   if (pelangganList.length === 0) {
     return (
@@ -69,41 +111,47 @@ export function PelangganList({ pelangganList }: PelangganListProps) {
         selectOptions={tipeOptions}
       />
 
-      {filtered.length === 0 ? (
-        <EmptyState message="Tidak ada pelanggan yang cocok. Coba kata kunci lain atau ubah filter." />
+      {results.length === 0 ? (
+        <div className="space-y-3">
+          <EmptyState message="Tidak ada pelanggan yang cocok. Coba kata kunci lain atau ubah filter." />
+          {truncated && query.trim() !== '' && serverSearch === null && (
+            <div className="text-sm text-center space-y-2">
+              <p className="text-muted-foreground">
+                Pencarian ini hanya mencakup 500 pelanggan terdaftar.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleServerSearch}
+                disabled={serverSearching}
+              >
+                {serverSearching ? 'Mencari...' : 'Cari di semua pelanggan'}
+              </Button>
+              {serverSearchError && (
+                <p className="text-destructive text-xs">{serverSearchError}</p>
+              )}
+            </div>
+          )}
+        </div>
       ) : (
         <>
+          {serverSearch !== null && (
+            <p className="text-xs text-muted-foreground">
+              Menampilkan hasil pencarian dari semua pelanggan, bukan hanya 500 terdaftar.
+            </p>
+          )}
           {/* Mobile: card list */}
           <div className="space-y-2 sm:hidden">
             {paged.map((p) => (
-              <div key={p.id} className="border rounded-lg p-3">
-                <div className="flex justify-between items-start">
-                  <p className="font-medium text-sm">{p.nama}</p>
-                  <Badge
-                    variant={p.tipe === 'grosir' ? 'default' : 'secondary'}
-                  >
-                    {p.tipe === 'grosir' ? 'Grosir' : 'Retail'}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {p.telepon ?? '—'}
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Link href={`/pelanggan/${p.id}`}>
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                  </Link>
-                  <DeletePelangganButton pelangganId={p.id} />
-                </div>
-              </div>
+              <PelangganRowCard key={p.id} p={p} />
             ))}
           </div>
 
           {/* Desktop: table */}
           <div className="hidden sm:block border rounded-lg overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-muted border-b">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium">Nama</th>
                   <th className="text-left px-4 py-3 font-medium">Telepon</th>
@@ -113,29 +161,7 @@ export function PelangganList({ pelangganList }: PelangganListProps) {
               </thead>
               <tbody className="divide-y">
                 {paged.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{p.nama}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {p.telepon ?? '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        variant={p.tipe === 'grosir' ? 'default' : 'secondary'}
-                      >
-                        {p.tipe === 'grosir' ? 'Grosir' : 'Retail'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/pelanggan/${p.id}`}>
-                          <Button variant="outline" size="sm">
-                            Edit
-                          </Button>
-                        </Link>
-                        <DeletePelangganButton pelangganId={p.id} />
-                      </div>
-                    </td>
-                  </tr>
+                  <PelangganRowTableRow key={p.id} p={p} />
                 ))}
               </tbody>
             </table>

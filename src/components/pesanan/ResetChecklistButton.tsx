@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { resetChecklist } from '@/app/(app)/pesanan/actions'
+import { resetChecklist } from '@/app/(app)/pesanan/item-mutation-actions'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { setErrorFromResult } from '@/lib/action-result'
 
 interface ResetChecklistButtonProps {
   pesananId: string
@@ -38,11 +39,7 @@ export function ResetChecklistButton({
     setLoading(true)
     setError(null)
     const result = await resetChecklist(pesananId, target)
-    if (result?.error) {
-      setError(result.error)
-      setLoading(false)
-      return
-    }
+    if (setErrorFromResult(result, setError)) { setLoading(false); return }
     setLoading(false)
     setOpen(false)
   }
@@ -66,7 +63,7 @@ export function ResetChecklistButton({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {error && <span className="text-xs text-red-500">{error}</span>}
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </span>
   )
 }

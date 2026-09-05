@@ -5,6 +5,9 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   test: {
+    // Use threads pool instead of forks - forks deadlocks in the
+    // hermes-cron sandbox environment causing Phase 2 gate timeout
+    pool: 'threads',
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     globals: true,

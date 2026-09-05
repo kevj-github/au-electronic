@@ -1,11 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import { useResetOnOpen } from '@/hooks/use-reset-on-open'
 import { createPembayaran } from '@/app/(app)/pesanan/[id]/payment-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatThousandsInput, parseThousandsInput } from '@/lib/utils'
+import { setErrorFromResult } from '@/lib/action-result'
 import {
   Dialog,
   DialogContent,
@@ -24,7 +33,6 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [jumlahRaw, setJumlahRaw] = useState(String(sisaTagihan > 0 ? sisaTagihan : ''))
 
   // Re-seed the prefill every time the dialog opens rather than only at mount.
   //
@@ -35,15 +43,12 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
   // order. (A full payment unmounts the component, so only the partial flow —
   // the one `bayar_sebagian` exists for — was exposed.)
   //
-  // Keyed on the open transition, not on `sisaTagihan`, so a balance change
-  // arriving via Realtime while the dialog is open cannot clobber what the
-  // owner is currently typing. Adjusting state during render is the
-  // React-recommended form and converges: `prevOpen` matches immediately after.
-  const [prevOpen, setPrevOpen] = useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) setJumlahRaw(String(sisaTagihan > 0 ? sisaTagihan : ''))
-  }
+  // useResetOnOpen keys the reset on the open transition, not on `sisaTagihan`
+  // itself, so a balance change arriving via Realtime while the dialog is open
+  // cannot clobber what the owner is currently typing.
+  const [jumlahRaw, setJumlahRaw] = useResetOnOpen(open, () =>
+    String(sisaTagihan > 0 ? sisaTagihan : '')
+  )
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -51,13 +56,8 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
     setError(null)
 
     const result = await createPembayaran(pesananId, new FormData(e.currentTarget))
-    if (result.error) {
-      setError(result.error)
-      setLoading(false)
-    } else {
-      setOpen(false)
-      setLoading(false)
-    }
+    if (!setErrorFromResult(result, setError)) setOpen(false)
+    setLoading(false)
   }
 
   return (
@@ -82,16 +82,21 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="metode">Metode Pembayaran</Label>
-            <select
-              id="metode"
+            <Select
               name="metode"
-              className="w-full border rounded-md px-3 py-2 text-sm"
+              defaultValue="tunai"
+              items={{ tunai: 'Tunai', transfer: 'Transfer', lainnya: 'Lainnya' }}
               required
             >
-              <option value="tunai">Tunai</option>
-              <option value="transfer">Transfer</option>
-              <option value="lainnya">Lainnya</option>
-            </select>
+              <SelectTrigger id="metode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tunai">Tunai</SelectItem>
+                <SelectItem value="transfer">Transfer</SelectItem>
+                <SelectItem value="lainnya">Lainnya</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="dibayar_pada">Tanggal Bayar</Label>
@@ -106,7 +111,7 @@ export function PaymentModal({ pesananId, sisaTagihan }: PaymentModalProps) {
             <Label htmlFor="catatan">Catatan (opsional)</Label>
             <Input id="catatan" name="catatan" placeholder="Catatan..." />
           </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Batal

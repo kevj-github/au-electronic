@@ -117,3 +117,14 @@ export function itemsEmbed(isOwner: boolean, columns: string): string {
 export function pembayaranEmbed(columns: string): string {
   return `pembayaran:${PEMBAYARAN_SOURCE}(${columns})`
 }
+
+/**
+ * The exact `pesanan` select used by the /pesanan list page, shared with its
+ * full-table search fallback (`searchPesananGlobal`) so the two can never
+ * drift apart on which columns/embeds each role is allowed to see.
+ */
+export function pesananListSelect(isOwner: boolean): string {
+  return isOwner
+    ? `*, pelanggan(nama, alamat), ${itemsEmbed(true, 'subtotal, diambil_oleh_helper')}, ${pembayaranEmbed('jumlah')}`
+    : `id, kode_pesanan, nama_pelanggan, status, created_at, pelanggan(nama, alamat), ${itemsEmbed(false, 'diambil_oleh_helper')}`
+}

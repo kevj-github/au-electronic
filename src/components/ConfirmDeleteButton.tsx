@@ -12,6 +12,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { setErrorFromResult, type ActionResult } from '@/lib/action-result'
 
 interface ConfirmDeleteButtonProps {
   /** The element used as the trigger (a `Button` or plain `<button>`), styled by the caller — only its onClick/aria wiring is taken over. */
@@ -21,7 +22,7 @@ interface ConfirmDeleteButtonProps {
   title: string
   description: string
   confirmLabel?: string
-  action: () => Promise<{ error?: string } | undefined>
+  action: () => Promise<ActionResult | undefined>
   /** Called after a successful delete, e.g. `router.refresh()`. */
   onSuccess?: () => void
 }
@@ -56,10 +57,7 @@ export function ConfirmDeleteButton({
     setError(null)
     const result = await action()
     setLoading(false)
-    if (result?.error) {
-      setError(result.error)
-      return
-    }
+    if (setErrorFromResult(result, setError)) return
     setOpen(false)
     onSuccess?.()
   }
@@ -72,7 +70,7 @@ export function ConfirmDeleteButton({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
-        {error && <p className="text-sm text-red-500 px-1">{error}</p>}
+        {error && <p className="text-sm text-destructive px-1">{error}</p>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>Batal</AlertDialogCancel>
           <Button type="button" variant="destructive" onClick={handleConfirm} disabled={loading}>

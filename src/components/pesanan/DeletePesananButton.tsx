@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
-import { deletePesanan } from '@/app/(app)/pesanan/actions'
+import { deletePesanan } from '@/app/(app)/pesanan/order-lifecycle-actions'
 import { Button } from '@/components/ui/button'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 
@@ -19,7 +19,7 @@ export function DeletePesananButton({ pesananId }: DeletePesananButtonProps) {
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 w-7 p-0 text-red-400 hover:text-red-600 shrink-0"
+          className="h-7 w-7 p-0 text-destructive/70 hover:text-destructive shrink-0"
           aria-label="Hapus pesanan"
         />
       }

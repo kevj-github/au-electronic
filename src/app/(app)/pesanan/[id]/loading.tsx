@@ -11,6 +11,11 @@ export default function PesananDetailLoading() {
             <Skeleton className="h-5 w-16 rounded-full" />
           </div>
           <Skeleton className="h-4 w-32" />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-20" />
+          </div>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Skeleton className="h-9 w-24" />
@@ -43,6 +48,12 @@ export default function PesananDetailLoading() {
         <Skeleton className="h-5 w-28" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-2/3" />
+      </div>
+
+      {/* Catatan */}
+      <div className="border rounded-lg p-4 space-y-2">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-4 w-full" />
       </div>
     </div>
   )

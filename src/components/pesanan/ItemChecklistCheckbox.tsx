@@ -1,8 +1,9 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
-import { toggleItemDicekOwner } from '@/app/(app)/pesanan/actions'
+import { toggleItemDicekOwner } from '@/app/(app)/pesanan/item-mutation-actions'
+import { useOptimisticAction } from '@/hooks/use-optimistic-action'
 
 interface ItemChecklistCheckboxProps {
   itemId: string
@@ -20,38 +21,16 @@ function ItemChecklistCheckboxImpl({
   disabled = false,
   showLabel = true,
 }: ItemChecklistCheckboxProps) {
-  const [prevChecked, setPrevChecked] = useState(checked)
-  const [pending, setPending] = useState<boolean | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  // Adjust state during render (React-recommended pattern) instead of a useEffect
-  // resync: any time the server-revalidated `checked` prop changes for any reason
-  // — our own toggle confirming, or someone else's action (e.g. a checklist reset)
-  // — drop the stale optimistic value immediately instead of trusting it just
-  // because it happens to equal the old `checked`.
-  if (checked !== prevChecked) {
-    setPrevChecked(checked)
-    setPending(null)
-  }
-
-  const value = pending ?? checked
-
-  async function handleChange(next: boolean) {
-    setPending(next)
-    setLoading(true)
-    const result = await toggleItemDicekOwner(itemId, next)
-    if (result?.error) {
-      setPending(null)
-    }
-    setLoading(false)
-  }
+  const { value, commit, loading } = useOptimisticAction(checked, (next) =>
+    toggleItemDicekOwner(itemId, next)
+  )
 
   return (
     <label className="inline-flex items-center gap-2 cursor-pointer select-none py-1">
       <Checkbox
         checked={value}
         disabled={loading || disabled}
-        onCheckedChange={(next) => handleChange(next === true)}
+        onCheckedChange={(next) => commit(next === true)}
         aria-label={label}
       />
       {showLabel && <span className="text-sm text-muted-foreground">{label}</span>}

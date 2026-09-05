@@ -94,6 +94,32 @@ describe('payment amount prefill', () => {
   })
 })
 
+describe('metode pembayaran', () => {
+  it('defaults to tunai without any interaction', async () => {
+    const user = userEvent.setup()
+    render(<PaymentModal pesananId="p1" sisaTagihan={500000} />)
+
+    await openDialog(user)
+    await user.click(screen.getByRole('button', { name: 'Simpan' }))
+
+    const [, formData] = createPembayaran.mock.calls[0] as unknown as [string, FormData]
+    expect(formData.get('metode')).toBe('tunai')
+  })
+
+  it('submits the chosen metode after picking a different option', async () => {
+    const user = userEvent.setup()
+    render(<PaymentModal pesananId="p1" sisaTagihan={500000} />)
+
+    await openDialog(user)
+    await user.click(screen.getByRole('combobox', { name: 'Metode Pembayaran' }))
+    await user.click(screen.getByRole('option', { name: 'Transfer' }))
+    await user.click(screen.getByRole('button', { name: 'Simpan' }))
+
+    const [, formData] = createPembayaran.mock.calls[0] as unknown as [string, FormData]
+    expect(formData.get('metode')).toBe('transfer')
+  })
+})
+
 describe('payment submission', () => {
   it('submits the raw digits, not the formatted display value', async () => {
     const user = userEvent.setup()

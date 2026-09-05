@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { updatePengiriman } from '@/app/(app)/pesanan/actions'
+import { updatePengiriman } from '@/app/(app)/pesanan/order-lifecycle-actions'
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
 
 interface PengirimanEditorProps {
   pesananId: string
@@ -15,18 +16,8 @@ interface PengirimanEditorProps {
  * and the Epson receipt. Saves on blur, like TanggalPengirimanEditor.
  */
 export function PengirimanEditor({ pesananId, initialValue, locked }: PengirimanEditorProps) {
-  const [value, setValue] = useState(initialValue ?? '')
+  const [value, setValue] = usePropSyncedState(initialValue, (v) => v ?? '')
   const [saving, setSaving] = useState(false)
-
-  // Drop the stale mount-time value when RealtimeRefresh pushes a fresh
-  // initialValue from another device's save — a useState initialiser only
-  // runs once, so without this the field (and a later blur) would keep
-  // comparing against a value no longer on the server.
-  const [prevInitialValue, setPrevInitialValue] = useState(initialValue)
-  if (initialValue !== prevInitialValue) {
-    setPrevInitialValue(initialValue)
-    setValue(initialValue ?? '')
-  }
 
   async function handleBlur() {
     const next = value.trim() || null

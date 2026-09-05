@@ -189,6 +189,18 @@ function PageHeader({
   )
 }
 
+// Splits a flat item list into fixed-size pages, always returning at least
+// one (possibly empty) page so a zero-item invoice still renders a page shell
+// instead of an empty Document.
+export function chunkItemsForPages<T>(items: T[], pageSize: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += pageSize) {
+    chunks.push(items.slice(i, i + pageSize))
+  }
+  if (chunks.length === 0) chunks.push([])
+  return chunks
+}
+
 export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) {
   const tanggal = format(new Date(data.tanggal), 'd MMM yyyy', { locale: idLocale })
   const pengirimanText = shipmentText(data)
@@ -196,11 +208,7 @@ export function DocumentPDF({ data, crownSrc, watermarkSrc }: DocumentPDFProps) 
     ? format(new Date(data.tanggalPengiriman), 'd MMM yyyy', { locale: idLocale })
     : undefined
 
-  const chunks: typeof data.items[] = []
-  for (let i = 0; i < data.items.length; i += ITEMS_PER_PAGE) {
-    chunks.push(data.items.slice(i, i + ITEMS_PER_PAGE))
-  }
-  if (chunks.length === 0) chunks.push([])
+  const chunks = chunkItemsForPages(data.items, ITEMS_PER_PAGE)
 
   const documentTitle = [data.namaPelanggan, data.alamatPelanggan, tanggal]
     .filter(Boolean)

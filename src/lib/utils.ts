@@ -36,6 +36,35 @@ export function parseIntOrZero(raw: string): number {
   return parseInt(raw, 10) || 0
 }
 
+/**
+ * Escapes ilike's own wildcards (`%`, `_`) so a literal one typed into a
+ * search box is matched literally rather than acting as a wildcard. Shared by
+ * searchPesananGlobal and searchPelangganGlobal — both build `.ilike()`
+ * patterns from raw user input.
+ */
+export function escapeIlike(raw: string): string {
+  return raw.replace(/[%_]/g, '\\$&')
+}
+
+/**
+ * Merges several `.ilike()` result sets that may overlap (a row matching more
+ * than one column comes back from more than one query), dedupes by id, sorts,
+ * and caps at `limit`. Shared by searchPesananGlobal and searchPelangganGlobal,
+ * which each run one `.ilike()` per searchable column and combine the results.
+ */
+export function mergeSearchResults<T>(
+  resultSets: T[][],
+  getId: (item: T) => string,
+  compare: (a: T, b: T) => number,
+  limit: number,
+): T[] {
+  const seen = new Map<string, T>()
+  for (const row of resultSets.flat()) {
+    seen.set(getId(row), row)
+  }
+  return Array.from(seen.values()).sort(compare).slice(0, limit)
+}
+
 /** Strip everything but digits (e.g. "Rp 1.000a" -> "1000", "" -> ""). */
 export function parseThousandsInput(display: string): string {
   return display.replace(/\D/g, '')
@@ -46,6 +75,29 @@ export function formatThousandsInput(raw: string): string {
   const digits = parseThousandsInput(raw)
   if (digits === '') return ''
   return Number(digits).toLocaleString('id-ID')
+}
+
+/** True if `pathname` is `href` or a sub-path of it (e.g. "/pesanan/123" matches "/pesanan"). */
+export function isActiveRoute(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(href + '/')
+}
+
+/**
+ * "{count} {label}" list-header line, appending a "— menampilkan {shown}"
+ * notice when the fetched rows were capped below the true row count (e.g. the
+ * 500-row limit on /pesanan and /pelanggan). Previously copy-pasted across
+ * those two pages with a subtly different `??` fallback shape on each; `count`
+ * takes the raw `count: 'exact'` result (nullable) directly.
+ */
+export function listCountNotice(
+  count: number | null,
+  shown: number,
+  label: string,
+  truncatedSuffix?: string,
+): string {
+  const total = count ?? shown
+  if (total <= shown) return `${total} ${label}`
+  return `${total} ${label} — menampilkan ${shown}${truncatedSuffix ? ` ${truncatedSuffix}` : ''}`
 }
 
 /**

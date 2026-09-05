@@ -11,6 +11,7 @@ interface Op {
   table: string
   op: 'update' | 'delete'
   payload?: Record<string, unknown>
+  eqCalls?: Array<[string, unknown]>
 }
 
 const ops: Op[] = []
@@ -52,7 +53,10 @@ function makeClient() {
         return builder
       },
       select: () => builder,
-      eq: () => builder,
+      eq: (col: string, val: unknown) => {
+        ;(ctx.eqCalls ??= []).push([col, val])
+        return builder
+      },
       // The name lookup must not consume a write-error slot.
       single: () => Promise.resolve({ data: singleData, error: null }),
       then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
@@ -194,5 +198,44 @@ describe('upsertPelanggan', () => {
 
     expect(await upsertPelanggan(form({ nama: 'Toko Baru' }))).toEqual(OWNER_ERROR)
     expect(ops).toHaveLength(0)
+  })
+
+  it('updates the existing row instead of inserting when an id is supplied', async () => {
+    const { upsertPelanggan } = await actions()
+
+    await expect(
+      upsertPelanggan(
+        form({ id: 'c1', nama: 'Toko Lama', telepon: '0899', alamat: 'Jl. 2', tipe: 'grosir' })
+      )
+    ).rejects.toThrow('NEXT_REDIRECT')
+
+    expect(ops).toHaveLength(1)
+    expect(ops[0]).toMatchObject({
+      table: 'pelanggan',
+      payload: { nama: 'Toko Lama', telepon: '0899', alamat: 'Jl. 2', tipe: 'grosir' },
+    })
+    // Targets the row being edited, not every pelanggan row.
+    expect(ops[0].eqCalls).toEqual([['id', 'c1']])
+    expect(revalidatePath).toHaveBeenCalledWith('/pelanggan')
+  })
+
+  it('stores blank telepon and alamat as null on update too', async () => {
+    const { upsertPelanggan } = await actions()
+
+    await expect(
+      upsertPelanggan(form({ id: 'c1', nama: 'Toko Lama', telepon: '', alamat: '', tipe: 'retail' }))
+    ).rejects.toThrow('NEXT_REDIRECT')
+
+    expect(ops[0].payload).toMatchObject({ telepon: null, alamat: null })
+  })
+
+  it('returns the write error instead of redirecting on a failed update', async () => {
+    writeErrors = [{ message: 'row locked' }]
+    const { upsertPelanggan } = await actions()
+
+    expect(
+      await upsertPelanggan(form({ id: 'c1', nama: 'Toko Lama', tipe: 'retail' }))
+    ).toEqual({ error: 'row locked' })
+    expect(redirect).not.toHaveBeenCalled()
   })
 })

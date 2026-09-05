@@ -13,7 +13,7 @@ export function DeletePaymentButton({ pembayaranId }: DeletePaymentButtonProps) 
       renderTrigger={
         <button
           type="button"
-          className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
+          className="text-xs text-destructive/70 hover:text-destructive disabled:opacity-50"
         />
       }
       triggerLabel="Hapus"
