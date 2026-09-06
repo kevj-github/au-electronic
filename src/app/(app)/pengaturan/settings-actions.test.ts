@@ -152,6 +152,15 @@ describe('updateEpsonPrinterName', () => {
     expect(await updateEpsonPrinterName('X')).toEqual(OWNER_ERROR)
     expect(writes).toHaveLength(0)
   })
+
+  it('surfaces a write error', async () => {
+    opError = { message: 'permission denied for table settings' }
+    const { updateEpsonPrinterName } = await actions()
+
+    expect(await updateEpsonPrinterName('X')).toEqual({
+      error: 'permission denied for table settings',
+    })
+  })
 })
 
 describe('getEpsonPrinterName', () => {
@@ -217,6 +226,14 @@ describe('clear-all actions', () => {
 
     expect(await clearAllPesanan()).toEqual({})
     expect(writes[0]).toMatchObject({ table: 'pesanan', op: 'delete' })
+  })
+
+  it('clearAllPesanan surfaces a delete error and revalidates nothing', async () => {
+    opError = { message: 'foreign key violation' }
+    const { clearAllPesanan } = await actions()
+
+    expect(await clearAllPesanan()).toEqual({ error: 'foreign key violation' })
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it.each([
