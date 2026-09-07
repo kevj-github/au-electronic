@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DocumentButtons } from './DocumentButtons'
 import type { InvoiceData } from '@/lib/invoice-data'
@@ -157,6 +157,26 @@ describe('handleCopyWhatsapp', () => {
     expect(mocks.getInvoiceData).not.toHaveBeenCalled()
   })
 
+  it('reverts the "Disalin!" label back to "Copy WhatsApp" after a delay', async () => {
+    // @ts-expect-error simulating an environment without ClipboardItem
+    global.ClipboardItem = undefined
+    vi.useFakeTimers()
+    try {
+      mockClipboard()
+      renderButtons()
+
+      fireEvent.click(screen.getByRole('button', { name: /Copy WhatsApp/ }))
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(screen.getByText('Disalin!')).toBeInTheDocument()
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+
+      expect(screen.getByText('Copy WhatsApp')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('shows an error and resets copying state when the clipboard write fails', async () => {
     // @ts-expect-error simulating an environment without ClipboardItem
     global.ClipboardItem = undefined
@@ -208,6 +228,19 @@ describe('handlePrint (desktop)', () => {
     await waitFor(() => expect(win.close).toHaveBeenCalled())
     expect(screen.getByText('Gagal membuat PDF.')).toBeInTheDocument()
   })
+
+  it('falls back to the prop data when the refetch returns none', async () => {
+    mocks.getInvoiceData.mockResolvedValue({ data: undefined, error: 'network' })
+    const win = fakeWindow()
+    vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window)
+    const user = userEvent.setup()
+    renderButtons()
+
+    await user.click(screen.getByRole('button', { name: /Cetak PDF/ }))
+
+    await waitFor(() => expect(win.location.href).toBe('blob:mock-url'))
+    expect(mocks.buildFilename).toHaveBeenCalledWith(baseData)
+  })
 })
 
 describe('handlePrint (mobile)', () => {
@@ -230,6 +263,22 @@ describe('handlePrint (mobile)', () => {
     await waitFor(() => expect(capturedDownload).toBe('invoice.pdf'))
     expect(capturedHref).toContain('blob:mock-url')
     expect(openSpy).not.toHaveBeenCalled()
+  })
+
+  it('revokes the blob URL after a delay, to give the download time to start', async () => {
+    vi.useFakeTimers()
+    try {
+      setUserAgent(MOBILE_UA)
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      renderButtons()
+
+      fireEvent.click(screen.getByRole('button', { name: /Cetak PDF/ }))
+      await act(async () => { await vi.advanceTimersByTimeAsync(10000) })
+
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
