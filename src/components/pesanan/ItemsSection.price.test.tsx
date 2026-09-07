@@ -134,6 +134,24 @@ describe('price entry', () => {
     expect(refresh).not.toHaveBeenCalled()
   })
 
+  it('treats a never-priced item (harga_satuan undefined) as zero when deciding whether to save', async () => {
+    const user = userEvent.setup()
+    render(
+      <ItemsSection
+        pesananId="p1"
+        items={[{ ...item(), harga_satuan: undefined }]}
+        isOwner
+        isLocked={false}
+        priceEditable
+      />
+    )
+
+    await user.click(priceField())
+    await user.tab()
+
+    expect(updateItemHarga).not.toHaveBeenCalled()
+  })
+
   it('updates the order total live as a price is typed', async () => {
     const user = userEvent.setup()
     render(

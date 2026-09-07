@@ -87,9 +87,16 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
     })
   }
 
-  // Refs for mobile keyboard navigation (Enter key: qty → nama → save/add)
+  // Refs for mobile keyboard navigation (Enter key: qty → nama → save/add).
+  // `newQtyRef` also gets refocused after a keepAdding save (see saveNewItem)
+  // — it must stay separate from the desktop add-row's qty ref even though
+  // both forms are always mounted (CSS-hidden, not conditionally rendered):
+  // sharing one ref would let the desktop input (mounted later in the tree)
+  // win `.current`, so the mobile refocus would target a `display:none` node
+  // and silently no-op in a real browser.
   const newQtyRef = useRef<HTMLInputElement>(null)
   const newNamaRef = useRef<HTMLInputElement>(null)
+  const newQtyRefDesktop = useRef<HTMLInputElement>(null)
   const editQtyRef = useRef<HTMLInputElement>(null)
   const editNamaRef = useRef<HTMLInputElement>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -314,7 +321,7 @@ export function ItemsSection({ pesananId, items, isOwner, isLocked, priceEditabl
               <AddItemFormDesktop
                 addingNew={addingNew}
                 newItem={newItem}
-                newQtyRef={newQtyRef}
+                newQtyRef={newQtyRefDesktop}
                 totalCols={totalCols}
                 onQtyChange={(value) => setNewItem((s) => ({ ...s, qty: value }))}
                 onNamaChange={(value) => setNewItem((s) => ({ ...s, nama_barang: value }))}
