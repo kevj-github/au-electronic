@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { buildFilename, errorMessage, loadImageBase64 } from './document-export'
 import type { InvoiceData } from './invoice-data'
