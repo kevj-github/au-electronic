@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { setErrorFromResult } from './action-result'
+import { setErrorFromResult, type ActionResult } from './action-result'
 
 /**
  * `setErrorFromResult` is called from 13+ components (ItemsSection, OrderForm,
@@ -32,8 +32,9 @@ describe('setErrorFromResult', () => {
 
   it('does not call setError and returns false when result carries success data alongside no error', () => {
     const setError = vi.fn()
+    const result: ActionResult<{ pesananId?: string }> = { pesananId: 'p1' }
 
-    const bailed = setErrorFromResult({ pesananId: 'p1' }, setError)
+    const bailed = setErrorFromResult(result, setError)
 
     expect(bailed).toBe(false)
     expect(setError).not.toHaveBeenCalled()
