@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
-import { escapeIlike, mergeSearchResults } from '@/lib/utils'
+import { escapeIlike, runParallelIlikeSearch } from '@/lib/utils'
 import type { ActionResult } from '@/lib/action-result'
 import type { Pelanggan, TipePelanggan } from '@/lib/types'
 
@@ -32,22 +32,18 @@ export async function searchPelangganGlobal(
     return tipe !== 'semua' ? b.eq('tipe', tipe) : b
   }
 
-  const [byNama, byTelepon, byAlamat] = await Promise.all([
-    baseQuery().ilike('nama', pattern).order('nama').limit(SEARCH_RESULT_LIMIT).returns<Pelanggan[]>(),
-    baseQuery().ilike('telepon', pattern).order('nama').limit(SEARCH_RESULT_LIMIT).returns<Pelanggan[]>(),
-    baseQuery().ilike('alamat', pattern).order('nama').limit(SEARCH_RESULT_LIMIT).returns<Pelanggan[]>(),
-  ])
-
-  if (byNama.error || byTelepon.error || byAlamat.error) {
-    return { error: 'Gagal mencari pelanggan.' }
-  }
-
-  const merged = mergeSearchResults(
-    [byNama.data ?? [], byTelepon.data ?? [], byAlamat.data ?? []],
+  const merged = await runParallelIlikeSearch(
+    [
+      baseQuery().ilike('nama', pattern).order('nama').limit(SEARCH_RESULT_LIMIT).returns<Pelanggan[]>(),
+      baseQuery().ilike('telepon', pattern).order('nama').limit(SEARCH_RESULT_LIMIT).returns<Pelanggan[]>(),
+      baseQuery().ilike('alamat', pattern).order('nama').limit(SEARCH_RESULT_LIMIT).returns<Pelanggan[]>(),
+    ],
     (row) => row.id,
     (a, b) => a.nama.localeCompare(b.nama),
     SEARCH_RESULT_LIMIT,
   )
+
+  if (merged === null) return { error: 'Gagal mencari pelanggan.' }
 
   return { pelangganList: merged }
 }

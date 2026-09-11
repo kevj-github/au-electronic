@@ -65,6 +65,25 @@ export function mergeSearchResults<T>(
   return Array.from(seen.values()).sort(compare).slice(0, limit)
 }
 
+/**
+ * Runs several already-built `.ilike()` query promises (one per searchable
+ * column, off a shared base query) in parallel and merges the results with
+ * `mergeSearchResults`. Returns `null` if any query errored, so the caller
+ * can map that to its own Indonesian error message. Shared by
+ * searchPesananGlobal and searchPelangganGlobal, which each previously
+ * repeated this same Promise.all/error-check/merge sequence by hand.
+ */
+export async function runParallelIlikeSearch<T>(
+  queries: PromiseLike<{ data: T[] | null; error: { message: string } | null }>[],
+  getId: (item: T) => string,
+  compare: (a: T, b: T) => number,
+  limit: number,
+): Promise<T[] | null> {
+  const results = await Promise.all(queries)
+  if (results.some((r) => r.error)) return null
+  return mergeSearchResults(results.map((r) => r.data ?? []), getId, compare, limit)
+}
+
 /** Strip everything but digits (e.g. "Rp 1.000a" -> "1000", "" -> ""). */
 export function parseThousandsInput(display: string): string {
   return display.replace(/\D/g, '')

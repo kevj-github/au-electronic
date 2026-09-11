@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getRole } from '@/lib/pesanan-guards'
 import { pesananListSelect } from '@/lib/pesanan-select'
 import { toOrderRows, type OrderRow, type PesananWithRelations } from '@/components/pesanan/order-row'
-import { escapeIlike, mergeSearchResults } from '@/lib/utils'
+import { escapeIlike, runParallelIlikeSearch } from '@/lib/utils'
 import type { ActionResult } from '@/lib/action-result'
 import type { StatusPesanan } from '@/lib/types'
 
@@ -51,27 +51,25 @@ export async function searchPesananGlobal(
     return b
   }
 
-  const [byKode, byNama] = await Promise.all([
-    baseQuery()
-      .ilike('kode_pesanan', pattern)
-      .order('created_at', { ascending: false })
-      .limit(SEARCH_RESULT_LIMIT)
-      .returns<PesananWithRelations[]>(),
-    baseQuery()
-      .ilike('nama_pelanggan', pattern)
-      .order('created_at', { ascending: false })
-      .limit(SEARCH_RESULT_LIMIT)
-      .returns<PesananWithRelations[]>(),
-  ])
-
-  if (byKode.error || byNama.error) return { error: 'Gagal mencari pesanan.' }
-
-  const merged = mergeSearchResults(
-    [byKode.data ?? [], byNama.data ?? []],
+  const merged = await runParallelIlikeSearch(
+    [
+      baseQuery()
+        .ilike('kode_pesanan', pattern)
+        .order('created_at', { ascending: false })
+        .limit(SEARCH_RESULT_LIMIT)
+        .returns<PesananWithRelations[]>(),
+      baseQuery()
+        .ilike('nama_pelanggan', pattern)
+        .order('created_at', { ascending: false })
+        .limit(SEARCH_RESULT_LIMIT)
+        .returns<PesananWithRelations[]>(),
+    ],
     (row) => row.id,
     (a, b) => (a.created_at < b.created_at ? 1 : -1),
     SEARCH_RESULT_LIMIT,
   )
+
+  if (merged === null) return { error: 'Gagal mencari pesanan.' }
 
   // The helper select above already omits tanggal_pengiriman — mirrors the
   // page's own masking so a helper's search result carries the same shape.

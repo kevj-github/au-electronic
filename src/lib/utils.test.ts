@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, isListTruncated, listCountNotice, escapeIlike, mergeSearchResults } from './utils'
+import { formatRupiah, hitungSaldo, formatNumberID, formatThousandsInput, parseThousandsInput, orderTotals, isActiveRoute, isListTruncated, listCountNotice, escapeIlike, mergeSearchResults, runParallelIlikeSearch } from './utils'
 
 describe('formatRupiah', () => {
   it('formats zero', () => {
@@ -215,6 +215,68 @@ describe('mergeSearchResults', () => {
 
   it('handles empty result sets', () => {
     expect(mergeSearchResults([[], []], (row: { id: string }) => row.id, () => 0, 10)).toEqual([])
+  })
+})
+
+describe('runParallelIlikeSearch', () => {
+  type Row = { id: string; nama: string }
+
+  function resolved(data: Row[] | null, error: { message: string } | null = null) {
+    return Promise.resolve({ data, error })
+  }
+
+  it('merges, dedupes and sorts across all query results', async () => {
+    const a = { id: '1', nama: 'Budi' }
+    const b = { id: '2', nama: 'Ani' }
+    const result = await runParallelIlikeSearch(
+      [resolved([a, b]), resolved([a])],
+      (row) => row.id,
+      (x, y) => x.nama.localeCompare(y.nama),
+      10,
+    )
+    expect(result).toEqual([b, a])
+  })
+
+  it('treats a null data array from a query as empty rather than throwing', async () => {
+    const a = { id: '1', nama: 'Budi' }
+    const result = await runParallelIlikeSearch(
+      [resolved([a]), resolved(null)],
+      (row) => row.id,
+      (x, y) => x.nama.localeCompare(y.nama),
+      10,
+    )
+    expect(result).toEqual([a])
+  })
+
+  it('returns null when any query errors, even if others succeeded', async () => {
+    const result = await runParallelIlikeSearch(
+      [resolved([{ id: '1', nama: 'Budi' }]), resolved(null, { message: 'boom' })],
+      (row) => row.id,
+      (x, y) => x.nama.localeCompare(y.nama),
+      10,
+    )
+    expect(result).toBeNull()
+  })
+
+  it('runs every query concurrently rather than sequentially', async () => {
+    const order: string[] = []
+    function tracked(label: string, delayMs: number) {
+      return new Promise<{ data: { id: string }[]; error: null }>((resolve) => {
+        setTimeout(() => {
+          order.push(label)
+          resolve({ data: [], error: null })
+        }, delayMs)
+      })
+    }
+
+    await runParallelIlikeSearch(
+      [tracked('slow', 10), tracked('fast', 0)],
+      (row) => row.id,
+      () => 0,
+      10,
+    )
+
+    expect(order).toEqual(['fast', 'slow'])
   })
 })
 
