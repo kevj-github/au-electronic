@@ -1,14 +1,21 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
-import { createPesanan } from '@/app/(app)/pesanan/actions'
+import { createPesanan } from '@/app/(app)/pesanan/order-lifecycle-actions'
 import { OrderLineItem, OrderLineItemCard, type LineItem } from './OrderLineItem'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/ui/empty-state'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -19,6 +26,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { formatRupiah, parseIntOrZero } from '@/lib/utils'
+import { setErrorFromResult } from '@/lib/action-result'
+import { usePelangganAutocomplete } from '@/hooks/use-pelanggan-autocomplete'
 import type { Pelanggan } from '@/lib/types'
 
 interface OrderFormProps {
@@ -31,9 +40,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const [pelangganId, setPelangganId] = useState<string>('')
-  const [namaPelanggan, setNamaPelanggan] = useState('')
-  const [showSuggestions, setShowSuggestions] = useState(false)
+  const pelanggan = usePelangganAutocomplete(pelangganList)
   const [catatan, setCatatan] = useState('')
   const [tanggalPengiriman, setTanggalPengiriman] = useState('')
   const [items, setItems] = useState<LineItem[]>([])
@@ -42,8 +49,8 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
 
   const isDirty =
     items.length > 0 ||
-    namaPelanggan.trim() !== '' ||
-    pelangganId !== '' ||
+    pelanggan.namaPelanggan.trim() !== '' ||
+    pelanggan.pelangganId !== '' ||
     catatan.trim() !== '' ||
     tanggalPengiriman !== ''
 
@@ -102,39 +109,33 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
    * name, hit Simpan" path used to fail at the database. The action is the real
    * guard; this only stops the button offering an outcome that cannot succeed.
    */
-  const canSubmit =
-    items.length > 0 &&
-    items.every((i) => i.nama_barang.trim() !== '' && parseIntOrZero(i.qty) >= 1)
-  const pelangganSuggestions = useMemo(() => {
-    const q = namaPelanggan.trim().toLowerCase()
-    if (!q || pelangganId) return []
+  const hasEmptyName = items.some((i) => i.nama_barang.trim() === '')
+  const hasInvalidQty = items.some((i) => parseIntOrZero(i.qty) < 1)
+  const canSubmit = items.length > 0 && !hasEmptyName && !hasInvalidQty
 
-    return pelangganList
-      .filter((p) => p.nama.toLowerCase().includes(q))
-      .sort((a, b) => {
-        const aStarts = a.nama.toLowerCase().startsWith(q) ? 0 : 1
-        const bStarts = b.nama.toLowerCase().startsWith(q) ? 0 : 1
-        return aStarts - bStarts || a.nama.localeCompare(b.nama)
-      })
-      .slice(0, 8)
-  }, [namaPelanggan, pelangganId, pelangganList])
+  // Surfaced next to the Simpan button so a disabled state isn't a dead end —
+  // see canSubmit's rationale above for why qty is checked client-side too.
+  const disabledReason =
+    items.length === 0
+      ? 'Tambahkan minimal satu barang sebelum menyimpan.'
+      : hasEmptyName && hasInvalidQty
+        ? 'Isi nama dan jumlah (qty) untuk setiap barang.'
+        : hasEmptyName
+          ? 'Isi nama barang untuk setiap baris.'
+          : hasInvalidQty
+            ? 'Isi jumlah (qty) minimal 1 untuk setiap baris.'
+            : null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const namaInput = namaPelanggan.trim()
-    const matchedPelanggan = !pelangganId
-      ? pelangganList.find(
-          (p) => p.nama.trim().toLowerCase() === namaInput.toLowerCase()
-        )
-      : null
-    const resolvedPelangganId = pelangganId || matchedPelanggan?.id || null
+    const { pelanggan_id, nama_pelanggan } = pelanggan.resolve()
 
     const result = await createPesanan({
-      pelanggan_id: resolvedPelangganId,
-      nama_pelanggan: resolvedPelangganId ? null : namaInput || null,
+      pelanggan_id,
+      nama_pelanggan,
       catatan: catatan || null,
       tanggal_pengiriman: isOwner ? tanggalPengiriman || null : null,
       items: items.map((i) => ({
@@ -144,11 +145,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
       })),
     })
 
-    if (result.error) {
-      setError(result.error)
-      setLoading(false)
-      return
-    }
+    if (setErrorFromResult(result, setError)) { setLoading(false); return }
 
     router.push(`/pesanan/${result.pesananId}`)
   }
@@ -161,60 +158,48 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           <h3 className="font-medium">Pelanggan</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Pilih dari daftar</Label>
-              <select
-                value={pelangganId}
-                onChange={(e) => {
-                  setPelangganId(e.target.value)
-                  if (e.target.value) setNamaPelanggan('')
-                }}
-                className="w-full border rounded-md px-3 py-2 text-sm"
-              >
-                <option value="">— Pilih pelanggan —</option>
-                {pelangganList.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nama}
-                    {p.alamat ? ` — ${p.alamat}` : ''} (
-                    {p.tipe === 'grosir' ? 'Grosir' : 'Retail'})
-                  </option>
-                ))}
-              </select>
+              <Label htmlFor="pelanggan-id">Pilih dari daftar</Label>
+              <Select value={pelanggan.pelangganId} onValueChange={pelanggan.selectPelanggan}>
+                <SelectTrigger id="pelanggan-id" className="w-full">
+                  <SelectValue>
+                    {(value: string) =>
+                      value ? pelanggan.labelFor(value) : '— Pilih pelanggan —'
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">— Pilih pelanggan —</SelectItem>
+                  {pelangganList.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {pelanggan.labelFor(p.id)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Atau ketik nama langsung</Label>
               <div className="relative">
                 <Input
-                  value={namaPelanggan}
-                  onChange={(e) => {
-                    setNamaPelanggan(e.target.value)
-                    if (e.target.value) {
-                      setPelangganId('')
-                      setShowSuggestions(true)
-                    } else {
-                      setShowSuggestions(false)
-                    }
-                  }}
-                  onFocus={() => {
-                    if (namaPelanggan.trim()) setShowSuggestions(true)
-                  }}
-                  onBlur={() => setShowSuggestions(false)}
+                  value={pelanggan.namaPelanggan}
+                  onChange={(e) => pelanggan.onNamaPelangganChange(e.target.value)}
+                  onFocus={pelanggan.onNamaPelangganFocus}
+                  onBlur={pelanggan.onNamaPelangganBlur}
                   placeholder="Nama pelanggan baru..."
-                  disabled={!!pelangganId}
+                  disabled={!!pelanggan.pelangganId}
                   autoComplete="off"
                 />
 
-                {showSuggestions && pelangganSuggestions.length > 0 && (
+                {pelanggan.showSuggestions && pelanggan.suggestions.length > 0 && (
                   <div className="absolute z-20 mt-1 w-full rounded-md border bg-background shadow-md">
                     <ul className="max-h-56 overflow-auto py-1">
-                      {pelangganSuggestions.map((p) => (
+                      {pelanggan.suggestions.map((p) => (
                         <li key={p.id}>
                           <button
                             type="button"
                             onMouseDown={(e) => {
                               e.preventDefault()
-                              setPelangganId(p.id)
-                              setNamaPelanggan('')
-                              setShowSuggestions(false)
+                              pelanggan.selectSuggestion(p)
                             }}
                             className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
                           >
@@ -268,7 +253,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
               {/* Desktop: table */}
               <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm border rounded-lg overflow-hidden min-w-[560px]">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-muted border-b">
                     <tr>
                       <th className="text-right px-3 py-2 font-medium w-24">Qty</th>
                       <th className="text-left px-3 py-2 font-medium">Nama Barang</th>
@@ -289,7 +274,7 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
                       />
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-50 border-t">
+                  <tfoot className="bg-muted border-t">
                     <tr>
                       <td colSpan={3} className="px-3 py-2 text-right font-medium">
                         Total
@@ -335,18 +320,23 @@ export function OrderForm({ pelangganList, isOwner }: OrderFormProps) {
           </div>
         )}
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <div className="flex gap-2">
-          <Button
-            type="submit"
-            disabled={loading || !canSubmit}
-          >
-            {loading ? 'Menyimpan...' : 'Simpan Pesanan'}
-          </Button>
-          <Button type="button" variant="outline" onClick={handleBatal}>
-            Batal
-          </Button>
+        <div className="space-y-1.5">
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              disabled={loading || !canSubmit}
+            >
+              {loading ? 'Menyimpan...' : 'Simpan Pesanan'}
+            </Button>
+            <Button type="button" variant="outline" onClick={handleBatal}>
+              Batal
+            </Button>
+          </div>
+          {!loading && isDirty && disabledReason && (
+            <p className="text-sm text-muted-foreground">{disabledReason}</p>
+          )}
         </div>
       </form>
 

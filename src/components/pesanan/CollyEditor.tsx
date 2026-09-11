@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { updateColly } from '@/app/(app)/pesanan/actions'
+import { updateColly } from '@/app/(app)/pesanan/order-lifecycle-actions'
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
+import { setErrorFromResult } from '@/lib/action-result'
 
 interface CollyEditorProps {
   pesananId: string
@@ -19,19 +21,11 @@ interface CollyEditorProps {
  * instead of replace.
  */
 export function CollyEditor({ pesananId, initialValue, locked }: CollyEditorProps) {
-  const [value, setValue] = useState(initialValue ? String(initialValue) : '')
+  const [value, setValue] = usePropSyncedState(initialValue, (v) =>
+    v ? String(v) : '',
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // Drop the stale mount-time value when RealtimeRefresh pushes a fresh
-  // initialValue from another device's save — a useState initialiser only
-  // runs once, so without this the field (and a later blur) would keep
-  // comparing against a value no longer on the server.
-  const [prevInitialValue, setPrevInitialValue] = useState(initialValue)
-  if (initialValue !== prevInitialValue) {
-    setPrevInitialValue(initialValue)
-    setValue(initialValue ? String(initialValue) : '')
-  }
 
   async function handleBlur() {
     const parsed = parseInt(value, 10)
@@ -44,7 +38,7 @@ export function CollyEditor({ pesananId, initialValue, locked }: CollyEditorProp
     // Surfaced rather than swallowed: a silently dropped save looks identical to
     // a value that saved fine but never prints.
     const result = await updateColly(pesananId, next)
-    if (result.error) setError(result.error)
+    setErrorFromResult(result, setError)
     setSaving(false)
   }
 
@@ -62,7 +56,7 @@ export function CollyEditor({ pesananId, initialValue, locked }: CollyEditorProp
         className="border rounded-md px-2 py-1 text-sm h-8 w-20 disabled:opacity-50"
         aria-label="Colly"
       />
-      {error && <span className="text-xs text-red-500">{error}</span>}
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </>
   )
 }

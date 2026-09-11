@@ -113,7 +113,7 @@ export default async function DashboardPage({
         </div>
         <div className="border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">Total Piutang</p>
-          <p className="text-2xl font-semibold mt-1 text-red-600">
+          <p className="text-2xl font-semibold mt-1 text-destructive">
             {formatRupiah(totalPiutang)}
           </p>
         </div>
@@ -135,7 +135,12 @@ export default async function DashboardPage({
                 Menampilkan {piutangRows.length} tagihan terlama dari {unpaidCount}.
               </p>
             )}
-            <OrderList rows={piutangRows} isOwner />
+            {/* `truncated={false}`: OrderList's "cari di semua pesanan" fallback
+                searches the whole pesanan table regardless of payment status,
+                which would be wrong here — this list is already scoped to
+                unpaid orders, not the 500-most-recent-orders cap the fallback
+                exists for. `piutangTruncated` above covers this list's own cap. */}
+            <OrderList rows={piutangRows} isOwner truncated={false} />
           </>
         )}
       </div>

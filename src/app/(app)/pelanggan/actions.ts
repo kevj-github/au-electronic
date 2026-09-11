@@ -4,8 +4,11 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { requireOwner } from '@/lib/supabase/require-owner'
+import { getFormString, getFormStringOrNull } from '@/lib/form-data'
+import type { ActionResult } from '@/lib/action-result'
+import type { TipePelanggan } from '@/lib/types'
 
-export async function deletePelanggan(pelangganId: string): Promise<{ error?: string }> {
+export async function deletePelanggan(pelangganId: string): Promise<ActionResult> {
   const supabase = await createClient()
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
@@ -30,22 +33,20 @@ export async function deletePelanggan(pelangganId: string): Promise<{ error?: st
 }
 
 // Returns undefined on success rather than `{}` — the happy path ends in
-// `redirect()`, which throws. Declared rather than inferred, like every other
-// action here: an inferred union silently narrows the moment a branch returns a
-// guard's result instead of a literal (see CLAUDE.md).
+// `redirect()`, which throws.
 export async function upsertPelanggan(
   formData: FormData
-): Promise<{ error?: string } | undefined> {
+): Promise<ActionResult | undefined> {
   const supabase = await createClient()
 
   const ownerError = await requireOwner(supabase)
   if (ownerError) return ownerError
 
-  const id = formData.get('id') as string | null
-  const nama = formData.get('nama') as string
-  const telepon = formData.get('telepon') as string
-  const alamat = formData.get('alamat') as string
-  const tipe = formData.get('tipe') as 'retail' | 'grosir'
+  const id = getFormStringOrNull(formData, 'id')
+  const nama = getFormString(formData, 'nama')
+  const telepon = getFormString(formData, 'telepon')
+  const alamat = getFormString(formData, 'alamat')
+  const tipe = getFormString(formData, 'tipe') as TipePelanggan
 
   if (!nama) return { error: 'Nama pelanggan wajib diisi.' }
 

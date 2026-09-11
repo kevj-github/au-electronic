@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -32,7 +33,7 @@ vi.mock('@/components/ui/input', () => ({
   },
 }))
 
-vi.mock('@/app/(app)/pesanan/actions', () => ({
+vi.mock('@/app/(app)/pesanan/order-lifecycle-actions', () => ({
   createPesanan: vi.fn(async () => ({ pesananId: 'p1' })),
 }))
 

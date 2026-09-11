@@ -36,6 +36,54 @@ export function parseIntOrZero(raw: string): number {
   return parseInt(raw, 10) || 0
 }
 
+/**
+ * Escapes ilike's own wildcards (`%`, `_`) so a literal one typed into a
+ * search box is matched literally rather than acting as a wildcard. Shared by
+ * searchPesananGlobal and searchPelangganGlobal — both build `.ilike()`
+ * patterns from raw user input.
+ */
+export function escapeIlike(raw: string): string {
+  return raw.replace(/[%_]/g, '\\$&')
+}
+
+/**
+ * Merges several `.ilike()` result sets that may overlap (a row matching more
+ * than one column comes back from more than one query), dedupes by id, sorts,
+ * and caps at `limit`. Shared by searchPesananGlobal and searchPelangganGlobal,
+ * which each run one `.ilike()` per searchable column and combine the results.
+ */
+export function mergeSearchResults<T>(
+  resultSets: T[][],
+  getId: (item: T) => string,
+  compare: (a: T, b: T) => number,
+  limit: number,
+): T[] {
+  const seen = new Map<string, T>()
+  for (const row of resultSets.flat()) {
+    seen.set(getId(row), row)
+  }
+  return Array.from(seen.values()).sort(compare).slice(0, limit)
+}
+
+/**
+ * Runs several already-built `.ilike()` query promises (one per searchable
+ * column, off a shared base query) in parallel and merges the results with
+ * `mergeSearchResults`. Returns `null` if any query errored, so the caller
+ * can map that to its own Indonesian error message. Shared by
+ * searchPesananGlobal and searchPelangganGlobal, which each previously
+ * repeated this same Promise.all/error-check/merge sequence by hand.
+ */
+export async function runParallelIlikeSearch<T>(
+  queries: PromiseLike<{ data: T[] | null; error: { message: string } | null }>[],
+  getId: (item: T) => string,
+  compare: (a: T, b: T) => number,
+  limit: number,
+): Promise<T[] | null> {
+  const results = await Promise.all(queries)
+  if (results.some((r) => r.error)) return null
+  return mergeSearchResults(results.map((r) => r.data ?? []), getId, compare, limit)
+}
+
 /** Strip everything but digits (e.g. "Rp 1.000a" -> "1000", "" -> ""). */
 export function parseThousandsInput(display: string): string {
   return display.replace(/\D/g, '')
@@ -46,6 +94,41 @@ export function formatThousandsInput(raw: string): string {
   const digits = parseThousandsInput(raw)
   if (digits === '') return ''
   return Number(digits).toLocaleString('id-ID')
+}
+
+/** True if `pathname` is `href` or a sub-path of it (e.g. "/pesanan/123" matches "/pesanan"). */
+export function isActiveRoute(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(href + '/')
+}
+
+/**
+ * True when a bounded list fetch (e.g. the 500-row limit on /pesanan and
+ * /pelanggan) didn't return every matching row — `count` is the true total
+ * from a `count: 'exact'` query (nullable: it comes from the content-range
+ * header, so a failed/missing count falls back to "not truncated" via
+ * `shown`), `shown` is how many rows actually came back. Also the check
+ * `listCountNotice` makes internally to decide whether to append its suffix,
+ * and previously re-implemented separately (with a subtly different `??`
+ * fallback shape) at each page's own `truncated` prop for its list component.
+ */
+export function isListTruncated(count: number | null, shown: number): boolean {
+  return (count ?? shown) > shown
+}
+
+/**
+ * "{count} {label}" list-header line, appending a "— menampilkan {shown}"
+ * notice when the fetched rows were capped below the true row count. `count`
+ * takes the raw `count: 'exact'` result (nullable) directly.
+ */
+export function listCountNotice(
+  count: number | null,
+  shown: number,
+  label: string,
+  truncatedSuffix?: string,
+): string {
+  const total = count ?? shown
+  if (!isListTruncated(count, shown)) return `${total} ${label}`
+  return `${total} ${label} — menampilkan ${shown}${truncatedSuffix ? ` ${truncatedSuffix}` : ''}`
 }
 
 /**

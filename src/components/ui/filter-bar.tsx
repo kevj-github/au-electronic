@@ -2,6 +2,13 @@
 
 import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface FilterBarOption<T extends string> {
   value: T
@@ -36,17 +43,24 @@ export function FilterBar<T extends string>({
           className="pl-9"
         />
       </div>
-      <select
+      <Select
         value={selectValue}
-        onChange={(e) => onSelectChange(e.target.value as T)}
-        className="border rounded-md px-3 py-2 text-sm"
+        onValueChange={(value) => {
+          if (value !== null) onSelectChange(value)
+        }}
+        items={Object.fromEntries(selectOptions.map((o) => [o.value, o.label]))}
       >
-        {selectOptions.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className="w-auto">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {selectOptions.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }

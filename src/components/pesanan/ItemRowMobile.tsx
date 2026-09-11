@@ -1,6 +1,6 @@
 'use client'
 
-import type { RefObject } from 'react'
+import { memo, type RefObject } from 'react'
 import { Pencil, Trash2, X, Check } from 'lucide-react'
 import { ItemChecklistCheckbox } from './ItemChecklistCheckbox'
 import { HelperItemChecklist } from './HelperItemChecklist'
@@ -20,23 +20,23 @@ interface ItemRowMobileProps {
   editNamaRef: RefObject<HTMLInputElement | null>
   onEditQtyChange: (value: string) => void
   onEditNamaChange: (value: string) => void
-  onSaveEdit: () => void
+  onSaveEdit: (id: string) => void
   onCancelEdit: () => void
   isDeleting: boolean
-  onStartEdit: () => void
-  onStartDelete: () => void
+  onStartEdit: (item: SectionItem) => void
+  onStartDelete: (id: string) => void
   onCancelDelete: () => void
-  onConfirmDelete: () => void
+  onConfirmDelete: (id: string) => void
   isLoading: boolean
   rawPriceValue: string
   numPriceValue: number
   subtotalValue: number
   isSavingPrice: boolean
-  onPriceChange: (value: string) => void
-  onPriceBlur: () => void
+  onPriceChange: (id: string, value: string) => void
+  onPriceBlur: (item: SectionItem) => void
 }
 
-export function ItemRowMobile({
+function ItemRowMobileImpl({
   item,
   isOwner,
   isLocked,
@@ -89,12 +89,12 @@ export function ItemRowMobile({
               className="h-8 text-sm flex-1"
               enterKeyHint="done"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') { e.preventDefault(); onSaveEdit() }
+                if (e.key === 'Enter') { e.preventDefault(); onSaveEdit(item.id) }
               }}
             />
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={onSaveEdit} disabled={isLoading}>
+            <Button size="sm" onClick={() => onSaveEdit(item.id)} disabled={isLoading}>
               <Check className="size-3.5 mr-1" />Simpan
             </Button>
             <Button size="sm" variant="ghost" onClick={onCancelEdit}>
@@ -139,7 +139,7 @@ export function ItemRowMobile({
                   size="sm"
                   variant="ghost"
                   className="h-7 w-7 p-0"
-                  onClick={onStartEdit}
+                  onClick={() => onStartEdit(item)}
                   aria-label="Edit item"
                 >
                   <Pencil className="size-3.5" />
@@ -150,7 +150,7 @@ export function ItemRowMobile({
                       size="sm"
                       variant="destructive"
                       className="h-7 px-2 text-xs"
-                      onClick={onConfirmDelete}
+                      onClick={() => onConfirmDelete(item.id)}
                       disabled={isLoading}
                     >
                       Hapus
@@ -169,8 +169,8 @@ export function ItemRowMobile({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
-                    onClick={onStartDelete}
+                    className="h-7 w-7 p-0 text-destructive hover:text-destructive/80"
+                    onClick={() => onStartDelete(item.id)}
                     aria-label="Hapus item"
                   >
                     <Trash2 className="size-3.5" />
@@ -190,8 +190,8 @@ export function ItemRowMobile({
                     type="text"
                     inputMode="numeric"
                     value={formatThousandsInput(rawPriceValue)}
-                    onChange={(e) => onPriceChange(e.target.value)}
-                    onBlur={onPriceBlur}
+                    onChange={(e) => onPriceChange(item.id, e.target.value)}
+                    onBlur={() => onPriceBlur(item)}
                     disabled={isSavingPrice}
                     className="h-8 w-32 text-right font-mono text-sm"
                     aria-label={`Harga satuan ${item.nama_barang}`}
@@ -211,3 +211,8 @@ export function ItemRowMobile({
     </div>
   )
 }
+
+// All callback props are stable across ItemsSection re-renders (see the
+// pricesRef/editStateRef notes there), so a shallow prop compare correctly
+// skips every row untouched by the edit that triggered the re-render.
+export const ItemRowMobile = memo(ItemRowMobileImpl)

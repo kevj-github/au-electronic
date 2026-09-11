@@ -20,7 +20,11 @@ export default async function PengaturanPage() {
 
   const supabase = await createClient()
   const [{ data: userList }, { data: lockSetting }, { data: epsonSetting }] = await Promise.all([
-    supabase.from('users').select('*').order('created_at', { ascending: true }).returns<User[]>(),
+    supabase
+      .from('users')
+      .select('id, nama, email, role')
+      .order('created_at', { ascending: true })
+      .returns<Pick<User, 'id' | 'nama' | 'email' | 'role'>[]>(),
     supabase.from('settings').select('value').eq('key', 'pesanan_locked').single<{ value: string }>(),
     supabase.from('settings').select('value').eq('key', 'epson_printer_name').single<{ value: string }>(),
   ])
@@ -45,7 +49,7 @@ export default async function PengaturanPage() {
                 <p className="text-xs text-muted-foreground">{u.email}</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+                <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
                   {u.role === 'owner' ? 'Owner' : 'Helper'}
                 </span>
                 {u.role === 'helper' && <DeleteHelperButton userId={u.id} />}

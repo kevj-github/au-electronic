@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -91,6 +92,32 @@ describe('payment amount prefill', () => {
     await openDialog(user)
 
     expect(amountField().value).toBe('')
+  })
+})
+
+describe('metode pembayaran', () => {
+  it('defaults to tunai without any interaction', async () => {
+    const user = userEvent.setup()
+    render(<PaymentModal pesananId="p1" sisaTagihan={500000} />)
+
+    await openDialog(user)
+    await user.click(screen.getByRole('button', { name: 'Simpan' }))
+
+    const [, formData] = createPembayaran.mock.calls[0] as unknown as [string, FormData]
+    expect(formData.get('metode')).toBe('tunai')
+  })
+
+  it('submits the chosen metode after picking a different option', async () => {
+    const user = userEvent.setup()
+    render(<PaymentModal pesananId="p1" sisaTagihan={500000} />)
+
+    await openDialog(user)
+    await user.click(screen.getByRole('combobox', { name: 'Metode Pembayaran' }))
+    await user.click(screen.getByRole('option', { name: 'Transfer' }))
+    await user.click(screen.getByRole('button', { name: 'Simpan' }))
+
+    const [, formData] = createPembayaran.mock.calls[0] as unknown as [string, FormData]
+    expect(formData.get('metode')).toBe('transfer')
   })
 })
 

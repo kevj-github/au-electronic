@@ -5,7 +5,20 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    // Use threads pool instead of forks - forks deadlocks in the
+    // hermes-cron sandbox environment causing Phase 2 gate timeout
+    pool: 'threads',
+    // jsdom bootstrap dominates suite wall-clock time (~90s of a ~150-185s
+    // run, measured 2026-09-08) and most test files never touch the DOM.
+    // Default to plain `node` and opt individual files into jsdom via a
+    // `// @vitest-environment jsdom` docblock (only render()/renderHook()
+    // callers and document-export.test.ts, which needs Blob/FileReader,
+    // need it). This suite has grown from 494 to 745 tests since the
+    // pool:'threads' fix (commit eeee75f) narrowed the margin against the
+    // hermes-cron pre-work gate's timeout close enough that CPU contention
+    // from concurrent sessions on this 2-core sandbox can tip a run over —
+    // observed a 153s vs. 185s swing between two consecutive runs here.
+    environment: 'node',
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
     // The live database posture checks need network access and real

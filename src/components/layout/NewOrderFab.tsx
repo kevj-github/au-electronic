@@ -18,20 +18,23 @@ export function NewOrderFab({ role, pesananLocked }: NewOrderFabProps) {
 
   if (isLockedForHelper) {
     return (
-      <div
+      <button
+        type="button"
+        aria-disabled="true"
+        aria-label="Pesanan Baru — dikunci oleh pemilik"
         title="Pembuatan pesanan baru sedang dikunci oleh pemilik"
-        className="fixed bottom-6 right-6 z-20 flex items-center gap-2 rounded-full bg-muted text-muted-foreground pl-4 pr-5 py-3 shadow-lg cursor-not-allowed select-none"
+        className="fixed bottom-6 right-6 z-20 flex items-center gap-2 rounded-full border border-transparent bg-muted text-muted-foreground pl-4 pr-5 py-3 shadow-lg cursor-not-allowed select-none outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <Lock className="size-5" />
         <span className="text-sm font-medium">Pesanan Baru</span>
-      </div>
+      </button>
     )
   }
 
   return (
     <Link
       href="/pesanan/baru"
-      className="fixed bottom-6 right-6 z-20 flex items-center gap-2 rounded-full bg-primary text-primary-foreground pl-4 pr-5 py-3 shadow-lg hover:opacity-90 transition-opacity"
+      className="fixed bottom-6 right-6 z-20 flex items-center gap-2 rounded-full border border-transparent bg-primary text-primary-foreground pl-4 pr-5 py-3 shadow-lg hover:opacity-90 transition-opacity outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <Plus className="size-5" />
       <span className="text-sm font-medium">Pesanan Baru</span>

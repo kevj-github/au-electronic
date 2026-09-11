@@ -6,28 +6,22 @@ import { updateEpsonPrinterName } from '@/app/(app)/pengaturan/actions'
 import { connectQz } from '@/lib/qz'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { setErrorFromResult } from '@/lib/action-result'
+import { usePropSyncedState } from '@/hooks/use-prop-synced-state'
 
 interface EpsonPrinterSettingProps {
   name: string
 }
 
 export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingProps) {
-  const [name, setName] = useState(initialName)
+  // RealtimeRefresh (mounted on this page for the `users` table) can push a
+  // fresh `name` prop from another device's save — resync to it.
+  const [name, setName] = usePropSyncedState(initialName, (v) => v)
   const [printers, setPrinters] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [detecting, setDetecting] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  // Drop the stale mount-time value when RealtimeRefresh (mounted on this page
-  // for the `users` table) pushes a fresh `name` prop from another device's
-  // save — a useState initialiser only runs once, so without this the field
-  // keeps showing the old printer name and a later Simpan click reverts it.
-  const [prevInitialName, setPrevInitialName] = useState(initialName)
-  if (initialName !== prevInitialName) {
-    setPrevInitialName(initialName)
-    setName(initialName)
-  }
 
   async function handleDetect() {
     setError(null)
@@ -49,9 +43,18 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
     setStatus(null)
     setSaving(true)
     const result = await updateEpsonPrinterName(name)
-    if (result?.error) setError(result.error)
-    else setStatus('Tersimpan.')
+    if (!setErrorFromResult(result, setError)) setStatus('Tersimpan.')
     setSaving(false)
+  }
+
+  // A prior "Tersimpan."/error message describes the value at the time it was
+  // shown, not whatever the field holds now — drop it the moment the name
+  // changes for any reason (typing, or picking a detected printer) so it
+  // can't mislead the user into thinking an edited-but-unsaved value was saved.
+  function handleNameChange(next: string) {
+    setName(next)
+    setStatus(null)
+    setError(null)
   }
 
   return (
@@ -65,7 +68,7 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
       <div className="flex flex-wrap items-center gap-2">
         <Input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => handleNameChange(e.target.value)}
           placeholder="EPSON LX-310"
           className="max-w-xs"
         />
@@ -86,7 +89,7 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
               type="button"
               variant={p === name ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setName(p)}
+              onClick={() => handleNameChange(p)}
               title={p}
               className="max-w-full truncate"
             >
@@ -96,8 +99,8 @@ export function EpsonPrinterSetting({ name: initialName }: EpsonPrinterSettingPr
           ))}
         </div>
       )}
-      {status && <p className="text-xs text-green-600">{status}</p>}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {status && <p className="text-xs text-success">{status}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )
 }

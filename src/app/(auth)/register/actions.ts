@@ -2,11 +2,13 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getFormString } from '@/lib/form-data'
+import type { ActionResult } from '@/lib/action-result'
 
-export async function registerOwner(formData: FormData): Promise<{ error?: string }> {
-  const nama = formData.get('nama') as string
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+export async function registerOwner(formData: FormData): Promise<ActionResult> {
+  const nama = getFormString(formData, 'nama')
+  const email = getFormString(formData, 'email')
+  const password = getFormString(formData, 'password')
 
   if (!nama || !email || !password) {
     return { error: 'Nama, email, dan password wajib diisi.' }

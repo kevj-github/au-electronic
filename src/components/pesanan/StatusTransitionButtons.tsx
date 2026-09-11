@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { updateStatusPesanan } from '@/app/(app)/pesanan/actions'
+import { updateStatusPesanan } from '@/app/(app)/pesanan/order-lifecycle-actions'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { setErrorFromResult } from '@/lib/action-result'
 import type { StatusPesanan } from '@/lib/types'
 
 interface StatusTransitionButtonsProps {
@@ -65,10 +66,7 @@ function ConfirmStatusButton({
     setError(null)
     const result = await updateStatusPesanan(pesananId, status)
     setLoading(false)
-    if (result?.error) {
-      setError(result.error)
-      return
-    }
+    if (setErrorFromResult(result, setError)) return
     setOpen(false)
   }
 
@@ -90,7 +88,7 @@ function ConfirmStatusButton({
           <AlertDialogTitle>{copy.title}</AlertDialogTitle>
           <AlertDialogDescription>{copy.description}</AlertDialogDescription>
         </AlertDialogHeader>
-        {error && <p className="text-sm text-red-500 px-1">{error}</p>}
+        {error && <p className="text-sm text-destructive px-1">{error}</p>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>Batal</AlertDialogCancel>
           <Button

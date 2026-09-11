@@ -42,4 +42,25 @@ describe('formatWhatsapp', () => {
     expect(text).toContain('*Lunas*')
     expect(text).not.toContain('Sisa')
   })
+
+  it('shows "Belum ditentukan" when tanggalPengiriman is unset', () => {
+    const text = formatWhatsapp({ ...mockData, tanggalPengiriman: undefined })
+    expect(text).toContain('Tgl. Pengiriman: Belum ditentukan')
+  })
+
+  it('formats tanggalPengiriman as d/MM/yyyy in Indonesian locale when set', () => {
+    const text = formatWhatsapp({ ...mockData, tanggalPengiriman: '2026-07-04' })
+    expect(text).toContain('Tgl. Pengiriman: 4/07/2026')
+    expect(text).not.toContain('Belum ditentukan')
+  })
+
+  it('omits the catatan line entirely when catatan is null', () => {
+    const text = formatWhatsapp({ ...mockData, catatan: null })
+    expect(text).not.toContain('Catatan:')
+  })
+
+  it('appends the catatan line when catatan is set', () => {
+    const text = formatWhatsapp({ ...mockData, catatan: 'Bungkus rapi ya' })
+    expect(text).toContain('Catatan: Bungkus rapi ya')
+  })
 })

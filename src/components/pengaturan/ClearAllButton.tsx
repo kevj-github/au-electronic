@@ -12,11 +12,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { setErrorFromResult, type ActionResult } from '@/lib/action-result'
 
 interface ClearAllButtonProps {
   label: string
   description: string
-  action: () => Promise<{ error?: string } | undefined>
+  action: () => Promise<ActionResult | undefined>
 }
 
 export function ClearAllButton({ label, description, action }: ClearAllButtonProps) {
@@ -35,7 +36,7 @@ export function ClearAllButton({ label, description, action }: ClearAllButtonPro
     setError(null)
     const result = await action()
     setLoading(false)
-    if (result?.error) { setError(result.error); return }
+    if (setErrorFromResult(result, setError)) return
     setOpen(false)
     setStep(1)
   }
@@ -68,7 +69,7 @@ export function ClearAllButton({ label, description, action }: ClearAllButtonPro
                 Apakah Anda benar-benar yakin?
               </AlertDialogDescription>
             </AlertDialogHeader>
-            {error && <p className="text-sm text-red-500 px-1">{error}</p>}
+            {error && <p className="text-sm text-destructive px-1">{error}</p>}
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setStep(1)} disabled={loading}>
                 Batal

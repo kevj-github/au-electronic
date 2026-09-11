@@ -82,6 +82,14 @@ describe('deleteHelper', () => {
     expect(deleteUser).not.toHaveBeenCalled()
   })
 
+  it('surfaces an error from the auth deletion itself', async () => {
+    single.mockResolvedValue({ data: { role: 'helper' }, error: null })
+    deleteUser.mockResolvedValue({ error: { message: 'user not found' } })
+    const deleteHelper = await loadDeleteHelper()
+
+    expect(await deleteHelper('helper-1')).toEqual({ error: 'user not found' })
+  })
+
   it('rejects a non-owner caller before looking anything up', async () => {
     requireOwner.mockResolvedValue({ error: 'Hanya owner yang dapat melakukan aksi ini.' })
     const deleteHelper = await loadDeleteHelper()
