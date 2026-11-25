@@ -20,12 +20,13 @@ printer) — berbeda dari "Cetak PDF" yang berbasis gambar.
 - [ ] Kolom kanan (Tgl. Pesanan / Tgl. Pengiriman) tidak terpotong.
 - [ ] Nama & alamat pelanggan tercetak penuh (baris sendiri di bawah "Kepada Yth:"),
       tidak terpotong seperti di PDF.
-- [ ] Angka rapi rata kanan di kolom HARGA & JUMLAH; baris SUBTOTAL dan TOTAL
-      berakhir tepat di ujung kolom JUMLAH.
+- [ ] Angka rata kanan di kolom HARGA dan JUMLAH. TOTAL pesanan tercetak sekali,
+      tepat di bawah ujung kanan kolom JUMLAH pada halaman terakhir.
 - [ ] Item dengan nama panjang (>34 karakter, jadi 2 baris): halaman tetap muat
       dalam satu form — tidak ada isi yang melewati perforasi.
 - [ ] Struk panjang (>1 halaman): halaman ke-2 mulai tepat di atas form berikutnya
-      (form-feed benar); TOTAL hanya muncul di halaman terakhir.
+      dan tabel dapat memuat lebih dari 10 item. Perhatian, Penerima, serta
+      ekspedisi dan jumlah colly hanya muncul di halaman terakhir.
 - [ ] Setelah cetak, kertas berhenti di awal form berikutnya (siap struk baru).
 - [ ] Kolom CHECK (paling kanan, ~0.6 inci) masih cukup lebar untuk dicentang tangan.
 - [ ] Pengaturan → Printer (input nama, tombol "Deteksi Printer", dan "Simpan")
@@ -41,12 +42,10 @@ Semua di `src/lib/escp.ts`:
   ubah di satu tempat kalau ukuran form berubah.
 - **Jumlah item per halaman tidak diatur manual.** Halaman dipecah berdasarkan
   *anggaran baris*, bukan hitungan item, karena nama barang yang panjang memakai
-  baris tambahan. Rumusnya:
-  `anggaran item = LINES_PER_PAGE − baris header (5, atau 6 bila ada alamat)
-  − 3 (garis + judul kolom) − 1 (SUBTOTAL) − 8 (footer)`, dikurangi 2 lagi di
-  halaman terakhir (baris kosong + TOTAL). Jadi 16/14 baris item tanpa alamat,
-  15/13 dengan alamat. Konstanta `TABLE_HEAD_LINES`, `SUBTOTAL_LINES`,
-  `FOOTER_LINES`, dan `TOTAL_LINES` yang memegang angka-angka itu.
+  baris tambahan. Dengan header 5 baris, halaman sebelum halaman terakhir
+  memuat hingga 24 baris item. Halaman terakhir memuat hingga 13 baris item
+  untuk menyisakan ruang bagi TOTAL dan tanda tangan. Jika nama atau alamat
+  pelanggan membungkus ke baris berikutnya, kapasitas tabel ikut berkurang.
 - **Lebar kolom: konstanta `COL`** — totalnya harus tetap 79 kolom
   (3 + 5 + 34 + 13 + 13 + 6 + 5 pemisah = 79). Angka yang lebih lebar dari
   kolomnya dicetak dengan penanda `#` di depan (digit paling kanan dipertahankan),

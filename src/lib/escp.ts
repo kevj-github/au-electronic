@@ -25,22 +25,6 @@ const WIDTH = 79
 // realistic values never reach the overflow marker in `padStart`.
 const COL = { no: 3, check: 6, qty: 5, nama: 34, harga: 13, jumlah: 13 } as const
 
-// Column at which the JUMLAH field ends; SUBTOTAL/TOTAL are right-aligned here
-// so the amounts line up under the column they total. JUMLAH is the last column,
-// so this is the full line width.
-const AMOUNT_END =
-  COL.no + 1 + COL.check + 1 + COL.qty + 1 + COL.nama + 1 + COL.harga + 1 + COL.jumlah
-
-// Fixed line costs per page, used by the pagination budget below.
-const TABLE_HEAD_LINES = 3 // '=' rule + column header row + '-' rule
-const SUBTOTAL_LINES = 2 // blank + per-page SUBTOTAL row
-const FOOTER_LINES = 10 // blank + Perhatian (3) + 1 blank + Penerima,(+TOTAL) + 2 blank + rule + trailing blank
-const TOTAL_LINES = 0 // TOTAL shares the Penerima row on the last page — no extra line
-
-// Hard cap on items per printed form, on top of the line budget below: keeps
-// each receipt to at most 10 rows even when short names would let more fit.
-const MAX_ITEMS_PER_PAGE = 10
-
 // The LX-310's built-in character set is ASCII; anything outside it prints as
 // garbage. Fold the few non-ASCII characters that realistically reach us (the
 // em dash `invoice-data` uses for "no customer", plus typographic punctuation
@@ -97,11 +81,6 @@ function wrapName(name: string): string[] {
   const chunks: string[] = []
   for (let i = 0; i < name.length; i += COL.nama) chunks.push(name.slice(i, i + COL.nama))
   return chunks.length ? chunks : ['']
-}
-
-/** How many printed lines an item occupies (1 + its name's continuation lines). */
-function itemLineCost(item: InvoiceData['items'][number]): number {
-  return wrapName(item.namaBarang.toUpperCase()).length
 }
 
 function itemLines(item: InvoiceData['items'][number], index: number): string {
@@ -233,20 +212,16 @@ function signatureLine(data: InvoiceData): string {
   return '_'.repeat(left) + text + '_'.repeat(right)
 }
 
-function footerBlock(data: InvoiceData, isLastPage: boolean): string {
-  // On the last page the grand TOTAL rides on the right of the "Penerima," row.
-  let penerima = 'Penerima,'
-  if (isLastPage) {
-    const totalText = `TOTAL : ${formatNumberID(data.totalPesanan)}`
-    penerima += padStart(totalText, AMOUNT_END).slice(penerima.length)
-  }
+function footerBlock(data: InvoiceData): string {
   const lines = [
+    '',
+    padStart(`TOTAL : ${formatNumberID(data.totalPesanan)}`, WIDTH),
     '',
     'Perhatian:',
     'Barang yang sudah dibeli, tidak bisa ditukar / dikembalikan,',
     'kecuali sesuai perjanjian.',
     '',
-    penerima,
+    'Penerima,',
     '',
     '',
     signatureLine(data),
@@ -259,33 +234,39 @@ function footerBlock(data: InvoiceData, isLastPage: boolean): string {
 }
 
 /**
- * Split items into pages against a *line* budget (not just an item count): a
- * long product name wraps onto continuation lines, so ten items can be anything
- * from 10 to 30+ printed lines. Overflowing the 33-line form would push every
- * later page off its top-of-form registration. A page also breaks once it holds
- * MAX_ITEMS_PER_PAGE rows, even when short names would let the line budget fit
- * more.
- *
- * The page containing the final item also has to fit the TOTAL rows, so that
- * item is measured against the smaller `lastBudget`.
+ * Fill each form with printed rows. Keep each item together when it fits on a
+ * form, and keep its number and prices on the first row when a name spans forms.
  */
-function paginate(items: InvoiceData['items'], bodyBudget: number, lastBudget: number): InvoiceData['items'][] {
-  const pages: InvoiceData['items'][] = []
-  let current: InvoiceData['items'] = []
-  let used = 0
+function paginate(itemRows: string[][], bodyBudget: number, lastBudget: number): string[][] {
+  if (lastBudget < 1 || bodyBudget < 1) {
+    throw new Error('Header atau footer terlalu panjang untuk kertas Epson.')
+  }
+  const pages: string[][] = []
+  let current: string[] = []
 
-  items.forEach((item, i) => {
-    const cost = itemLineCost(item)
-    const budget = i === items.length - 1 ? lastBudget : bodyBudget
-    const full = current.length >= MAX_ITEMS_PER_PAGE || used + cost > budget
-    if (current.length > 0 && full) {
+  for (const [index, rows] of itemRows.entries()) {
+    const isLast = index === itemRows.length - 1
+    const budget = isLast ? lastBudget : bodyBudget
+    let offset = 0
+
+    // Only split an item if it cannot fit even on a fresh form. On the last
+    // item leave enough continuation lines to share a form with the footer.
+    while (rows.length - offset > budget) {
+      const available = bodyBudget - current.length
+      const beforeFooter = rows.length - offset - (isLast ? lastBudget : 0)
+      const take = Math.min(available, beforeFooter)
+      current.push(...rows.slice(offset, offset + take))
       pages.push(current)
       current = []
-      used = 0
+      offset += take
     }
-    current.push(item)
-    used += cost
-  })
+
+    if (current.length + rows.length - offset > budget) {
+      pages.push(current)
+      current = []
+    }
+    current.push(...rows.slice(offset))
+  }
   pages.push(current)
   return pages
 }
@@ -294,16 +275,9 @@ function paginate(items: InvoiceData['items'], bodyBudget: number, lastBudget: n
  * Build a raw ESC/P command stream for the Epson LX-310. Pure function of its
  * input: no browser or printer dependency, so it is fully unit-testable. The
  * stream resets the printer, sets a 33-line page length, then emits one form per
- * page of items (header + rows + per-page subtotal + footer), form-feeding
- * between forms and at the end so each receipt lands on a fresh form's top edge.
- *
- * Page arithmetic (all in printed lines, budget = LINES_PER_PAGE = 33):
- *   header (5; +1 or more when a customer address wraps the Kepada line)
- * + table head (3) + item lines (variable) + SUBTOTAL (2) + footer (10).
- * TOTAL rides the Penerima row on the last page, so it costs no extra lines.
- * headerLines is measured from the built header below, so a wrapped Kepada line
- * shrinks the item budget automatically. Item count is additionally capped at
- * MAX_ITEMS_PER_PAGE regardless of how few lines the names occupy.
+ * page of items. Only the final form includes the order total and signature.
+ * Each form ends with a line feed before the form feed to avoid double-striking
+ * its last printed line on the LX-310.
  */
 export function buildEscP(input: InvoiceData): string {
   // Fold to printer-safe ASCII first, so every length below is the printed one.
@@ -323,12 +297,17 @@ export function buildEscP(input: InvoiceData): string {
   const buildHeader = (pageLabel?: string) =>
     headerBlock(data, tanggal, tanggalPengiriman, pageLabel)
 
-  // The header is the same height on every page, so measuring one is enough.
+  const tableHead = [
+    '='.repeat(WIDTH),
+    row('NO', 'CHECK', 'QTY', 'NAMA BARANG', 'HARGA(Rp)', 'JUMLAH(Rp)'),
+    '-'.repeat(WIDTH),
+  ]
+  const itemRows = data.items.map((item, i) => itemLines(item, i).split(LF))
+  const footer = footerBlock(data)
   const splitPages = (header: string) => {
-    const headerLines = header.split(LF).length
-    const bodyBudget =
-      LINES_PER_PAGE - headerLines - TABLE_HEAD_LINES - SUBTOTAL_LINES - FOOTER_LINES
-    return paginate(data.items, bodyBudget, bodyBudget - TOTAL_LINES)
+    const available = LINES_PER_PAGE - header.split(LF).length - tableHead.length
+    // The footer already includes its trailing LF. Earlier pages need one too.
+    return paginate(itemRows, available - 1, available - footer.split(LF).length)
   }
 
   // Whether a page label is printed depends on the page count, and the label can
@@ -350,26 +329,15 @@ export function buildEscP(input: InvoiceData): string {
   const totalPages = chunks.length
 
   let out = INIT + PAGE_LENGTH
-  let startIndex = 0
 
-  chunks.forEach((pageItems, pageIndex) => {
-    const isLast = pageIndex === totalPages - 1
-    const pageSubtotal = pageItems.reduce((s, it) => s + it.subtotal, 0)
-
+  chunks.forEach((rows, pageIndex) => {
     const parts = [
-      buildHeader(
-        totalPages > 1 ? pageLabelText(pageIndex + 1, totalPages) : undefined,
-      ),
-      '='.repeat(WIDTH),
-      row('NO', 'CHECK', 'QTY', 'NAMA BARANG', 'HARGA(Rp)', 'JUMLAH(Rp)'),
-      '-'.repeat(WIDTH),
-      ...pageItems.map((item, i) => itemLines(item, startIndex + i)),
-      '',
-      padStart(`SUBTOTAL : ${formatNumberID(pageSubtotal)}`, AMOUNT_END),
-      footerBlock(data, isLast),
+      buildHeader(totalPages > 1 ? pageLabelText(pageIndex + 1, totalPages) : undefined),
+      ...tableHead,
+      ...rows,
+      pageIndex === totalPages - 1 ? footer : '',
     ]
     out += parts.join(LF) + FF
-    startIndex += pageItems.length
   })
 
   return out

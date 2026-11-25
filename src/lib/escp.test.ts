@@ -84,13 +84,13 @@ describe('buildEscP', () => {
     expect(firstItem.indexOf('RELAY PTC')).toBe(head.indexOf('NAMA BARANG'))
   })
 
-  it('right-aligns SUBTOTAL and TOTAL under the JUMLAH column', () => {
+  it('right-aligns the order total under the JUMLAH column', () => {
     const lines = visible(buildEscP(base)).split('\n')
     const head = lines.find((l) => l.includes('JUMLAH(Rp)'))!
     const jumlahEnd = head.indexOf('JUMLAH(Rp)') + 'JUMLAH(Rp)'.length
-    for (const label of ['SUBTOTAL :', 'TOTAL :']) {
-      expect(lines.find((l) => l.includes(label))!.trimEnd().length).toBe(jumlahEnd)
-    }
+    const total = lines.find((line) => line.trimStart().startsWith('TOTAL :'))!
+    expect(total.trimEnd().length).toBe(jumlahEnd)
+    expect(lines.indexOf(total)).toBeLessThan(lines.indexOf('Perhatian:'))
   })
 
   it('keeps every printed line within 79 columns', () => {
@@ -118,10 +118,11 @@ describe('buildEscP', () => {
     expect(out).toContain(longName.slice(34))
   })
 
-  it('prints a per-page SUBTOTAL line', () => {
+  it('prints a single order total on a one-page receipt', () => {
     const out = buildEscP(base)
-    expect(out).toContain('SUBTOTAL :')
-    expect(out).toContain('1.325.000') // single-page subtotal == order total here
+    expect(pages(out)).toHaveLength(1)
+    expect(out).not.toContain('SUBTOTAL')
+    expect(out.match(/TOTAL : 1\.325\.000/g)).toHaveLength(1)
   })
 
   it('clamps a long customer address to 79 columns', () => {
@@ -172,12 +173,53 @@ describe('buildEscP', () => {
       }
     })
 
-    it('prints TOTAL only on the last page', () => {
-      const out = buildEscP({ ...base, items: items(30, (i) => `Barang ${i + 1}`) })
+    it('uses the footer space for items and prints the order total and signatures only at the end', () => {
+      const out = buildEscP({
+        ...base,
+        namaPelanggan: 'Terang Jaya',
+        alamatPelanggan: 'Kendari',
+        pengiriman: 'CKL',
+        colly: 4,
+        items: items(50, (i) => `Barang ${i + 1}`),
+        totalPesanan: 50000,
+      })
       const all = pages(out)
-      expect(all.length).toBeGreaterThan(1)
-      expect((visible(out).match(/\bTOTAL\b/g) ?? []).length).toBe(1)
-      expect(all[all.length - 1].join('\n')).toContain('TOTAL')
+      expect(all).toHaveLength(3)
+      for (const page of all.slice(0, -1)) {
+        expect(page.filter((line) => /^\d+\s/.test(line)).length).toBeGreaterThan(10)
+        expect(page.join('\n')).not.toMatch(/TOTAL|Perhatian|Penerima|Exp\.|colly|___/)
+        expect(page[page.length - 1]).toBe('') // LF before FF avoids double-striking the last row
+      }
+      expect(out).not.toContain('SUBTOTAL')
+      const last = all[2].join('\n')
+      expect(last).toContain('BARANG 50')
+      for (const text of ['TOTAL : 50.000', 'Perhatian:', 'Penerima,', 'Exp. CKL ( 4 colly )']) {
+        expect(last).toContain(text)
+      }
+      expect(last.match(/TOTAL :/g)).toHaveLength(1)
+      for (const page of all) expect(page.length).toBeLessThanOrEqual(LINES_PER_PAGE)
+    })
+
+    it('keeps the footer on the same form when it fits exactly, then breaks at one more row', () => {
+      for (const [count, expectedPages] of [[13, 1], [14, 2]]) {
+        const all = pages(buildEscP({ ...base, items: items(count, (i) => `Barang ${i + 1}`) }))
+        expect(all).toHaveLength(expectedPages)
+        const final = all[all.length - 1].join('\n')
+        expect(final).toContain(`BARANG ${count}`)
+        expect(final).toContain('Perhatian:')
+      }
+    })
+
+    it('continues an oversized name across forms without losing rows or repeating amounts', () => {
+      const chunks = Array.from({ length: 50 }, (_, i) => `ROW-${String(i).padStart(2, '0')}`.padEnd(34, 'X'))
+      const receiptItems = [...base.items, ...items(1, () => chunks.join(''))]
+      const all = pages(buildEscP({ ...base, items: receiptItems }))
+      expect(all).toHaveLength(3)
+      for (const page of all) expect(page.length).toBeLessThanOrEqual(LINES_PER_PAGE)
+      expect(all[0].join('\n')).toContain(chunks[0])
+      expect(all[2].join('\n')).toContain(chunks[49])
+      expect(all.flat().join('\n').match(/ROW-\d{2}X+/g)).toEqual(chunks)
+      expect(all.flat().filter((line) => /^3\s/.test(line))).toHaveLength(1)
     })
 
     it('emits one form-feed per page', () => {
